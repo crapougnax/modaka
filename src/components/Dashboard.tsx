@@ -18,6 +18,120 @@ function parseGitUrl(url: string): { owner: string; repo: string } | null {
    return null;
 }
 
+   const applyImportedConfig = async (config: any) => {
+      try {
+         // 1. Update React state inputs
+         if (config.name) setNameInput(config.name);
+         if (config.email) setEmailInput(config.email || '');
+         if (config.lang) setLangInput(config.lang);
+         if (config.llm) {
+            if (config.llm.model) setLlmModel(config.llm.model);
+            if (config.llm.apiKey) setLlmApiKey(config.llm.apiKey);
+         }
+         if (config.okfStorage) {
+            if (config.okfStorage.type) setOkfType(config.okfStorage.type);
+            if (config.okfStorage.githubToken) setGithubToken(config.okfStorage.githubToken);
+            if (config.okfStorage.gitUrl) {
+               setGitUrl(config.okfStorage.gitUrl);
+               const parsed = parseGitUrl(config.okfStorage.gitUrl);
+               if (parsed) {
+                  setRepoOwner(parsed.owner);
+                  setRepoName(parsed.repo);
+               }
+            } else {
+               if (config.okfStorage.repoOwner) setRepoOwner(config.okfStorage.repoOwner);
+               if (config.okfStorage.repoName) setRepoName(config.okfStorage.repoName);
+            }
+            setRepoBranch(config.okfStorage.branch || 'main');
+         }
+         if (config.blobStorage) {
+            if (config.blobStorage.type) setBlobType(config.blobStorage.type);
+            if (config.blobStorage.accessKey) setS3AccessKey(config.blobStorage.accessKey);
+            if (config.blobStorage.secretKey) setS3SecretKey(config.blobStorage.secretKey);
+            if (config.blobStorage.region) setS3Region(config.blobStorage.region);
+            if (config.blobStorage.endpoint) setS3Endpoint(config.blobStorage.endpoint);
+            if (config.blobStorage.bucket) setS3Bucket(config.blobStorage.bucket);
+         }
+         if (config.interests) {
+            if (Array.isArray(config.interests)) {
+               setSelectedInterests(config.interests);
+            }
+         }
+
+         // 2. Build full config to post to backend
+         const configObj = {
+            lang: config.lang || 'fr_FR',
+            name: config.name || '',
+            email: config.email || '',
+            llm: {
+               model: config.llm?.model || 'gemini-2.5-flash',
+               apiKey: config.llm?.apiKey || ''
+            },
+            okfStorage: {
+               type: config.okfStorage?.type || 'local',
+               githubToken: config.okfStorage?.githubToken || '',
+               repoOwner: config.okfStorage?.repoOwner || (config.okfStorage?.gitUrl ? parseGitUrl(config.okfStorage.gitUrl)?.owner : '') || '',
+               repoName: config.okfStorage?.repoName || (config.okfStorage?.gitUrl ? parseGitUrl(config.okfStorage.gitUrl)?.repo : '') || '',
+               gitUrl: config.okfStorage?.gitUrl || '',
+               branch: config.okfStorage?.branch || 'main'
+            },
+            blobStorage: {
+               type: config.blobStorage?.type || 'local',
+               accessKey: config.blobStorage?.accessKey || '',
+               secretKey: config.blobStorage?.secretKey || '',
+               region: config.blobStorage?.region || 'us-east-1',
+               endpoint: config.blobStorage?.endpoint || '',
+               bucket: config.blobStorage?.bucket || 'second-brain'
+            }
+         };
+
+         const configRes = await fetch('/api/config', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(configObj)
+         });
+
+         if (!configRes.ok) {
+            const err = await configRes.json();
+            alert(`Erreur d'importation backend : ${err.error}`);
+            return;
+         }
+
+         // Initialize folders if interests are selected
+         const interests = config.interests || [];
+         if (interests.length > 0) {
+            await fetch('/api/initialize', {
+               method: 'POST',
+               headers: { 'Content-Type': 'application/json' },
+               body: JSON.stringify({ categories: interests })
+            });
+         }
+
+         // 3. Persist local profile and change view mode to configured
+         const newProfile = {
+            name: config.name || '',
+            email: config.email || '',
+            language: config.lang || 'fr_FR',
+            ttsProvider: 'Browser',
+            elevenLabsApiKey: defaultElevenLabsApiKey,
+            elevenLabsVoiceId: defaultElevenLabsVoiceId
+         };
+         setUserProfile(newProfile);
+         localStorage.setItem('sb_user_profile', JSON.stringify(newProfile));
+         localStorage.setItem('sb_app_configured', 'true');
+         setConfigured(true);
+         
+         // Fetch fresh data
+         fetchDocuments();
+         fetchQueue();
+         
+         alert("Configuration importée et appliquée avec succès !");
+      } catch (err: any) {
+         console.error('Failed to apply imported configuration', err);
+         alert("Erreur lors de l'application de la configuration : " + err.message);
+      }
+   };
+
 function compressConfig(config: any): any {
    if (!config) return null;
    return {
@@ -1029,51 +1143,7 @@ export default function Dashboard({
                    inversionAttempts: 'attemptBoth',
                 });
                 if (code) {
-                   try {
-                      const config = decompressConfig(JSON.parse(code.data));
-                      if (config.name) setNameInput(config.name);
-                      if (config.email) setEmailInput(config.email);
-                      if (config.lang) setLangInput(config.lang);
-                      if (config.llm) {
-                         if (config.llm.model) setLlmModel(config.llm.model);
-                         if (config.llm.apiKey) setLlmApiKey(config.llm.apiKey);
-                      }
-                      if (config.okfStorage) {
-                           if (config.okfStorage.type) setOkfType(config.okfStorage.type);
-                           if (config.okfStorage.githubToken) setGithubToken(config.okfStorage.githubToken);
-                           if (config.okfStorage.gitUrl) {
-                              setGitUrl(config.okfStorage.gitUrl);
-                              const parsed = parseGitUrl(config.okfStorage.gitUrl);
-                              if (parsed) {
-                                 setRepoOwner(parsed['owner']);
-                                 setRepoName(parsed['repo']);
-                              }
-                           } else {
-                              if (config.okfStorage.repoOwner) setRepoOwner(config.okfStorage.repoOwner);
-                              if (config.okfStorage.repoName) setRepoName(config.okfStorage.repoName);
-                           }
-                           setRepoBranch(config.okfStorage.branch || 'main');
-                        }
-                      if (config.blobStorage) {
-                         if (config.blobStorage.type) setBlobType(config.blobStorage.type);
-                         if (config.blobStorage.accessKey) setS3AccessKey(config.blobStorage.accessKey);
-                         if (config.blobStorage.secretKey) setS3SecretKey(config.blobStorage.secretKey);
-                         if (config.blobStorage.region) setS3Region(config.blobStorage.region);
-                         if (config.blobStorage.endpoint) setS3Endpoint(config.blobStorage.endpoint);
-                         if (config.blobStorage.bucket) setS3Bucket(config.blobStorage.bucket);
-                      }
-                      if (config.interests) {
-                         try {
-                            // Handle array of ids or deserialize
-                            if (Array.isArray(config.interests)) {
-                               setSelectedInterests(config.interests);
-                            }
-                         } catch (e) {}
-                      }
-                      alert("Configuration importée avec succès à partir de l'image du QR Code !");
-                   } catch (parseErr) {
-                      alert("Le QR Code ne contient pas une configuration valide.");
-                   }
+                   applyImportedConfig(config);
                 } else {
                    alert("Aucun QR Code n'a pu être détecté dans cette image. Assurez-vous que l'image est nette et bien centrée.");
                 }
@@ -1123,49 +1193,7 @@ export default function Dashboard({
                 inversionAttempts: 'attemptBoth',
              });
              if (code) {
-                try {
-                   const config = decompressConfig(JSON.parse(code.data));
-                   if (config.name) setNameInput(config.name);
-                   if (config.email) setEmailInput(config.email);
-                   if (config.lang) setLangInput(config.lang);
-                   if (config.llm) {
-                      if (config.llm.model) setLlmModel(config.llm.model);
-                      if (config.llm.apiKey) setLlmApiKey(config.llm.apiKey);
-                   }
-                   if (config.okfStorage) {
-                       if (config.okfStorage.type) setOkfType(config.okfStorage.type);
-                       if (config.okfStorage.githubToken) setGithubToken(config.okfStorage.githubToken);
-                       if (config.okfStorage.gitUrl) {
-                          setGitUrl(config.okfStorage.gitUrl);
-                          const parsed = parseGitUrl(config.okfStorage.gitUrl);
-                          if (parsed) {
-                             setRepoOwner(parsed['owner']);
-                             setRepoName(parsed['repo']);
-                          }
-                       } else {
-                          if (config.okfStorage.repoOwner) setRepoOwner(config.okfStorage.repoOwner);
-                          if (config.okfStorage.repoName) setRepoName(config.okfStorage.repoName);
-                       }
-                       setRepoBranch(config.okfStorage.branch || 'main');
-                    }
-                   if (config.blobStorage) {
-                      if (config.blobStorage.type) setBlobType(config.blobStorage.type);
-                      if (config.blobStorage.accessKey) setS3AccessKey(config.blobStorage.accessKey);
-                      if (config.blobStorage.secretKey) setS3SecretKey(config.blobStorage.secretKey);
-                      if (config.blobStorage.region) setS3Region(config.blobStorage.region);
-                      if (config.blobStorage.endpoint) setS3Endpoint(config.blobStorage.endpoint);
-                      if (config.blobStorage.bucket) setS3Bucket(config.blobStorage.bucket);
-                   }
-                   if (config.interests && Array.isArray(config.interests)) {
-                      setSelectedInterests(deserializeInterests(config.interests));
-                   }
-                   stopScanner();
-                   alert("Configuration importée avec succès !");
-                   setWizardStep(5); // Go directly to step 5 for review
-                   return;
-                } catch (e) {
-                   console.warn("Invalid QR code config payload", e);
-                }
+                applyImportedConfig(config);
              }
           }
        }
@@ -1990,42 +2018,7 @@ export default function Dashboard({
                      inversionAttempts: 'attemptBoth',
                   });
                   if (code) {
-                     try {
-                        const config = decompressConfig(JSON.parse(code.data));
-                        if (config.name) setNameInput(config.name);
-                        if (config.email) setEmailInput(config.email);
-                        if (config.lang) setLangInput(config.lang);
-                        if (config.llm) {
-                           if (config.llm.model) setLlmModel(config.llm.model);
-                           if (config.llm.apiKey) setLlmApiKey(config.llm.apiKey);
-                        }
-                        if (config.okfStorage) {
-                            if (config.okfStorage.type) setOkfType(config.okfStorage.type);
-                            if (config.okfStorage.githubToken) setGithubToken(config.okfStorage.githubToken);
-                            if (config.okfStorage.repoOwner) setRepoOwner(config.okfStorage.repoOwner);
-                            if (config.okfStorage.repoName) setRepoName(config.okfStorage.repoName);
-                            if (config.okfStorage.gitUrl) setGitUrl(config.okfStorage.gitUrl);
-                            if (config.okfStorage.branch) setRepoBranch(config.okfStorage.branch);
-                        }
-                        if (config.blobStorage) {
-                           if (config.blobStorage.type) setBlobType(config.blobStorage.type);
-                           if (config.blobStorage.accessKey) setS3AccessKey(config.blobStorage.accessKey);
-                           if (config.blobStorage.secretKey) setS3SecretKey(config.blobStorage.secretKey);
-                           if (config.blobStorage.region) setS3Region(config.blobStorage.region);
-                           if (config.blobStorage.endpoint) setS3Endpoint(config.blobStorage.endpoint);
-                           if (config.blobStorage.bucket) setS3Bucket(config.blobStorage.bucket);
-                        }
-                        if (config.interests) {
-                           try {
-                              if (Array.isArray(config.interests)) {
-                                 setSelectedInterests(config.interests);
-                              }
-                           } catch (e) {}
-                        }
-                        alert("Configuration importée avec succès !");
-                     } catch (parseErr) {
-                        alert("Le QR Code ne contient pas une configuration valide.");
-                     }
+                     applyImportedConfig(config);
                   } else {
                      alert("Aucun QR Code n'a pu être détecté sur la photo. Assurez-vous d'être stable, bien éclairé et de cadrer le QR Code de près.");
                   }
