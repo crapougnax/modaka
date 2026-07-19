@@ -17,6 +17,67 @@ function parseGitUrl(url: string): { owner: string; repo: string } | null {
    }
    return null;
 }
+
+function compressConfig(config: any): any {
+   if (!config) return null;
+   return {
+      lg: config.lang,
+      nm: config.name,
+      em: config.email,
+      ai: config.llm ? {
+         md: config.llm.model,
+         ak: config.llm.apiKey
+      } : undefined,
+      ok: config.okfStorage ? {
+         ty: config.okfStorage.type,
+         tk: config.okfStorage.githubToken,
+         ur: config.okfStorage.gitUrl ? config.okfStorage.gitUrl.replace(/^(https?:\/\/github\.com\/|git@github\.com:)/i, '') : ''
+      } : undefined,
+      bl: config.blobStorage ? {
+         type: config.blobStorage.type,
+         ak: config.blobStorage.accessKey,
+         sk: config.blobStorage.secretKey,
+         rg: config.blobStorage.region,
+         ep: config.blobStorage.endpoint,
+         bk: config.blobStorage.bucket
+      } : undefined,
+      in: config.interests
+   };
+}
+
+function decompressConfig(compressed: any): any {
+   if (!compressed) return null;
+   if (compressed.lang || compressed.name || compressed.okfStorage || compressed.blobStorage) {
+      return compressed;
+   }
+   let gitUrl = compressed.ok?.ur || '';
+   if (gitUrl && !gitUrl.includes('://')) {
+      gitUrl = 'https://github.com/' + gitUrl;
+   }
+   return {
+      lang: compressed.lg,
+      name: compressed.nm,
+      email: compressed.em,
+      llm: compressed.ai ? {
+         model: compressed.ai.md,
+         apiKey: compressed.ai.ak
+      } : undefined,
+      okfStorage: compressed.ok ? {
+         type: compressed.ok.ty,
+         githubToken: compressed.ok.tk,
+         gitUrl: gitUrl
+      } : undefined,
+      blobStorage: compressed.bl ? {
+         type: compressed.bl.ty,
+         accessKey: compressed.bl.ak,
+         secretKey: compressed.bl.sk,
+         region: compressed.bl.rg,
+         endpoint: compressed.bl.ep,
+         bucket: compressed.bl.bk
+      } : undefined,
+      interests: compressed.in
+   };
+}
 import { 
    IconMessage, 
    IconFileText, 
@@ -896,7 +957,12 @@ export default function Dashboard({
              },
              interests: serializeInterests(selectedInterests)
           };
-          QRCode.toDataURL(JSON.stringify(configObj))
+          const compressed = compressConfig(configObj);
+           QRCode.toDataURL(JSON.stringify(compressed), {
+              errorCorrectionLevel: 'L',
+              margin: 2,
+              width: 400
+           })
              .then(url => setQrCodeDataUrl(url))
              .catch(err => console.error('Failed to generate QR Code', err));
        }
@@ -964,7 +1030,7 @@ export default function Dashboard({
                 });
                 if (code) {
                    try {
-                      const config = JSON.parse(code.data);
+                      const config = decompressConfig(JSON.parse(code.data));
                       if (config.name) setNameInput(config.name);
                       if (config.email) setEmailInput(config.email);
                       if (config.lang) setLangInput(config.lang);
@@ -1058,7 +1124,7 @@ export default function Dashboard({
              });
              if (code) {
                 try {
-                   const config = JSON.parse(code.data);
+                   const config = decompressConfig(JSON.parse(code.data));
                    if (config.name) setNameInput(config.name);
                    if (config.email) setEmailInput(config.email);
                    if (config.lang) setLangInput(config.lang);
@@ -1913,7 +1979,7 @@ export default function Dashboard({
                   });
                   if (code) {
                      try {
-                        const config = JSON.parse(code.data);
+                        const config = decompressConfig(JSON.parse(code.data));
                         if (config.name) setNameInput(config.name);
                         if (config.email) setEmailInput(config.email);
                         if (config.lang) setLangInput(config.lang);
@@ -4644,8 +4710,8 @@ export default function Dashboard({
                          src={qrCodeDataUrl} 
                          alt="Zoomed QR Code" 
                          style={{ 
-                            width: qrModalZoomed ? '280px' : '200px', 
-                            height: qrModalZoomed ? '280px' : '200px',
+                            width: qrModalZoomed ? '360px' : '260px', 
+                            height: qrModalZoomed ? '360px' : '260px',
                             transition: 'width 0.2s ease, height 0.2s ease'
                          }} 
                       />
