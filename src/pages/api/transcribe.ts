@@ -5,7 +5,7 @@ import { initBackend } from '../../lib/backend';
 export const prerender = false;
 
 export const POST: APIRoute = async ({ request }) => {
-   initBackend();
+   await initBackend();
    try {
       const formData = await request.formData();
       const file = formData.get('file') as File | null;

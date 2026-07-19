@@ -5,7 +5,7 @@ import { ContentItem } from '../../lib/models/ContentItem';
 export const prerender = false;
 
 export const GET: APIRoute = async () => {
-   initBackend();
+   await initBackend();
 
    try {
       const query = ContentItem.query();

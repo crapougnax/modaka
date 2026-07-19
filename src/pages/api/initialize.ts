@@ -52,7 +52,7 @@ const WELCOME_CONTENTS: Record<string, { title: string; summary: string; markdow
 };
 
 export const POST: APIRoute = async ({ request }) => {
-   initBackend();
+   await initBackend();
 
    try {
       const { categories } = await request.json();

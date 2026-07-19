@@ -1,6 +1,6 @@
 import { initBackend, astroAdapter } from '../../lib/backend';
 
-initBackend();
+await initBackend();
 
 import { Storage } from '@quatrain/storage';
 import { ContentItem } from '../../lib/models/ContentItem';

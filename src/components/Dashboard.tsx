@@ -1,5 +1,22 @@
 import React, { useState, useEffect, useRef } from 'react';
+import QRCode from 'qrcode';
+import jsQR from 'jsqr';
 import { AppConfig } from '../config/AppConfig';
+
+function parseGitUrl(url: string): { owner: string; repo: string } | null {
+   if (!url) return null;
+   let clean = url.trim();
+   clean = clean.replace(/^(https?:\/\/github\.com\/|git@github\.com:)/i, '');
+   clean = clean.replace(/\.git$/i, '');
+   const parts = clean.split('/');
+   if (parts.length >= 2) {
+      return {
+         owner: parts[0],
+         repo: parts[1]
+      };
+   }
+   return null;
+}
 import { 
    IconMessage, 
    IconFileText, 
@@ -15,10 +32,40 @@ import {
    IconUser,
    IconVolume,
    IconVolumeOff,
-   IconTrash,
-   IconMicrophone,
-   IconPlayerStop
-} from '@tabler/icons-react';
+       IconTrash,
+       IconMicrophone,
+       IconPlayerStop,
+       IconQrcode
+    } from '@tabler/icons-react';
+
+   const ONBOARDING_SUBTHEMES = [
+      "literature/general",
+      "literature/sci-fi",
+      "literature/essays",
+      "technology/programming",
+      "technology/ai",
+      "technology/security",
+      "health/general",
+      "health/biohacking",
+      "health/neuroscience",
+      "finance/personal",
+      "finance/investment",
+      "finance/economy",
+      "culinary/daily",
+      "culinary/pastry",
+      "culinary/recipes",
+      "travel/hiking",
+      "travel/urban",
+      "travel/exploration"
+   ];
+
+   function serializeInterests(interests: string[]): number[] {
+      return interests.map(k => ONBOARDING_SUBTHEMES.indexOf(k)).filter(idx => idx !== -1);
+   }
+
+   function deserializeInterests(indices: number[]): string[] {
+      return indices.map(idx => ONBOARDING_SUBTHEMES[idx]).filter(Boolean);
+   }
 
 interface ContentItemData {
    id: string;
@@ -38,6 +85,15 @@ interface ContentItemData {
 interface Message {
    role: 'user' | 'assistant';
    content: string;
+   devStats?: {
+      responseTimeMs?: number;
+      ioTimeMs?: number;
+      aiTimeMs?: number;
+      metadataDocsCount?: number;
+      fullDocsCount?: number;
+      inputTokensEstimate?: number;
+      outputTokensEstimate?: number;
+   };
 }
 
 function Markdown({ content }: { content: string }) {
@@ -158,6 +214,7 @@ export default function Dashboard({
    const audioChunksChatRef = useRef<BlobPart[]>([]);
    const shouldSpeakNextRef = useRef(false);
    const [reindexing, setReindexing] = useState(false);
+   const [syncingGit, setSyncingGit] = useState(false);
    const [queueTasks, setQueueTasks] = useState<any[]>([]);
    const [crawlDepth, setCrawlDepth] = useState<number>(0);
    const [devMode, setDevMode] = useState<boolean>(initialDevMode);
@@ -166,13 +223,48 @@ export default function Dashboard({
    const [showProfileModal, setShowProfileModal] = useState<boolean>(false);
    const [loading, setLoading] = useState(true);
    const [userProfile, setUserProfile] = useState({
-      name: 'Olivier Lépine',
-      email: 'olivier@lepine.fr',
+      name: '',
+      email: '',
       language: 'Français',
       ttsProvider: 'Browser',
       elevenLabsApiKey: defaultElevenLabsApiKey,
       elevenLabsVoiceId: defaultElevenLabsVoiceId
    });
+
+   const [configured, setConfigured] = useState(false);
+   const [wizardStep, setWizardStep] = useState(1);
+   const [onboardingMode, setOnboardingMode] = useState<'simple' | 'expert'>('simple');
+   const [showQrModal, setShowQrModal] = useState(false);
+   const [qrModalZoomed, setQrModalZoomed] = useState(false);
+
+   // Onboarding config form states
+   const [nameInput, setNameInput] = useState('');
+   const [emailInput, setEmailInput] = useState('');
+   const [langInput, setLangInput] = useState('Français');
+   const [llmModel, setLlmModel] = useState('gemini-2.5-flash');
+   const [llmApiKey, setLlmApiKey] = useState('');
+
+   const [okfType, setOkfType] = useState<'local' | 'github'>('local');
+   const [githubToken, setGithubToken] = useState('');
+   const [gitUrl, setGitUrl] = useState('');
+   const [repoOwner, setRepoOwner] = useState('');
+   const [repoName, setRepoName] = useState('');
+   const [repoBranch, setRepoBranch] = useState('main');
+
+   const [blobType, setBlobType] = useState<'local' | 's3'>('local');
+   const [s3AccessKey, setS3AccessKey] = useState('');
+   const [s3SecretKey, setS3SecretKey] = useState('');
+   const [s3Region, setS3Region] = useState('us-east-1');
+   const [s3Endpoint, setS3Endpoint] = useState('');
+   const [s3Bucket, setS3Bucket] = useState('second-brain');
+
+   // QR code states
+   const [qrCodeDataUrl, setQrCodeDataUrl] = useState('');
+   const [isScanning, setIsScanning] = useState(false);
+   const [showExportConfig, setShowExportConfig] = useState(false);
+
+   const videoRef = useRef<HTMLVideoElement | null>(null);
+   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
    useEffect(() => {
       const stored = localStorage.getItem('sb_user_profile');
@@ -197,7 +289,167 @@ export default function Dashboard({
       }
    }, [defaultElevenLabsApiKey, defaultElevenLabsVoiceId]);
 
-   useEffect(() => {
+      useEffect(() => {
+         if (AppConfig.apiMode === 'native-bridge') {
+            console.log('[WebView Bridge] Activating local fetch interceptor...');
+            const originalFetch = window.fetch;
+            const pendingRequests: Record<string, {
+               resolve: (res: Response) => void;
+               reject: (err: Error) => void;
+               streamController?: ReadableStreamDefaultController;
+            }> = {};
+            (window as any).__pendingRequests = pendingRequests;
+
+            window.fetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
+               const url = typeof input === 'string' ? input : (input as any).url || '';
+
+               const isNativeRoute = 
+                url.startsWith('/api/config') ||
+                url.startsWith('/api/initialize') ||
+                url.startsWith('/api/content') ||
+                url.startsWith('/api/queue') ||
+                url.startsWith('/api/upload') ||
+                url.startsWith('/api/chat') ||
+                url.startsWith('/api/git-sync') ||
+                url.startsWith('/api/reindex');
+             
+             if (isNativeRoute) {
+                  if (url.startsWith('/api/chat')) {
+                     return new Promise<Response>((resolve) => {
+                        const requestId = Math.random().toString(36).substring(7);
+                        let streamController: ReadableStreamDefaultController | undefined;
+
+                        const readableStream = new ReadableStream({
+                           start(controller) {
+                              streamController = controller;
+                           }
+                        });
+
+                        pendingRequests[requestId] = {
+                           resolve: () => {},
+                           reject: () => {},
+                           streamController
+                        };
+
+                        let bodyStr = '';
+                        if (init?.body) {
+                           bodyStr = typeof init.body === 'string' ? init.body : JSON.stringify(init.body);
+                        }
+
+                        if ((window as any).ReactNativeWebView) {
+                           (window as any).ReactNativeWebView.postMessage(JSON.stringify({
+                              type: 'API_REQUEST',
+                              requestId,
+                              url,
+                              method: init?.method || 'GET',
+                              body: bodyStr
+                           }));
+                        }
+
+                        resolve(new Response(readableStream, {
+                           status: 200,
+                           headers: { 'Content-Type': 'text/event-stream' }
+                        }));
+                     });
+                  }
+
+                  return new Promise<Response>((resolve, reject) => {
+                     const requestId = Math.random().toString(36).substring(7);
+                     pendingRequests[requestId] = { resolve, reject };
+
+                     let bodyStr = '';
+                     if (init?.body) {
+                        if (typeof init.body === 'string') {
+                           bodyStr = init.body;
+                        } else {
+                           try {
+                              bodyStr = JSON.stringify(init.body);
+                           } catch (e) {
+                              bodyStr = String(init.body);
+                           }
+                        }
+                     }
+
+                     if ((window as any).ReactNativeWebView) {
+                        (window as any).ReactNativeWebView.postMessage(JSON.stringify({
+                           type: 'API_REQUEST',
+                           requestId,
+                           url,
+                           method: init?.method || 'GET',
+                           body: bodyStr
+                        }));
+                     } else {
+                        console.warn('[WebView Bridge] ReactNativeWebView is missing! Falling back to original fetch.');
+                        originalFetch(input, init).then(resolve).catch(reject);
+                     }
+                  });
+               }
+               return originalFetch(input, init);
+            };
+
+            (window as any).__handleApiResponse = (requestId: string, status: number, dataStr: string) => {
+               const req = pendingRequests[requestId];
+               if (req) {
+                  delete pendingRequests[requestId];
+                  let responseData = {};
+                  try {
+                     responseData = JSON.parse(dataStr);
+                  } catch (e) {
+                     responseData = { raw: dataStr };
+                  }
+
+                  const response = new Response(JSON.stringify(responseData), {
+                     status,
+                     headers: { 'Content-Type': 'application/json' }
+                  });
+                  req.resolve(response);
+               }
+            };
+
+            (window as any).__handleApiStreamChunk = (requestId: string, chunkStr: string) => {
+               const req = pendingRequests[requestId];
+               if (req && req.streamController) {
+                  const encoder = new TextEncoder();
+                  req.streamController.enqueue(encoder.encode(chunkStr));
+               }
+            };
+
+            (window as any).__handleApiStreamEnd = (requestId: string) => {
+               const req = pendingRequests[requestId];
+               if (req) {
+                  if (req.streamController) {
+                     try {
+                        req.streamController.close();
+                     } catch (e) {}
+                  }
+                  delete pendingRequests[requestId];
+               }
+            };
+
+            const handleAnchorClick = (e: MouseEvent) => {
+               let target = e.target as HTMLElement | null;
+               while (target && target.tagName !== 'A') {
+                  target = target.parentElement;
+               }
+               if (target && target.getAttribute('href') === '/api/export-csv') {
+                  e.preventDefault();
+                  if ((window as any).ReactNativeWebView) {
+                     (window as any).ReactNativeWebView.postMessage(JSON.stringify({
+                        type: 'EXPORT_CSV'
+                     }));
+                  }
+               }
+            };
+            window.addEventListener('click', handleAnchorClick);
+
+            return () => {
+               window.fetch = originalFetch;
+               window.removeEventListener('click', handleAnchorClick);
+            };
+         }
+      }, []);
+
+      useEffect(() => {
       const getCookie = (name: string) => {
          const match = document.cookie.match(new RegExp('(^| )' + name + '=([^;]+)'));
          return match ? match[2] : null;
@@ -283,6 +535,87 @@ export default function Dashboard({
     const [showCategoryModal, setShowCategoryModal] = useState<boolean>(false);
 
     useEffect(() => {
+       if (AppConfig.apiMode === 'native-bridge') {
+          console.log('[WebView Bridge] Activating local fetch interceptor...');
+          const originalFetch = window.fetch;
+          const pendingRequests: Record<string, { resolve: (res: Response) => void; reject: (err: Error) => void }> = {};
+          (window as any).__pendingRequests = pendingRequests;
+          
+          window.fetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
+             const url = typeof input === 'string' ? input : (input as any).url || '';
+             
+             const isNativeRoute = 
+                url.startsWith('/api/config') ||
+                url.startsWith('/api/initialize') ||
+                url.startsWith('/api/content') ||
+                url.startsWith('/api/queue') ||
+                url.startsWith('/api/upload') ||
+                url.startsWith('/api/chat') ||
+                url.startsWith('/api/git-sync') ||
+                url.startsWith('/api/reindex');
+             
+             if (isNativeRoute) {
+                return new Promise<Response>((resolve, reject) => {
+                   const requestId = Math.random().toString(36).substring(7);
+                   pendingRequests[requestId] = { resolve, reject };
+                   
+                   let bodyStr = '';
+                   if (init?.body) {
+                      if (typeof init.body === 'string') {
+                         bodyStr = init.body;
+                      } else {
+                         // Serialise other types if required
+                         try {
+                            bodyStr = JSON.stringify(init.body);
+                         } catch (e) {
+                            bodyStr = String(init.body);
+                         }
+                      }
+                   }
+                   
+                   if ((window as any).ReactNativeWebView) {
+                      (window as any).ReactNativeWebView.postMessage(JSON.stringify({
+                         type: 'API_REQUEST',
+                         requestId,
+                         url,
+                         method: init?.method || 'GET',
+                         body: bodyStr
+                      }));
+                   } else {
+                      console.warn('[WebView Bridge] ReactNativeWebView is missing! Falling back to original fetch.');
+                      originalFetch(input, init).then(resolve).catch(reject);
+                   }
+                });
+             }
+             return originalFetch(input, init);
+          };
+
+          (window as any).__handleApiResponse = (requestId: string, status: number, dataStr: string) => {
+             const req = pendingRequests[requestId];
+             if (req) {
+                delete pendingRequests[requestId];
+                let responseData = {};
+                try {
+                   responseData = JSON.parse(dataStr);
+                } catch (e) {
+                   responseData = { raw: dataStr };
+                }
+                
+                const response = new Response(JSON.stringify(responseData), {
+                   status,
+                   headers: { 'Content-Type': 'application/json' }
+                });
+                req.resolve(response);
+             }
+          };
+
+          return () => {
+             window.fetch = originalFetch;
+          };
+       }
+    }, []);
+
+    useEffect(() => {
        if (showProfileModal) {
           setModalName(userProfile.name);
           setModalEmail(userProfile.email);
@@ -302,6 +635,87 @@ export default function Dashboard({
     const [speakingIndex, setSpeakingIndex] = useState<number | null>(null);
     const activeAudioRef = useRef<HTMLAudioElement | null>(null);
     const unlockedAudioRef = useRef<HTMLAudioElement | null>(null);
+
+    useEffect(() => {
+       if (AppConfig.apiMode === 'native-bridge') {
+          console.log('[WebView Bridge] Activating local fetch interceptor...');
+          const originalFetch = window.fetch;
+          const pendingRequests: Record<string, { resolve: (res: Response) => void; reject: (err: Error) => void }> = {};
+          (window as any).__pendingRequests = pendingRequests;
+          
+          window.fetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
+             const url = typeof input === 'string' ? input : (input as any).url || '';
+             
+             const isNativeRoute = 
+                url.startsWith('/api/config') ||
+                url.startsWith('/api/initialize') ||
+                url.startsWith('/api/content') ||
+                url.startsWith('/api/queue') ||
+                url.startsWith('/api/upload') ||
+                url.startsWith('/api/chat') ||
+                url.startsWith('/api/git-sync') ||
+                url.startsWith('/api/reindex');
+             
+             if (isNativeRoute) {
+                return new Promise<Response>((resolve, reject) => {
+                   const requestId = Math.random().toString(36).substring(7);
+                   pendingRequests[requestId] = { resolve, reject };
+                   
+                   let bodyStr = '';
+                   if (init?.body) {
+                      if (typeof init.body === 'string') {
+                         bodyStr = init.body;
+                      } else {
+                         // Serialise other types if required
+                         try {
+                            bodyStr = JSON.stringify(init.body);
+                         } catch (e) {
+                            bodyStr = String(init.body);
+                         }
+                      }
+                   }
+                   
+                   if ((window as any).ReactNativeWebView) {
+                      (window as any).ReactNativeWebView.postMessage(JSON.stringify({
+                         type: 'API_REQUEST',
+                         requestId,
+                         url,
+                         method: init?.method || 'GET',
+                         body: bodyStr
+                      }));
+                   } else {
+                      console.warn('[WebView Bridge] ReactNativeWebView is missing! Falling back to original fetch.');
+                      originalFetch(input, init).then(resolve).catch(reject);
+                   }
+                });
+             }
+             return originalFetch(input, init);
+          };
+
+          (window as any).__handleApiResponse = (requestId: string, status: number, dataStr: string) => {
+             const req = pendingRequests[requestId];
+             if (req) {
+                delete pendingRequests[requestId];
+                let responseData = {};
+                try {
+                   responseData = JSON.parse(dataStr);
+                } catch (e) {
+                   responseData = { raw: dataStr };
+                }
+                
+                const response = new Response(JSON.stringify(responseData), {
+                   status,
+                   headers: { 'Content-Type': 'application/json' }
+                });
+                req.resolve(response);
+             }
+          };
+
+          return () => {
+             window.fetch = originalFetch;
+          };
+       }
+    }, []);
 
     useEffect(() => {
        const unlockAudio = () => {
@@ -327,6 +741,403 @@ export default function Dashboard({
        return () => {
           window.removeEventListener('click', unlockAudio);
           window.removeEventListener('touchstart', unlockAudio);
+       };
+    }, []);
+
+    // Generate config QR Code
+    useEffect(() => {
+       if (AppConfig.apiMode === 'native-bridge') {
+          console.log('[WebView Bridge] Activating local fetch interceptor...');
+          const originalFetch = window.fetch;
+          const pendingRequests: Record<string, { resolve: (res: Response) => void; reject: (err: Error) => void }> = {};
+          (window as any).__pendingRequests = pendingRequests;
+          
+          window.fetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
+             const url = typeof input === 'string' ? input : (input as any).url || '';
+             
+             const isNativeRoute = 
+                url.startsWith('/api/config') ||
+                url.startsWith('/api/initialize') ||
+                url.startsWith('/api/content') ||
+                url.startsWith('/api/queue') ||
+                url.startsWith('/api/upload') ||
+                url.startsWith('/api/chat') ||
+                url.startsWith('/api/git-sync') ||
+                url.startsWith('/api/reindex');
+             
+             if (isNativeRoute) {
+                return new Promise<Response>((resolve, reject) => {
+                   const requestId = Math.random().toString(36).substring(7);
+                   pendingRequests[requestId] = { resolve, reject };
+                   
+                   let bodyStr = '';
+                   if (init?.body) {
+                      if (typeof init.body === 'string') {
+                         bodyStr = init.body;
+                      } else {
+                         // Serialise other types if required
+                         try {
+                            bodyStr = JSON.stringify(init.body);
+                         } catch (e) {
+                            bodyStr = String(init.body);
+                         }
+                      }
+                   }
+                   
+                   if ((window as any).ReactNativeWebView) {
+                      (window as any).ReactNativeWebView.postMessage(JSON.stringify({
+                         type: 'API_REQUEST',
+                         requestId,
+                         url,
+                         method: init?.method || 'GET',
+                         body: bodyStr
+                      }));
+                   } else {
+                      console.warn('[WebView Bridge] ReactNativeWebView is missing! Falling back to original fetch.');
+                      originalFetch(input, init).then(resolve).catch(reject);
+                   }
+                });
+             }
+             return originalFetch(input, init);
+          };
+
+          (window as any).__handleApiResponse = (requestId: string, status: number, dataStr: string) => {
+             const req = pendingRequests[requestId];
+             if (req) {
+                delete pendingRequests[requestId];
+                let responseData = {};
+                try {
+                   responseData = JSON.parse(dataStr);
+                } catch (e) {
+                   responseData = { raw: dataStr };
+                }
+                
+                const response = new Response(JSON.stringify(responseData), {
+                   status,
+                   headers: { 'Content-Type': 'application/json' }
+                });
+                req.resolve(response);
+             }
+          };
+
+          return () => {
+             window.fetch = originalFetch;
+          };
+       }
+    }, []);
+
+    // Generate config QR Code
+    useEffect(() => {
+       if (wizardStep === 5 || showExportConfig || showQrModal) {
+          const configObj = {
+             lang: langInput,
+             name: nameInput,
+             email: emailInput,
+             llm: { model: llmModel, apiKey: llmApiKey },
+             okfStorage: {
+                type: okfType,
+                githubToken,
+                repoOwner: parseGitUrl(gitUrl)?.owner || repoOwner,
+                repoName: parseGitUrl(gitUrl)?.repo || repoName,
+                gitUrl: gitUrl,
+                branch: repoBranch
+             },
+             blobStorage: {
+                type: blobType,
+                accessKey: s3AccessKey,
+                secretKey: s3SecretKey,
+                region: s3Region,
+                endpoint: s3Endpoint,
+                bucket: s3Bucket
+             },
+             interests: serializeInterests(selectedInterests)
+          };
+          QRCode.toDataURL(JSON.stringify(configObj))
+             .then(url => setQrCodeDataUrl(url))
+             .catch(err => console.error('Failed to generate QR Code', err));
+       }
+    }, [wizardStep, showExportConfig, showQrModal, langInput, nameInput, emailInput, llmModel, llmApiKey, okfType, githubToken, repoOwner, repoName, gitUrl, repoBranch, blobType, s3AccessKey, s3SecretKey, s3Region, s3Endpoint, s3Bucket, selectedInterests]);
+
+    const startScanner = async () => {
+       if ((window as any).ReactNativeWebView) {
+          (window as any).ReactNativeWebView.postMessage(JSON.stringify({
+             type: 'SCAN_QR_CODE'
+          }));
+          return;
+       }
+
+       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+          alert("Votre navigateur ou appareil ne permet pas l'accès en direct à la caméra sur une connexion HTTP non sécurisée. Veuillez utiliser le bouton 'Importer l'image d'un QR Code' pour le prendre en photo ou le charger depuis votre galerie.");
+          return;
+       }
+       setIsScanning(true);
+       try {
+          const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+          if (videoRef.current) {
+             videoRef.current.srcObject = stream;
+             videoRef.current.setAttribute('playsinline', 'true');
+             videoRef.current.play();
+             // Start scanning frame loop
+             setTimeout(() => {
+                requestAnimationFrame(tick);
+             }, 300);
+          }
+       } catch (err: any) {
+          alert("Impossible d'accéder à la caméra : " + err.message);
+          setIsScanning(false);
+       }
+    };
+
+    const handleQrFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+       const file = e.target.files?.[0];
+       if (!file) return;
+
+       const reader = new FileReader();
+       reader.onload = (event) => {
+          const img = new Image();
+          img.onload = () => {
+             const maxDim = 800;
+             let width = img.width;
+             let height = img.height;
+             if (width > maxDim || height > maxDim) {
+                if (width > height) {
+                   height = Math.round((height * maxDim) / width);
+                   width = maxDim;
+                } else {
+                   width = Math.round((width * maxDim) / height);
+                   height = maxDim;
+                 }
+             }
+             const canvas = document.createElement('canvas');
+             const ctx = canvas.getContext('2d');
+             if (ctx) {
+                canvas.width = width;
+                canvas.height = height;
+                ctx.drawImage(img, 0, 0, width, height);
+                const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                const code = jsQR(imageData.data, imageData.width, imageData.height, {
+                   inversionAttempts: 'dontInvert',
+                });
+                if (code) {
+                   try {
+                      const config = JSON.parse(code.data);
+                      if (config.name) setNameInput(config.name);
+                      if (config.email) setEmailInput(config.email);
+                      if (config.lang) setLangInput(config.lang);
+                      if (config.llm) {
+                         if (config.llm.model) setLlmModel(config.llm.model);
+                         if (config.llm.apiKey) setLlmApiKey(config.llm.apiKey);
+                      }
+                      if (config.okfStorage) {
+                          if (config.okfStorage.type) setOkfType(config.okfStorage.type);
+                          if (config.okfStorage.githubToken) setGithubToken(config.okfStorage.githubToken);
+                          if (config.okfStorage.repoOwner) setRepoOwner(config.okfStorage.repoOwner);
+                          if (config.okfStorage.repoName) setRepoName(config.okfStorage.repoName);
+                          if (config.okfStorage.gitUrl) setGitUrl(config.okfStorage.gitUrl);
+                          if (config.okfStorage.branch) setRepoBranch(config.okfStorage.branch);
+                      }
+                      if (config.blobStorage) {
+                         if (config.blobStorage.type) setBlobType(config.blobStorage.type);
+                         if (config.blobStorage.accessKey) setS3AccessKey(config.blobStorage.accessKey);
+                         if (config.blobStorage.secretKey) setS3SecretKey(config.blobStorage.secretKey);
+                         if (config.blobStorage.region) setS3Region(config.blobStorage.region);
+                         if (config.blobStorage.endpoint) setS3Endpoint(config.blobStorage.endpoint);
+                         if (config.blobStorage.bucket) setS3Bucket(config.blobStorage.bucket);
+                      }
+                      if (config.interests) {
+                         try {
+                            // Handle array of ids or deserialize
+                            if (Array.isArray(config.interests)) {
+                               setSelectedInterests(config.interests);
+                            }
+                         } catch (e) {}
+                      }
+                      alert("Configuration importée avec succès à partir de l'image du QR Code !");
+                   } catch (parseErr) {
+                      alert("Le QR Code ne contient pas une configuration valide.");
+                   }
+                } else {
+                   alert("Aucun QR Code n'a pu être détecté dans cette image. Assurez-vous que l'image est nette et bien centrée.");
+                }
+                     }
+                  };
+                  img.src = event.target?.result as string;
+                };
+                reader.readAsDataURL(file);
+             };
+
+             const triggerQrFilePicker = () => {
+                if ((window as any).ReactNativeWebView) {
+                   (window as any).ReactNativeWebView.postMessage(JSON.stringify({
+                      type: 'PICK_QR_IMAGE'
+                   }));
+                } else {
+                   const fileInput = document.getElementById('qr-file-input');
+                   if (fileInput) {
+                      fileInput.click();
+                   }
+                }
+             };
+
+    const stopScanner = () => {
+       if (videoRef.current && videoRef.current.srcObject) {
+          const stream = videoRef.current.srcObject as MediaStream;
+          stream.getTracks().forEach(track => track.stop());
+       }
+       setIsScanning(false);
+    };
+
+    const tick = () => {
+       if (!isScanning) return;
+       if (!videoRef.current || videoRef.current.readyState !== videoRef.current.HAVE_ENOUGH_DATA) {
+          requestAnimationFrame(tick);
+          return;
+       }
+       if (canvasRef.current && videoRef.current) {
+          const canvas = canvasRef.current;
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
+             canvas.width = videoRef.current.videoWidth;
+             canvas.height = videoRef.current.videoHeight;
+             ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
+             const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+             const code = jsQR(imageData.data, imageData.width, imageData.height, {
+                inversionAttempts: 'dontInvert',
+             });
+             if (code) {
+                try {
+                   const config = JSON.parse(code.data);
+                   if (config.name) setNameInput(config.name);
+                   if (config.email) setEmailInput(config.email);
+                   if (config.lang) setLangInput(config.lang);
+                   if (config.llm) {
+                      if (config.llm.model) setLlmModel(config.llm.model);
+                      if (config.llm.apiKey) setLlmApiKey(config.llm.apiKey);
+                   }
+                   if (config.okfStorage) {
+                      if (config.okfStorage.type) setOkfType(config.okfStorage.type);
+                      if (config.okfStorage.githubToken) setGithubToken(config.okfStorage.githubToken);
+                      if (config.okfStorage.repoOwner) setRepoOwner(config.okfStorage.repoOwner);
+                      if (config.okfStorage.repoName) setRepoName(config.okfStorage.repoName);
+                      if (config.okfStorage.branch) setRepoBranch(config.okfStorage.branch);
+                      if (config.okfStorage.gitUrl) {
+                         setGitUrl(config.okfStorage.gitUrl);
+                      } else if (config.okfStorage.repoOwner && config.okfStorage.repoName) {
+                         setGitUrl(`https://github.com/${config.okfStorage.repoOwner}/${config.okfStorage.repoName}`);
+                      }
+                   }
+                   if (config.blobStorage) {
+                      if (config.blobStorage.type) setBlobType(config.blobStorage.type);
+                      if (config.blobStorage.accessKey) setS3AccessKey(config.blobStorage.accessKey);
+                      if (config.blobStorage.secretKey) setS3SecretKey(config.blobStorage.secretKey);
+                      if (config.blobStorage.region) setS3Region(config.blobStorage.region);
+                      if (config.blobStorage.endpoint) setS3Endpoint(config.blobStorage.endpoint);
+                      if (config.blobStorage.bucket) setS3Bucket(config.blobStorage.bucket);
+                   }
+                   if (config.interests && Array.isArray(config.interests)) {
+                      setSelectedInterests(deserializeInterests(config.interests));
+                   }
+                   stopScanner();
+                   alert("Configuration importée avec succès !");
+                   setWizardStep(5); // Go directly to step 5 for review
+                   return;
+                } catch (e) {
+                   console.warn("Invalid QR code config payload", e);
+                }
+             }
+          }
+       }
+       requestAnimationFrame(tick);
+    };
+
+    // Clean up scanner on unmount
+    useEffect(() => {
+       if (AppConfig.apiMode === 'native-bridge') {
+          console.log('[WebView Bridge] Activating local fetch interceptor...');
+          const originalFetch = window.fetch;
+          const pendingRequests: Record<string, { resolve: (res: Response) => void; reject: (err: Error) => void }> = {};
+          (window as any).__pendingRequests = pendingRequests;
+          
+          window.fetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
+             const url = typeof input === 'string' ? input : (input as any).url || '';
+             
+             const isNativeRoute = 
+                url.startsWith('/api/config') ||
+                url.startsWith('/api/initialize') ||
+                url.startsWith('/api/content') ||
+                url.startsWith('/api/queue') ||
+                url.startsWith('/api/upload') ||
+                url.startsWith('/api/chat') ||
+                url.startsWith('/api/git-sync') ||
+                url.startsWith('/api/reindex');
+             
+             if (isNativeRoute) {
+                return new Promise<Response>((resolve, reject) => {
+                   const requestId = Math.random().toString(36).substring(7);
+                   pendingRequests[requestId] = { resolve, reject };
+                   
+                   let bodyStr = '';
+                   if (init?.body) {
+                      if (typeof init.body === 'string') {
+                         bodyStr = init.body;
+                      } else {
+                         // Serialise other types if required
+                         try {
+                            bodyStr = JSON.stringify(init.body);
+                         } catch (e) {
+                            bodyStr = String(init.body);
+                         }
+                      }
+                   }
+                   
+                   if ((window as any).ReactNativeWebView) {
+                      (window as any).ReactNativeWebView.postMessage(JSON.stringify({
+                         type: 'API_REQUEST',
+                         requestId,
+                         url,
+                         method: init?.method || 'GET',
+                         body: bodyStr
+                      }));
+                   } else {
+                      console.warn('[WebView Bridge] ReactNativeWebView is missing! Falling back to original fetch.');
+                      originalFetch(input, init).then(resolve).catch(reject);
+                   }
+                });
+             }
+             return originalFetch(input, init);
+          };
+
+          (window as any).__handleApiResponse = (requestId: string, status: number, dataStr: string) => {
+             const req = pendingRequests[requestId];
+             if (req) {
+                delete pendingRequests[requestId];
+                let responseData = {};
+                try {
+                   responseData = JSON.parse(dataStr);
+                } catch (e) {
+                   responseData = { raw: dataStr };
+                }
+                
+                const response = new Response(JSON.stringify(responseData), {
+                   status,
+                   headers: { 'Content-Type': 'application/json' }
+                });
+                req.resolve(response);
+             }
+          };
+
+          return () => {
+             window.fetch = originalFetch;
+          };
+       }
+    }, []);
+
+    useEffect(() => {
+       return () => {
+          if (videoRef.current && videoRef.current.srcObject) {
+             const stream = videoRef.current.srcObject as MediaStream;
+             stream.getTracks().forEach(track => track.stop());
+          }
        };
     }, []);
 
@@ -496,29 +1307,42 @@ export default function Dashboard({
     const recordingIntervalRef = useRef<any>(null);
 
     const startRecording = async () => {
+       if ((window as any).ReactNativeWebView) {
+          (window as any).ReactNativeWebView.postMessage(JSON.stringify({
+             type: 'TOGGLE_RECORDING',
+             context: 'note'
+          }));
+          setRecording(true);
+          setRecordingSeconds(0);
+          recordingIntervalRef.current = setInterval(() => {
+             setRecordingSeconds(prev => prev + 1);
+          }, 1000);
+          return;
+       }
+
        try {
           const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
           const mediaRecorder = new MediaRecorder(stream);
           mediaRecorderRef.current = mediaRecorder;
-          
+
           const chunks: BlobPart[] = [];
           mediaRecorder.ondataavailable = (e) => {
              if (e.data.size > 0) chunks.push(e.data);
           };
-          
+
           mediaRecorder.onstop = () => {
              const blob = new Blob(chunks, { type: 'audio/wav' });
              setAudioBlob(blob);
              setAudioUrl(URL.createObjectURL(blob));
              stream.getTracks().forEach(track => track.stop());
           };
-          
+
           setAudioBlob(null);
           setAudioUrl('');
           setRecordingSeconds(0);
           mediaRecorder.start();
           setRecording(true);
-          
+
           recordingIntervalRef.current = setInterval(() => {
              setRecordingSeconds(prev => prev + 1);
           }, 1000);
@@ -529,6 +1353,18 @@ export default function Dashboard({
     };
 
     const stopRecording = () => {
+       if ((window as any).ReactNativeWebView) {
+          (window as any).ReactNativeWebView.postMessage(JSON.stringify({
+             type: 'TOGGLE_RECORDING',
+             context: 'note'
+          }));
+          setRecording(false);
+          if (recordingIntervalRef.current) {
+             clearInterval(recordingIntervalRef.current);
+          }
+          return;
+       }
+
        if (mediaRecorderRef.current && recording) {
           mediaRecorderRef.current.stop();
           setRecording(false);
@@ -545,6 +1381,53 @@ export default function Dashboard({
     };
 
    useEffect(() => {
+      const loadConfig = async () => {
+         try {
+            const res = await fetch('/api/config');
+            if (res.ok) {
+               const config = await res.json();
+               if (config.name) {
+                  setNameInput(config.name);
+                  setEmailInput(config.email || '');
+                  setLangInput(config.lang || 'Français');
+                  if (config.llm) {
+                     setLlmModel(config.llm.model || 'gemini-2.5-flash');
+                     setLlmApiKey(config.llm.apiKey || '');
+                  }
+                  if (config.okfStorage) {
+                     setOkfType(config.okfStorage.type || 'local');
+                     setGithubToken(config.okfStorage.githubToken || '');
+                     setRepoOwner(config.okfStorage.repoOwner || '');
+                     setRepoName(config.okfStorage.repoName || '');
+                     setRepoBranch(config.okfStorage.branch || 'main');
+                     setGitUrl(config.okfStorage.gitUrl || (config.okfStorage.repoOwner && config.okfStorage.repoName ? `https://github.com/${config.okfStorage.repoOwner}/${config.okfStorage.repoName}` : ''));
+                  }
+                  if (config.blobStorage) {
+                     setBlobType(config.blobStorage.type || 'local');
+                     setS3AccessKey(config.blobStorage.accessKey || '');
+                     setS3SecretKey(config.blobStorage.secretKey || '');
+                     setS3Region(config.blobStorage.region || 'us-east-1');
+                     setS3Endpoint(config.blobStorage.endpoint || '');
+                     setS3Bucket(config.blobStorage.bucket || 'second-brain');
+                  }
+                              setConfigured(true);
+                              localStorage.setItem('sb_app_configured', 'true');
+                           } else {
+                              setConfigured(false);
+                              localStorage.setItem('sb_app_configured', 'false');
+                           }
+                        } else {
+                           const localConfigured = localStorage.getItem('sb_app_configured') === 'true';
+                           setConfigured(localConfigured);
+                        }
+                     } catch (e) {
+                        console.error('Failed to load backend config', e);
+                        const localConfigured = localStorage.getItem('sb_app_configured') === 'true';
+                        setConfigured(localConfigured);
+                     }
+                  };
+
+      loadConfig();
       fetchDocuments();
       fetchOnboardingOptions();
       fetchQueue();
@@ -768,26 +1651,81 @@ export default function Dashboard({
       }
    };
 
-   const handleInitializeOnboarding = async () => {
-      if (selectedInterests.length === 0) {
-         alert('Veuillez sélectionner au moins un centre d\'intérêt pour démarrer.');
-         return;
-      }
+   const handleSubmitWizard = async () => {
       setInitializing(true);
       try {
-         const res = await fetch('/api/initialize', {
+         const configObj = {
+            lang: langInput,
+            name: nameInput,
+            email: emailInput,
+            llm: { model: llmModel, apiKey: llmApiKey },
+            okfStorage: {
+               type: okfType,
+               githubToken,
+               repoOwner: parseGitUrl(gitUrl)?.owner || repoOwner,
+               repoName: parseGitUrl(gitUrl)?.repo || repoName,
+               gitUrl: gitUrl,
+               branch: repoBranch
+            },
+            blobStorage: {
+               type: blobType,
+               accessKey: s3AccessKey,
+               secretKey: s3SecretKey,
+               region: s3Region,
+               endpoint: s3Endpoint,
+               bucket: s3Bucket
+            }
+         };
+
+         const configRes = await fetch('/api/config', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ categories: selectedInterests })
+            body: JSON.stringify(configObj)
          });
-         if (res.ok) {
+
+         if (!configRes.ok) {
+            const err = await configRes.json();
+            alert(`Erreur d'enregistrement de la configuration: ${err.error}`);
+            setInitializing(false);
+            return;
+         }
+
+         let initOk = true;
+         if (selectedInterests.length > 0) {
+            const initRes = await fetch('/api/initialize', {
+               method: 'POST',
+               headers: { 'Content-Type': 'application/json' },
+               body: JSON.stringify({ categories: selectedInterests })
+            });
+            if (!initRes.ok) {
+               initOk = false;
+               const err = await initRes.json();
+               alert(`Erreur d'initialisation des dossiers: ${err.error}`);
+            }
+         }
+
+         if (initOk) {
+            const newProfile = {
+               name: nameInput,
+               email: emailInput,
+               language: langInput,
+               ttsProvider: 'Browser',
+               elevenLabsApiKey: defaultElevenLabsApiKey,
+               elevenLabsVoiceId: defaultElevenLabsVoiceId
+            };
+            setUserProfile(newProfile);
+            localStorage.setItem('sb_user_profile', JSON.stringify(newProfile));
+            localStorage.setItem('sb_app_configured', 'true');
+            setConfigured(true);
+
             fetchDocuments();
          } else {
-            const err = await res.json();
-            alert(`Erreur d'initialisation: ${err.error}`);
+            const err = await initRes.json();
+            alert(`Erreur d'initialisation des dossiers: ${err.error}`);
          }
       } catch (err) {
-         alert('Erreur réseau lors de l\'initialisation');
+         console.error('Wizard submission failed', err);
+         alert('Erreur réseau lors de la configuration.');
       } finally {
          setInitializing(false);
       }
@@ -906,13 +1844,83 @@ export default function Dashboard({
       (window as any).handleNativeMessage = (data: any) => {
          if (data.type === 'RECORDING_STATE') {
             setIsDictating(data.isRecording);
+            setRecording(data.isRecording);
+            if (!data.isRecording) {
+               if (recordingIntervalRef.current) {
+                  clearInterval(recordingIntervalRef.current);
+               }
+            }
+         } else if (data.type === 'NATIVE_TASK_QUEUED') {
+            setShowUploadModal(false);
+            fetchQueue();
+            alert('Note vocale enregistrée avec succès et ajoutée à la file d\'attente de traitement local.');
          } else if (data.type === 'TRANSCRIPTION_RESULT') {
             if (data.text) {
                handleSendMessage(undefined, data.text);
             }
+         } else if (data.type === 'QR_PHOTO_TAKEN') {
+            console.log('[Native Scanner] Received QR Code image from native app, decoding...');
+            const img = new Image();
+            img.onload = () => {
+               const canvas = document.createElement('canvas');
+               const ctx = canvas.getContext('2d');
+               if (ctx) {
+                  canvas.width = img.width;
+                  canvas.height = img.height;
+                  ctx.drawImage(img, 0, 0, img.width, img.height);
+                  const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                  const code = jsQR(imageData.data, imageData.width, imageData.height, {
+                     inversionAttempts: 'dontInvert',
+                  });
+                  if (code) {
+                     try {
+                        const config = JSON.parse(code.data);
+                        if (config.name) setNameInput(config.name);
+                        if (config.email) setEmailInput(config.email);
+                        if (config.lang) setLangInput(config.lang);
+                        if (config.llm) {
+                           if (config.llm.model) setLlmModel(config.llm.model);
+                           if (config.llm.apiKey) setLlmApiKey(config.llm.apiKey);
+                        }
+                        if (config.okfStorage) {
+                            if (config.okfStorage.type) setOkfType(config.okfStorage.type);
+                            if (config.okfStorage.githubToken) setGithubToken(config.okfStorage.githubToken);
+                            if (config.okfStorage.repoOwner) setRepoOwner(config.okfStorage.repoOwner);
+                            if (config.okfStorage.repoName) setRepoName(config.okfStorage.repoName);
+                            if (config.okfStorage.gitUrl) setGitUrl(config.okfStorage.gitUrl);
+                            if (config.okfStorage.branch) setRepoBranch(config.okfStorage.branch);
+                        }
+                        if (config.blobStorage) {
+                           if (config.blobStorage.type) setBlobType(config.blobStorage.type);
+                           if (config.blobStorage.accessKey) setS3AccessKey(config.blobStorage.accessKey);
+                           if (config.blobStorage.secretKey) setS3SecretKey(config.blobStorage.secretKey);
+                           if (config.blobStorage.region) setS3Region(config.blobStorage.region);
+                           if (config.blobStorage.endpoint) setS3Endpoint(config.blobStorage.endpoint);
+                           if (config.blobStorage.bucket) setS3Bucket(config.blobStorage.bucket);
+                        }
+                        if (config.interests) {
+                           try {
+                              if (Array.isArray(config.interests)) {
+                                 setSelectedInterests(config.interests);
+                              }
+                           } catch (e) {}
+                        }
+                        alert("Configuration importée avec succès !");
+                     } catch (parseErr) {
+                        alert("Le QR Code ne contient pas une configuration valide.");
+                     }
+                  } else {
+                     alert("Aucun QR Code n'a pu être détecté sur la photo. Assurez-vous d'être stable, bien éclairé et de cadrer le QR Code de près.");
+                  }
+               }
+            };
+            img.src = data.base64;
+         } else if (data.type === 'SCAN_QR_ERROR') {
+            alert(`Erreur caméra native : ${data.error}`);
          } else if (data.type === 'RECORDING_ERROR') {
             alert(`Erreur d'enregistrement : ${data.error}`);
             setIsDictating(false);
+            setRecording(false);
          } else if (data.type === 'SPEECH_DONE' || data.type === 'SPEECH_ERROR') {
             setSpeakingIndex(null);
          } else if (data.type === 'NATIVE_LOG') {
@@ -1092,6 +2100,103 @@ export default function Dashboard({
       }
    };
 
+   const handleGitSync = async () => {
+      setSyncingGit(true);
+      try {
+         if ((window as any).ReactNativeWebView) {
+            if (!githubToken || !repoOwner || !repoName) {
+               alert('Configuration GitHub incomplète (Token, Propriétaire, ou Dépôt manquant).');
+               setSyncingGit(false);
+               return;
+            }
+
+            // Dynamically import GithubHttpClient from our new @quatrain/git-client package
+            const { GithubHttpClient } = await import('@quatrain/git-client');
+            const client = new GithubHttpClient({
+               token: githubToken,
+               owner: repoOwner,
+               repo: repoName,
+               branch: repoBranch
+            });
+
+            console.log('[Git Sync Client] Fetching file tree from GitHub...');
+            const tree = await client.fetchFileTree();
+            const noteBlobs = tree.filter((b: any) => 
+               b.type === 'blob' && 
+               b.path.startsWith('content/') && 
+               b.path.endsWith('.md') && 
+               !b.path.endsWith('index.md')
+            );
+
+            console.log(`[Git Sync Client] Found ${noteBlobs.length} notes. Downloading and importing...`);
+
+            let successCount = 0;
+            for (const blob of noteBlobs) {
+               try {
+                  const rawContent = await client.downloadBlob(blob.sha);
+                  const { metadata, body } = client.parseFrontmatter(rawContent);
+
+                  const parts = blob.path.split('/');
+                  const filename = parts[parts.length - 1];
+                  const id = filename.substring(0, filename.lastIndexOf('.')) || filename;
+
+                  const catParts = parts.slice(1, parts.length - 1);
+                  const category = catParts.join('/') || 'inbox';
+
+                  const cleanTitle = metadata.title || id;
+                  const docType = metadata.type || 'document';
+                  const tags = metadata.tags || [];
+                  const summary = metadata.summary || '';
+                  const createdAt = metadata.timestamp || new Date().toISOString();
+
+                  // Post note to the phone's native local database storage
+                  const postRes = await fetch(`/api/content`, {
+                     method: 'POST',
+                     headers: { 'Content-Type': 'application/json' },
+                     body: JSON.stringify({
+                        id,
+                        title: cleanTitle,
+                        type: docType,
+                        category,
+                        tags,
+                        summary,
+                        originalFileUri: `github://${repoOwner}/${repoName}/${blob.path}`,
+                        body: body,
+                        createdAt
+                     })
+                  });
+
+                  if (postRes.ok) {
+                     successCount++;
+                  }
+               } catch (blobErr) {
+                  console.error(`Failed to sync blob ${blob.path}`, blobErr);
+               }
+            }
+
+            alert(`Synchronisation terminée avec succès : ${successCount}/${noteBlobs.length} fiches importées sur le téléphone !`);
+            fetchDocuments();
+         } else {
+            const res = await fetch('/api/git-sync', {
+               method: 'POST'
+            });
+            const data = await res.json();
+            if (res.ok && data.success) {
+               alert('Synchronisation Git terminée avec succès (Pull & Push effectués) !');
+               fetchDocuments();
+            } else {
+               alert(`Erreur de synchronisation Git : ${data.message || 'Erreur inconnue'}`);
+            }
+         }
+      } catch (err: any) {
+         console.error('Failed to trigger Git sync', err);
+         alert(`Erreur lors de la synchronisation Git : ${err.message || err}`);
+      } finally {
+         setSyncingGit(false);
+      }
+   };
+
+
    const getCategoryCardClass = (cat?: string) => {
       switch (cat) {
          case 'work': return 'card-teal';
@@ -1148,6 +2253,30 @@ export default function Dashboard({
              <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
 
                  <button
+                     onClick={() => {
+                        setQrModalZoomed(false);
+                        setShowQrModal(true);
+                     }}
+                     style={{
+                        background: 'rgba(255,255,255,0.05)',
+                        border: '1px solid rgba(255,255,255,0.08)',
+                        borderRadius: '10px',
+                        width: '38px',
+                        height: '38px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        color: 'white',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s ease',
+                        marginRight: '8px'
+                     }}
+                     title="Afficher le QR Code de configuration"
+                  >
+                     <IconQrcode size={18} />
+                  </button>
+
+                 <button
                      onClick={() => setShowProfileModal(true)}
                      style={{
                         background: 'rgba(255,255,255,0.05)',
@@ -1179,117 +2308,728 @@ export default function Dashboard({
               </div>
           </header>
 
-          {documents.length === 0 ? (
-             <main style={{ flex: 1, padding: '40px 24px', overflowY: 'auto', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', maxWidth: '600px', margin: '0 auto', gap: '24px' }}>
-                <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          {!configured ? (
+             <main style={{ flex: 1, padding: '40px 24px', overflowY: 'auto', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', maxWidth: '600px', margin: '0 auto', gap: '24px', width: '100%' }}>
+                {isScanning && (
+                   <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'black', zIndex: 2000, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+                      <h3 style={{ color: 'white', marginBottom: '16px' }}>Alignez le QR Code dans le cadre</h3>
+                      <div style={{ position: 'relative', width: '280px', height: '280px', border: '3px solid var(--color-vivid-green)', borderRadius: '16px', overflow: 'hidden' }}>
+                         <video ref={videoRef} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      </div>
+                      <canvas ref={canvasRef} style={{ display: 'none' }} />
+                      <button 
+                         onClick={stopScanner}
+                         className="action-button btn-secondary"
+                         style={{ marginTop: '24px', width: '200px', height: '48px', fontSize: '15px', cursor: 'pointer' }}
+                      >
+                         Annuler
+                         </button>
+
+                         {devMode && (
+                            <div 
+                               style={{ 
+                                  marginTop: '24px', 
+                                  padding: '16px', 
+                                  borderRadius: '16px', 
+                                  backgroundColor: 'rgba(239, 68, 68, 0.05)', 
+                                  border: '1px solid rgba(239, 68, 68, 0.2)',
+                                  display: 'flex',
+                                  flexDirection: 'column',
+                                  gap: '12px'
+                               }}
+                            >
+                               <h4 style={{ margin: 0, fontSize: '14px', fontWeight: 'bold', color: '#f87171', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                  🛠️ Outils de Test & Debug (Mode Développeur)
+                               </h4>
+                               <p style={{ margin: 0, fontSize: '11px', color: 'rgba(255,255,255,0.5)', lineHeight: '1.4' }}>
+                                  Ces boutons vous permettent de forcer la synchronisation ou de valider le fonctionnement de vos services.
+                               </p>
+
+                               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '4px' }}>
+                                  <button
+                                     onClick={handleGitSync}
+                                     disabled={syncingGit}
+                                     className="action-button"
+                                     style={{ 
+                                        flex: 1, 
+                                        minWidth: '150px', 
+                                        height: '42px', 
+                                        fontSize: '12px', 
+                                        backgroundColor: '#ef4444', 
+                                        color: 'white', 
+                                        fontWeight: '600',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        gap: '6px',
+                                        cursor: 'pointer'
+                                     }}
+                                  >
+                                     {syncingGit ? (
+                                        <IconLoader2 style={{ animation: 'spin 1s linear infinite' }} size={16} />
+                                     ) : (
+                                        <>🔄 Forcer Synchro Git (Pull & Push)</>
+                                     )}
+                                  </button>
+
+                                  <button
+                                     onClick={handleReindex}
+                                     disabled={reindexing}
+                                     className="action-button btn-secondary"
+                                     style={{ 
+                                        flex: 1, 
+                                        minWidth: '150px', 
+                                        height: '42px', 
+                                        fontSize: '12px', 
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        gap: '6px',
+                                        cursor: 'pointer'
+                                     }}
+                                  >
+                                     {reindexing ? (
+                                        <IconLoader2 style={{ animation: 'spin 1s linear infinite' }} size={16} />
+                                     ) : (
+                                        <>📂 Forcer Réindexation (index.md)</>
+                                     )}
+                                  </button>
+                               </div>
+                            </div>
+                         )}
+                      </div>
+                )}
+
+                {/* Header */}
+                <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', gap: '12px', width: '100%' }}>
                    <div style={{ width: '64px', height: '64px', borderRadius: '16px', background: 'linear-gradient(135deg, var(--color-vivid-green), #06b6d4)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto', fontSize: '28px', fontWeight: 900 }}>{AppConfig.logoEmoji}</div>
-                   <h2 style={{ fontSize: '28px', color: 'var(--color-vivid-green)', letterSpacing: '-0.5px', marginTop: '12px' }}>Bienvenue dans {AppConfig.name}</h2>
-                   <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: '15px', lineHeight: '1.5' }}>
-                      {AppConfig.tagline} est prête. Sélectionnez vos passions et centres d'intérêt pour initialiser la première structure de dossiers :
-                   </p>
+                   <h2 style={{ fontSize: '24px', color: 'var(--color-vivid-green)', letterSpacing: '-0.5px', marginTop: '12px' }}>Configuration de {AppConfig.name}</h2>
+                      <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: '13px', margin: 0 }}>
+                         {onboardingMode === 'simple' 
+                            ? `Étape ${wizardStep === 1 ? 1 : 2} sur 2` 
+                            : `Étape ${wizardStep} sur 5`}
+                      </p>
+                      {/* Step indicator pills */}
+                      <div style={{ display: 'flex', gap: '6px', justifyContent: 'center', marginTop: '4px' }}>
+                         {(onboardingMode === 'simple' ? [1, 5] : [1, 2, 3, 4, 5]).map(step => (
+                            <div 
+                               key={step} 
+                               style={{ 
+                                  width: '24px', 
+                                  height: '4px', 
+                                  borderRadius: '2px', 
+                                  backgroundColor: step === wizardStep ? 'var(--color-vivid-green)' : (wizardStep === 5 || step < wizardStep) ? 'rgba(0, 229, 153, 0.3)' : 'rgba(255,255,255,0.1)' 
+                               }} 
+                            />
+                         ))}
+                      </div>
+                   </div>
+
+                   <div style={{ width: '100%', backgroundColor: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '16px', padding: '24px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+
+                      {/* STEP 1: Profile, Language & LLM */}
+                      {wizardStep === 1 && (
+                         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                            <button 
+                               type="button"
+                               onClick={startScanner}
+                               className="action-button btn-secondary"
+                               style={{ width: '100%', height: '48px', fontSize: '14px', gap: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+                            >
+                               <IconUser size={18} />
+                               Scanner un QR Code de configuration
+                            </button>
+
+                            <button 
+                               type="button"
+                               onClick={triggerQrFilePicker}
+                               className="action-button btn-secondary"
+                               style={{ width: '100%', height: '48px', fontSize: '14px', gap: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', margin: 0 }}
+                            >
+                               <IconUser size={18} />
+                               Importer l'image d'un QR Code
+                            </button>
+                            <input 
+                               type="file" 
+                               id="qr-file-input"
+                               accept="image/*" 
+                               onChange={handleQrFileSelect} 
+                               style={{ display: 'none' }} 
+                            />
+
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                               <label style={{ fontSize: '13px', fontWeight: '500', color: 'rgba(255,255,255,0.7)' }}>Mode de configuration</label>
+                               <div style={{ display: 'flex', gap: '10px' }}>
+                                  <button
+                                     type="button"
+                                     onClick={() => setOnboardingMode('simple')}
+                                     style={{
+                                        flex: 1,
+                                        padding: '12px 8px',
+                                        borderRadius: '10px',
+                                        backgroundColor: onboardingMode === 'simple' ? 'rgba(0, 229, 153, 0.05)' : 'rgba(255,255,255,0.02)',
+                                        border: `1px solid ${onboardingMode === 'simple' ? 'var(--color-vivid-green)' : 'rgba(255,255,255,0.06)'}`,
+                                        color: onboardingMode === 'simple' ? 'var(--color-vivid-green)' : 'white',
+                                        cursor: 'pointer',
+                                        transition: 'all 0.2s ease',
+                                        display: 'flex',
+                                        flexDirection: 'column',
+                                        alignItems: 'center',
+                                        gap: '4px'
+                                     }}
+                                  >
+                                     <span style={{ fontSize: '13px', fontWeight: 'bold' }}>⚡ Simple</span>
+                                     <span style={{ fontSize: '10px', opacity: 0.6 }}>Profil & IA uniquement</span>
+                                  </button>
+
+                                  <button
+                                     type="button"
+                                     onClick={() => setOnboardingMode('expert')}
+                                     style={{
+                                        flex: 1,
+                                        padding: '12px 8px',
+                                        borderRadius: '10px',
+                                        backgroundColor: onboardingMode === 'expert' ? 'rgba(0, 229, 153, 0.05)' : 'rgba(255,255,255,0.02)',
+                                        border: `1px solid ${onboardingMode === 'expert' ? 'var(--color-vivid-green)' : 'rgba(255,255,255,0.06)'}`,
+                                        color: onboardingMode === 'expert' ? 'var(--color-vivid-green)' : 'white',
+                                        cursor: 'pointer',
+                                        transition: 'all 0.2s ease',
+                                        display: 'flex',
+                                        flexDirection: 'column',
+                                        alignItems: 'center',
+                                        gap: '4px'
+                                     }}
+                                  >
+                                     <span style={{ fontSize: '13px', fontWeight: 'bold' }}>⚙️ Expert</span>
+                                     <span style={{ fontSize: '10px', opacity: 0.6 }}>Stockage & thèmes</span>
+                                  </button>
+                               </div>
+                            </div>
+
+                            <div style={{ borderBottom: '1px solid rgba(255,255,255,0.06)', paddingBottom: '8px', textAlign: 'center', color: 'rgba(255,255,255,0.4)', fontSize: '12px' }}>
+                               OU CONFIGURER MANUELLEMENT :
+                            </div>
+
+                         <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                            <label style={{ fontSize: '13px', fontWeight: '500', color: 'rgba(255,255,255,0.7)' }}>Langue de communication</label>
+                            <div style={{ display: 'flex', gap: '10px' }}>
+                               {[
+                                  { key: 'Français', flag: '🇫🇷', label: 'Français' },
+                                  { key: 'English', flag: '🇬🇧', label: 'English' },
+                                  { key: 'Español', flag: '🇪🇸', label: 'Español' }
+                               ].map(lang => (
+                                  <button
+                                     key={lang.key}
+                                     type="button"
+                                     onClick={() => setLangInput(lang.key)}
+                                     style={{
+                                        flex: 1,
+                                        height: '56px',
+                                        borderRadius: '10px',
+                                        backgroundColor: langInput === lang.key ? 'rgba(0, 229, 153, 0.05)' : 'rgba(255,255,255,0.02)',
+                                        border: `1px solid ${langInput === lang.key ? 'var(--color-vivid-green)' : 'rgba(255,255,255,0.06)'}`,
+                                        color: langInput === lang.key ? 'var(--color-vivid-green)' : 'white',
+                                        display: 'flex',
+                                        flexDirection: 'column',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        gap: '4px',
+                                        cursor: 'pointer',
+                                        transition: 'all 0.2s ease'
+                                     }}
+                                  >
+                                     <span style={{ fontSize: '18px' }}>{lang.flag}</span>
+                                     <span style={{ fontSize: '11px', fontWeight: '600' }}>{lang.label}</span>
+                                  </button>
+                               ))}
+                            </div>
+                         </div>
+
+                         <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                            <label style={{ fontSize: '13px', fontWeight: '500', color: 'rgba(255,255,255,0.7)' }}>Prénom [Nom]</label>
+                            <input 
+                               type="text" 
+                               placeholder="Votre prénom et nom" 
+                               value={nameInput} 
+                               onChange={(e) => setNameInput(e.target.value)}
+                               autoCapitalize="none"
+                               autoCorrect="off"
+                               autoComplete="off"
+                               style={{ width: '100%', height: '42px', borderRadius: '8px', backgroundColor: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'white', padding: '0 12px', fontSize: '14px', boxSizing: 'border-box' }}
+                            />
+                         </div>
+
+                         <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                            <label style={{ fontSize: '13px', fontWeight: '500', color: 'rgba(255,255,255,0.7)' }}>Adresse Email (facultatif)</label>
+                            <input 
+                               type="email" 
+                               placeholder="Votre adresse email" 
+                               value={emailInput} 
+                               onChange={(e) => setEmailInput(e.target.value)}
+                               autoCapitalize="none"
+                               autoCorrect="off"
+                               autoComplete="off"
+                               style={{ width: '100%', height: '42px', borderRadius: '8px', backgroundColor: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'white', padding: '0 12px', fontSize: '14px', boxSizing: 'border-box' }}
+                            />
+                         </div>
+
+                         <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                            <label style={{ fontSize: '13px', fontWeight: '500', color: 'rgba(255,255,255,0.7)' }}>Modèle de LLM</label>
+                            <select 
+                               value={llmModel} 
+                               onChange={(e) => setLlmModel(e.target.value)}
+                               style={{ width: '100%', height: '42px', borderRadius: '8px', backgroundColor: '#182030', border: '1px solid rgba(255,255,255,0.1)', color: 'white', padding: '0 12px', fontSize: '14px' }}
+                            >
+                               <option value="gemini-2.5-flash">Gemini 2.5 Flash (Recommandé)</option>
+                               <option value="gemini-2.5-pro">Gemini 2.5 Pro</option>
+                            </select>
+                         </div>
+
+                         <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                            <label style={{ fontSize: '13px', fontWeight: '500', color: 'rgba(255,255,255,0.7)' }}>Clé API Google AI Studio</label>
+                            <input 
+                               type="password" 
+                               placeholder="Clé API AIzaSy..." 
+                               value={llmApiKey} 
+                               onChange={(e) => setLlmApiKey(e.target.value)}
+                               autoCapitalize="none"
+                               autoCorrect="off"
+                               autoComplete="off"
+                               style={{ width: '100%', height: '42px', borderRadius: '8px', backgroundColor: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'white', padding: '0 12px', fontSize: '14px', boxSizing: 'border-box' }}
+                            />
+                            <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)', margin: 0 }}>
+                               Clé API Gemini requise pour faire fonctionner l'IA. Elle reste stockée localement sur votre téléphone.
+                            </p>
+                         </div>
+                      </div>
+                   )}
+
+                   {/* STEP 2: OKF Metadata Storage */}
+                   {wizardStep === 2 && (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                         <div style={{ fontSize: '13px', color: 'rgba(255,255,255,0.8)', marginBottom: '8px', lineHeight: '1.5' }}>
+                            Choisissez comment vos fiches de connaissances et métadonnées OKF (Open Knowledge Format) sont conservées et synchronisées.
+                         </div>
+
+                         <div style={{ display: 'flex', gap: '12px' }}>
+                            <button
+                               type="button"
+                               onClick={() => setOkfType('local')}
+                               style={{
+                                  flex: 1,
+                                  padding: '16px',
+                                  borderRadius: '12px',
+                                  backgroundColor: okfType === 'local' ? 'rgba(0, 229, 153, 0.05)' : 'rgba(255,255,255,0.02)',
+                                  border: `1px solid ${okfType === 'local' ? 'var(--color-vivid-green)' : 'rgba(255,255,255,0.06)'}`,
+                                  color: okfType === 'local' ? 'var(--color-vivid-green)' : 'white',
+                                  cursor: 'pointer',
+                                  textAlign: 'center',
+                                  transition: 'all 0.2s ease'
+                               }}
+                            >
+                               <div style={{ fontWeight: 'bold', fontSize: '14px', marginBottom: '4px' }}>Local Pur</div>
+                               <div style={{ fontSize: '10px', opacity: 0.6 }}>Sur cet appareil uniquement</div>
+                            </button>
+
+                            <button
+                               type="button"
+                               onClick={() => setOkfType('github')}
+                               style={{
+                                  flex: 1,
+                                  padding: '16px',
+                                  borderRadius: '12px',
+                                  backgroundColor: okfType === 'github' ? 'rgba(0, 229, 153, 0.05)' : 'rgba(255,255,255,0.02)',
+                                  border: `1px solid ${okfType === 'github' ? 'var(--color-vivid-green)' : 'rgba(255,255,255,0.06)'}`,
+                                  color: okfType === 'github' ? 'var(--color-vivid-green)' : 'white',
+                                  cursor: 'pointer',
+                                  textAlign: 'center',
+                                  transition: 'all 0.2s ease'
+                               }}
+                            >
+                               <div style={{ fontWeight: 'bold', fontSize: '14px', marginBottom: '4px' }}>Dépôt GitHub</div>
+                               <div style={{ fontSize: '10px', opacity: 0.6 }}>Sauvegarde et versioning cloud</div>
+                            </button>
+                         </div>
+
+                         {okfType === 'github' && (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '8px', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '16px' }}>
+                               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                  <label style={{ fontSize: '13px', fontWeight: '500', color: 'rgba(255,255,255,0.7)' }}>URL du dépôt Git (HTTPS ou SSH)</label>
+                                  <input 
+                                     type="text" 
+                                     placeholder="https://github.com/votre-nom/votre-depot" 
+                                     value={gitUrl} 
+                                     onChange={(e) => setGitUrl(e.target.value)}
+                                     autoCapitalize="none"
+                                     autoCorrect="off"
+                                     autoComplete="off"
+                                     style={{ width: '100%', height: '42px', borderRadius: '8px', backgroundColor: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'white', padding: '0 12px', fontSize: '14px', boxSizing: 'border-box' }}
+                                  />
+                               </div>
+
+                               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                  <label style={{ fontSize: '13px', fontWeight: '500', color: 'rgba(255,255,255,0.7)' }}>Personal Access Token (PAT GitHub)</label>
+                                  <input 
+                                     type="password" 
+                                     placeholder="ghp_... (facultatif si public ou SSH)" 
+                                     value={githubToken} 
+                                     onChange={(e) => setGithubToken(e.target.value)}
+                                     autoCapitalize="none"
+                                     autoCorrect="off"
+                                     autoComplete="off"
+                                     style={{ width: '100%', height: '42px', borderRadius: '8px', backgroundColor: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'white', padding: '0 12px', fontSize: '14px', boxSizing: 'border-box' }}
+                                  />
+                               </div>
+
+                               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                  <label style={{ fontSize: '13px', fontWeight: '500', color: 'rgba(255,255,255,0.7)' }}>Branche du dépôt</label>
+                                  <input 
+                                     type="text" 
+                                     value={repoBranch} 
+                                     onChange={(e) => setRepoBranch(e.target.value)}
+                                     autoCapitalize="none"
+                                     autoCorrect="off"
+                                     autoComplete="off"
+                                     style={{ width: '100%', height: '42px', borderRadius: '8px', backgroundColor: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'white', padding: '0 12px', fontSize: '14px', boxSizing: 'border-box' }}
+                                  />
+                               </div>
+                            </div>
+                         )}
+                      </div>
+                   )}
+
+                   {/* STEP 3: Blob File Storage */}
+                   {wizardStep === 3 && (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                         <div style={{ fontSize: '13px', color: 'rgba(255,255,255,0.8)', marginBottom: '8px', lineHeight: '1.5' }}>
+                            Choisissez l'emplacement de stockage pour vos fichiers volumineux (documents PDF importés, enregistrements audio, images).
+                         </div>
+
+                         <div style={{ display: 'flex', gap: '12px' }}>
+                            <button
+                               type="button"
+                               onClick={() => setBlobType('local')}
+                               style={{
+                                  flex: 1,
+                                  padding: '16px',
+                                  borderRadius: '12px',
+                                  backgroundColor: blobType === 'local' ? 'rgba(0, 229, 153, 0.05)' : 'rgba(255,255,255,0.02)',
+                                  border: `1px solid ${blobType === 'local' ? 'var(--color-vivid-green)' : 'rgba(255,255,255,0.06)'}`,
+                                  color: blobType === 'local' ? 'var(--color-vivid-green)' : 'white',
+                                  cursor: 'pointer',
+                                  textAlign: 'center',
+                                  transition: 'all 0.2s ease'
+                               }}
+                            >
+                               <div style={{ fontWeight: 'bold', fontSize: '14px', marginBottom: '4px' }}>Local Pur</div>
+                               <div style={{ fontSize: '10px', opacity: 0.6 }}>Dans le dossier local de l'app</div>
+                            </button>
+
+                            <button
+                               type="button"
+                               onClick={() => setBlobType('s3')}
+                               style={{
+                                  flex: 1,
+                                  padding: '16px',
+                                  borderRadius: '12px',
+                                  backgroundColor: blobType === 's3' ? 'rgba(0, 229, 153, 0.05)' : 'rgba(255,255,255,0.02)',
+                                  border: `1px solid ${blobType === 's3' ? 'var(--color-vivid-green)' : 'rgba(255,255,255,0.06)'}`,
+                                  color: blobType === 's3' ? 'var(--color-vivid-green)' : 'white',
+                                  cursor: 'pointer',
+                                  textAlign: 'center',
+                                  transition: 'all 0.2s ease'
+                               }}
+                            >
+                               <div style={{ fontWeight: 'bold', fontSize: '14px', marginBottom: '4px' }}>Cloud S3</div>
+                               <div style={{ fontSize: '10px', opacity: 0.6 }}>Scaleway, AWS S3, MinIO, etc.</div>
+                            </button>
+                         </div>
+
+                         {blobType === 's3' && (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '8px', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '16px' }}>
+                               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                  <label style={{ fontSize: '13px', fontWeight: '500', color: 'rgba(255,255,255,0.7)' }}>Clé d'accès (Access Key ID)</label>
+                                  <input 
+                                     type="text" 
+                                     placeholder="Access Key ID..." 
+                                     value={s3AccessKey} 
+                                     onChange={(e) => setS3AccessKey(e.target.value)}
+                                     autoCapitalize="none"
+                                     autoCorrect="off"
+                                     autoComplete="off"
+                                     style={{ width: '100%', height: '42px', borderRadius: '8px', backgroundColor: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'white', padding: '0 12px', fontSize: '14px', boxSizing: 'border-box' }}
+                                  />
+                               </div>
+
+                               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                  <label style={{ fontSize: '13px', fontWeight: '500', color: 'rgba(255,255,255,0.7)' }}>Clé secrète (Secret Access Key)</label>
+                                  <input 
+                                     type="password" 
+                                     placeholder="Secret Access Key..." 
+                                     value={s3SecretKey} 
+                                     onChange={(e) => setS3SecretKey(e.target.value)}
+                                     autoCapitalize="none"
+                                     autoCorrect="off"
+                                     autoComplete="off"
+                                     style={{ width: '100%', height: '42px', borderRadius: '8px', backgroundColor: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'white', padding: '0 12px', fontSize: '14px', boxSizing: 'border-box' }}
+                                  />
+                               </div>
+
+                               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                  <label style={{ fontSize: '13px', fontWeight: '500', color: 'rgba(255,255,255,0.7)' }}>Région</label>
+                                  <input 
+                                     type="text" 
+                                     placeholder="Région S3" 
+                                     value={s3Region} 
+                                     onChange={(e) => setS3Region(e.target.value)}
+                                     autoCapitalize="none"
+                                     autoCorrect="off"
+                                     autoComplete="off"
+                                     style={{ width: '100%', height: '42px', borderRadius: '8px', backgroundColor: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'white', padding: '0 12px', fontSize: '14px', boxSizing: 'border-box' }}
+                                  />
+                               </div>
+
+                               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                  <label style={{ fontSize: '13px', fontWeight: '500', color: 'rgba(255,255,255,0.7)' }}>Point de terminaison (Endpoint URL)</label>
+                                  <input 
+                                     type="text" 
+                                     placeholder="Endpoint URL (ex: https://...)" 
+                                     value={s3Endpoint} 
+                                     onChange={(e) => setS3Endpoint(e.target.value)}
+                                     autoCapitalize="none"
+                                     autoCorrect="off"
+                                     autoComplete="off"
+                                     style={{ width: '100%', height: '42px', borderRadius: '8px', backgroundColor: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'white', padding: '0 12px', fontSize: '14px', boxSizing: 'border-box' }}
+                                  />
+                               </div>
+
+                               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                  <label style={{ fontSize: '13px', fontWeight: '500', color: 'rgba(255,255,255,0.7)' }}>Nom du Bucket</label>
+                                  <input 
+                                     type="text" 
+                                     value={s3Bucket} 
+                                     onChange={(e) => setS3Bucket(e.target.value)}
+                                     autoCapitalize="none"
+                                     autoCorrect="off"
+                                     autoComplete="off"
+                                     style={{ width: '100%', height: '42px', borderRadius: '8px', backgroundColor: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'white', padding: '0 12px', fontSize: '14px', boxSizing: 'border-box' }}
+                                  />
+                               </div>
+                            </div>
+                         )}
+                      </div>
+                   )}
+
+                   {/* STEP 4: Interests / Preferred Themes */}
+                   {wizardStep === 4 && (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                         <div style={{ fontSize: '13px', color: 'rgba(255,255,255,0.8)', marginBottom: '8px', lineHeight: '1.5' }}>
+                            Sélectionnez vos thèmes et passions pour pré-initialiser vos dossiers et guides d'accueil.
+                         </div>
+
+                         <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', maxHeight: '300px', overflowY: 'auto', paddingRight: '4px' }}>
+                            {onboardingOptions.map(opt => {
+                               const isExpanded = expandedInterests.includes(opt.key);
+                               const selectedCount = (opt.subthemes || []).filter((sub: any) => selectedInterests.includes(sub.key)).length;
+                               return (
+                                  <div 
+                                     key={opt.key}
+                                     style={{
+                                        padding: '12px',
+                                        borderRadius: '12px',
+                                        border: `1px solid ${selectedCount > 0 ? 'var(--color-vivid-green)' : 'rgba(255,255,255,0.06)'}`,
+                                        backgroundColor: 'rgba(255,255,255,0.01)',
+                                        display: 'flex',
+                                        flexDirection: 'column',
+                                        gap: '8px'
+                                     }}
+                                  >
+                                     <div 
+                                        onClick={() => {
+                                           setExpandedInterests(prev => isExpanded ? prev.filter(k => k !== opt.key) : [...prev, opt.key]);
+                                        }}
+                                        style={{
+                                           cursor: 'pointer',
+                                           display: 'flex',
+                                           justifyContent: 'space-between',
+                                           alignItems: 'center'
+                                        }}
+                                     >
+                                        <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                           <span style={{ fontWeight: '600', fontSize: '14px', color: selectedCount > 0 ? 'var(--color-vivid-green)' : 'white', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                              {opt.label}
+                                              {selectedCount > 0 && (
+                                                 <span style={{ fontSize: '10px', backgroundColor: 'rgba(0, 229, 153, 0.15)', color: 'var(--color-vivid-green)', padding: '1px 6px', borderRadius: '8px' }}>
+                                                    {selectedCount}
+                                                 </span>
+                                              )}
+                                           </span>
+                                           <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)' }}>{opt.desc}</span>
+                                        </div>
+                                        <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: '12px' }}>
+                                           {isExpanded ? '▼' : '▶'}
+                                        </span>
+                                     </div>
+
+                                     {isExpanded && opt.subthemes && (
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '8px' }}>
+                                           {opt.subthemes.map((sub: any) => {
+                                              const isSelected = selectedInterests.includes(sub.key);
+                                              return (
+                                                 <div 
+                                                    key={sub.key}
+                                                    onClick={() => {
+                                                       setSelectedInterests(prev => isSelected ? prev.filter(k => k !== sub.key) : [...prev, sub.key]);
+                                                    }}
+                                                    style={{
+                                                       padding: '8px 10px',
+                                                       borderRadius: '8px',
+                                                       backgroundColor: isSelected ? 'rgba(0, 229, 153, 0.03)' : 'transparent',
+                                                       border: `1px solid ${isSelected ? 'var(--color-vivid-green)' : 'rgba(255,255,255,0.02)'}`,
+                                                       cursor: 'pointer',
+                                                       display: 'flex',
+                                                       alignItems: 'center',
+                                                       justifyContent: 'space-between',
+                                                    }}
+                                                 >
+                                                    <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                                       <span style={{ fontSize: '12px', fontWeight: '500', color: isSelected ? 'var(--color-vivid-green)' : 'white' }}>{sub.label}</span>
+                                                       <span style={{ fontSize: '10px', color: 'rgba(255,255,255,0.4)' }}>{sub.desc}</span>
+                                                    </div>
+                                                    <div style={{
+                                                       width: '16px',
+                                                       height: '16px',
+                                                       borderRadius: '4px',
+                                                       border: `1px solid ${isSelected ? 'var(--color-vivid-green)' : 'rgba(255,255,255,0.2)'}`,
+                                                       display: 'flex',
+                                                       alignItems: 'center',
+                                                       justifyContent: 'center',
+                                                       backgroundColor: isSelected ? 'var(--color-vivid-green)' : 'transparent'
+                                                    }}>
+                                                       {isSelected && <span style={{ color: '#090d16', fontSize: '10px', fontWeight: 'bold' }}>✓</span>}
+                                                    </div>
+                                                 </div>
+                                              );
+                                           })}
+                                        </div>
+                                     )}
+                                  </div>
+                               );
+                            })}
+                         </div>
+                      </div>
+                   )}
+
+                   {/* STEP 5: Review & QR Code Backup */}
+                   {wizardStep === 5 && (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', alignItems: 'center' }}>
+                         <div style={{ fontSize: '13px', color: 'rgba(255,255,255,0.8)', textAlign: 'center', lineHeight: '1.5' }}>
+                            Votre configuration est prête ! Flashez le code QR ci-dessous pour copier vos paramètres sur un autre téléphone.
+                         </div>
+
+                         {qrCodeDataUrl && (
+                            <div 
+                               onClick={() => {
+                                  setQrModalZoomed(false);
+                                  setShowQrModal(true);
+                               }}
+                               style={{ backgroundColor: 'white', padding: '12px', borderRadius: '12px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', marginTop: '8px', cursor: 'zoom-in' }}
+                               title="Cliquez pour agrandir"
+                            >
+                               <img src={qrCodeDataUrl} alt="Config QR Code" style={{ width: '180px', height: '180px' }} />
+                               <span style={{ fontSize: '10px', color: '#666', marginTop: '4px', fontWeight: '500' }}>
+                                  🔍 Cliquez pour agrandir
+                               </span>
+                            </div>
+                         )}
+
+                         <div style={{ width: '100%', marginTop: '8px', display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '12px', color: 'rgba(255,255,255,0.6)' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.04)', paddingBottom: '4px' }}>
+                               <span>Utilisateur :</span>
+                               <span style={{ color: 'white', fontWeight: '500' }}>{nameInput || 'Non configuré'}</span>
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.04)', paddingBottom: '4px' }}>
+                               <span>Langue :</span>
+                               <span style={{ color: 'white', fontWeight: '500' }}>{langInput}</span>
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.04)', paddingBottom: '4px' }}>
+                               <span>IA Model :</span>
+                               <span style={{ color: 'white', fontWeight: '500' }}>{llmModel}</span>
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.04)', paddingBottom: '4px' }}>
+                               <span>Stockage OKF :</span>
+                               <span style={{ color: 'white', fontWeight: '500' }}>{okfType === 'local' ? 'Local Pur' : 'GitHub'}</span>
+                            </div>
+                            {okfType === 'github' && gitUrl && (
+                               <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.04)', paddingBottom: '4px' }}>
+                                  <span>URL Dépôt :</span>
+                                  <span style={{ color: 'white', fontWeight: '500', maxWidth: '180px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={gitUrl}>{gitUrl}</span>
+                               </div>
+                            )}
+                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                               <span>Stockage Fichiers :</span>
+                               <span style={{ color: 'white', fontWeight: '500' }}>{blobType === 'local' ? 'Local Pur' : 'Cloud S3'}</span>
+                            </div>
+                         </div>
+                      </div>
+                   )}
+
+                   {/* Step Navigation Controls */}
+                   <div style={{ display: 'flex', gap: '12px', marginTop: '8px', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '16px' }}>
+                      {wizardStep > 1 && (
+                         <button
+                            type="button"
+                            onClick={() => {
+                               if (onboardingMode === 'simple' && wizardStep === 5) {
+                                  setWizardStep(1);
+                               } else {
+                                  setWizardStep(prev => prev - 1);
+                               }
+                            }}
+                            className="action-button btn-secondary"
+                            style={{ flex: 1, height: '44px', fontSize: '14px', cursor: 'pointer' }}
+                         >
+                            Retour
+                         </button>
+                      )}
+
+                      {wizardStep < 5 ? (
+                         <button
+                            type="button"
+                            onClick={() => {
+                               if (wizardStep === 1 && !nameInput.trim()) {
+                                  alert('Veuillez saisir votre prénom et nom.');
+                                  return;
+                               }
+                               if (wizardStep === 2 && okfType === 'github' && !gitUrl.trim()) {
+                                  alert('Veuillez saisir l\'URL de votre dépôt Git.');
+                                  return;
+                               }
+                               if (wizardStep === 1 && onboardingMode === 'simple') {
+                                  setWizardStep(5);
+                               } else {
+                                  setWizardStep(prev => prev + 1);
+                               }
+                            }}
+                            className="action-button"
+                            style={{ flex: 2, height: '44px', fontSize: '14px', fontWeight: 'bold', cursor: 'pointer' }}
+                         >
+                            Continuer
+                         </button>
+                      ) : (
+                         <button
+                            type="button"
+                            onClick={handleSubmitWizard}
+                            disabled={initializing}
+                            className="action-button"
+                            style={{ flex: 2, height: '44px', fontSize: '14px', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', cursor: 'pointer' }}
+                         >
+                            {initializing ? <IconLoader2 style={{ animation: 'spin 1s linear infinite' }} size={18} /> : 'Finaliser la Configuration'}
+                         </button>
+                      )}
+                   </div>
+
                 </div>
-
-                <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                    {onboardingOptions.map(opt => {
-                       const isExpanded = expandedInterests.includes(opt.key);
-                       const selectedCount = (opt.subthemes || []).filter((sub: any) => selectedInterests.includes(sub.key)).length;
-                       return (
-                          <div 
-                             key={opt.key}
-                             style={{
-                                padding: '16px',
-                                borderRadius: '16px',
-                                border: `1px solid ${selectedCount > 0 ? 'var(--color-vivid-green)' : 'rgba(255,255,255,0.06)'}`,
-                                backgroundColor: 'rgba(255,255,255,0.02)',
-                                transition: 'all 0.2s ease',
-                                display: 'flex',
-                                flexDirection: 'column',
-                                gap: '12px'
-                             }}
-                          >
-                             <div 
-                                onClick={() => {
-                                   setExpandedInterests(prev => isExpanded ? prev.filter(k => k !== opt.key) : [...prev, opt.key]);
-                                }}
-                                style={{
-                                   cursor: 'pointer',
-                                   display: 'flex',
-                                   justifyContent: 'space-between',
-                                   alignItems: 'center'
-                                }}
-                             >
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                                   <span style={{ fontWeight: '600', color: selectedCount > 0 ? 'var(--color-vivid-green)' : 'white', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                      {opt.label}
-                                      {selectedCount > 0 && (
-                                         <span style={{ fontSize: '11px', backgroundColor: 'rgba(0, 229, 153, 0.15)', color: 'var(--color-vivid-green)', padding: '2px 8px', borderRadius: '10px' }}>
-                                            {selectedCount} sélectionné(s)
-                                         </span>
-                                      )}
-                                   </span>
-                                   <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.5)' }}>{opt.desc}</span>
-                                </div>
-                                <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: '14px' }}>
-                                   {isExpanded ? '▼' : '▶'}
-                                </span>
-                             </div>
-
-                             {isExpanded && opt.subthemes && (
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '12px', paddingLeft: '8px' }}>
-                                   {opt.subthemes.map((sub: any) => {
-                                      const isSelected = selectedInterests.includes(sub.key);
-                                      return (
-                                         <div 
-                                            key={sub.key}
-                                            onClick={() => {
-                                               setSelectedInterests(prev => isSelected ? prev.filter(k => k !== sub.key) : [...prev, sub.key]);
-                                            }}
-                                            style={{
-                                               padding: '10px 12px',
-                                               borderRadius: '10px',
-                                               backgroundColor: isSelected ? 'rgba(0, 229, 153, 0.05)' : 'transparent',
-                                               border: `1px solid ${isSelected ? 'var(--color-vivid-green)' : 'rgba(255,255,255,0.03)'}`,
-                                               cursor: 'pointer',
-                                               display: 'flex',
-                                               alignItems: 'center',
-                                               justifyContent: 'space-between',
-                                               transition: 'all 0.15s ease'
-                                            }}
-                                         >
-                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                                               <span style={{ fontSize: '13px', fontWeight: '500', color: isSelected ? 'var(--color-vivid-green)' : 'white' }}>{sub.label}</span>
-                                               <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)' }}>{sub.desc}</span>
-                                            </div>
-                                            <div style={{
-                                               width: '18px',
-                                               height: '18px',
-                                               borderRadius: '4px',
-                                               border: `1px solid ${isSelected ? 'var(--color-vivid-green)' : 'rgba(255,255,255,0.2)'}`,
-                                               display: 'flex',
-                                               alignItems: 'center',
-                                               justifyContent: 'center',
-                                               backgroundColor: isSelected ? 'var(--color-vivid-green)' : 'transparent'
-                                            }}>
-                                               {isSelected && <span style={{ color: '#090d16', fontSize: '11px', fontWeight: 'bold' }}>✓</span>}
-                                            </div>
-                                         </div>
-                                      );
-                                   })}
-                                </div>
-                             )}
-                          </div>
-                       );
-                    })}
-                 </div>
-
-                <button 
-                   onClick={handleInitializeOnboarding}
-                   disabled={initializing || selectedInterests.length === 0}
-                   className="action-button"
-                   style={{ width: '100%', height: '52px', fontSize: '16px', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
-                >
-                    {initializing ? <IconLoader2 style={{ animation: 'spin 1s linear infinite' }} size={22} /> : `Initialiser ${AppConfig.name}`}
-                </button>
              </main>
           ) : (
              <main style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minHeight: 0 }}>
@@ -1356,15 +3096,15 @@ export default function Dashboard({
                                    flexDirection: 'column',
                                    gap: '3px'
                                 }}>
-                                   <div>⏱️ Temps total : {msg.devStats.responseTimeMs} ms</div>
+                                   <div>⏱️ Temps total : {msg.devStats.responseTimeMs || 0} ms</div>
                                    {msg.devStats.ioTimeMs !== undefined && (
                                       <div style={{ paddingLeft: '12px' }}>└ 💾 I/O (Bdd / Fichiers) : {msg.devStats.ioTimeMs} ms</div>
                                    )}
                                    {msg.devStats.aiTimeMs !== undefined && (
                                       <div style={{ paddingLeft: '12px' }}>└ 🧠 IA (Gemini API) : {msg.devStats.aiTimeMs} ms</div>
                                    )}
-                                   <div>📚 Docs lus : {msg.devStats.metadataDocsCount} résumés, {msg.devStats.fullDocsCount} complets</div>
-                                   <div>🪙 Tokens (est.) : {msg.devStats.inputTokensEstimate} in / {msg.devStats.outputTokensEstimate} out (total : {msg.devStats.inputTokensEstimate + msg.devStats.outputTokensEstimate})</div>
+                                   <div>📚 Docs lus : {msg.devStats.metadataDocsCount || 0} résumés, {msg.devStats.fullDocsCount || 0} complets</div>
+                                   <div>🪙 Tokens (est.) : {msg.devStats.inputTokensEstimate || 0} in / {msg.devStats.outputTokensEstimate || 0} out (total : {(msg.devStats.inputTokensEstimate || 0) + (msg.devStats.outputTokensEstimate || 0)})</div>
                                 </div>
                              )}
                         </div>
@@ -1745,7 +3485,7 @@ export default function Dashboard({
                             <div style={{ borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
                                <p className="secondary-meta" style={{ fontSize: '13px', margin: 0 }}>Classer le document :</p>
                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                                  {['inbox', 'work', 'personal', 'urgent', ...Array.from(new Set(documents.map(d => d.category).filter(Boolean)))].filter((value, index, self) => self.indexOf(value) === index).map(cat => (
+                                  {['inbox', 'work', 'personal', 'urgent', ...Array.from(new Set(documents.map(d => d.category).filter(Boolean) as string[]))].filter((value, index, self) => self.indexOf(value) === index).map(cat => (
                                      <button 
                                         key={cat}
                                         onClick={() => handleUpdateCategory(selectedDoc, cat)}
@@ -1845,10 +3585,94 @@ export default function Dashboard({
                                            {buildRawOKF(selectedDoc)}
                                         </pre>
                                      </div>
-                                  )}
-                               </>
-                            )}
-                         </div>
+                                     )}
+                                     {showQrModal && (
+                                        <div 
+                                           onClick={() => setShowQrModal(false)}
+                                           style={{
+                                              position: 'fixed',
+                                              top: 0,
+                                              left: 0,
+                                              right: 0,
+                                              bottom: 0,
+                                              backgroundColor: 'rgba(0,0,0,0.85)',
+                                              backdropFilter: 'blur(8px)',
+                                              zIndex: 3000,
+                                              display: 'flex',
+                                              flexDirection: 'column',
+                                              alignItems: 'center',
+                                              justifyContent: 'center',
+                                              padding: '24px',
+                                              cursor: 'pointer'
+                                           }}
+                                        >
+                                           <div 
+                                              onClick={(e) => e.stopPropagation()}
+                                              style={{
+                                                 backgroundColor: '#111827',
+                                                 border: '1px solid rgba(255,255,255,0.08)',
+                                                 borderRadius: '20px',
+                                                 padding: '24px',
+                                                 width: '100%',
+                                                 maxWidth: '400px',
+                                                 display: 'flex',
+                                                 flexDirection: 'column',
+                                                 alignItems: 'center',
+                                                 gap: '16px',
+                                                 boxShadow: '0 20px 25px -5px rgba(0,0,0,0.5)',
+                                                 textAlign: 'center'
+                                              }}
+                                           >
+                                              <h3 style={{ fontSize: '18px', fontWeight: 'bold', color: 'white', margin: 0 }}>QR Code de Configuration</h3>
+                                              <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.6)', margin: 0 }}>
+                                                 Scannez ce QR Code pour importer instantanément votre profil et vos stockages.
+                                              </p>
+
+                                              <div 
+                                                 onClick={() => setQrModalZoomed(!qrModalZoomed)}
+                                                 style={{ 
+                                                    backgroundColor: 'white', 
+                                                    padding: '12px', 
+                                                    borderRadius: '16px',
+                                                    cursor: 'zoom-in',
+                                                    transition: 'transform 0.2s ease',
+                                                    transform: qrModalZoomed ? 'scale(1.15)' : 'scale(1)',
+                                                    boxShadow: '0 10px 15px -3px rgba(0,0,0,0.3)',
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    justifyContent: 'center'
+                                                 }}
+                                                 title="Cliquez pour zoomer"
+                                              >
+                                                 <img 
+                                                    src={qrCodeDataUrl} 
+                                                    alt="Zoomed QR Code" 
+                                                    style={{ 
+                                                       width: qrModalZoomed ? '280px' : '200px', 
+                                                       height: qrModalZoomed ? '280px' : '200px',
+                                                       transition: 'width 0.2s ease, height 0.2s ease'
+                                                    }} 
+                                                 />
+                                              </div>
+
+                                              <span style={{ fontSize: '11px', color: 'var(--color-vivid-green)', fontWeight: '500' }}>
+                                                 {qrModalZoomed ? '🔍 Cliquez pour réduire' : '🔍 Cliquez sur le QR Code pour l\'agrandir'}
+                                              </span>
+
+                                              <button 
+                                                 type="button"
+                                                 onClick={() => setShowQrModal(false)}
+                                                 className="action-button btn-secondary"
+                                                 style={{ width: '100%', height: '42px', marginTop: '8px', cursor: 'pointer' }}
+                                              >
+                                                 Fermer
+                                              </button>
+                                           </div>
+                                        </div>
+                                     )}
+                                     </>
+                                     )}
+                                  </div>
                       </div>
                    )}
 
@@ -2600,9 +4424,41 @@ export default function Dashboard({
                      </div>
 
                      <button 
+                        type="button" 
+                        className="action-button btn-secondary" 
+                        onClick={() => {
+                           setShowExportConfig(!showExportConfig);
+                        }}
+                        style={{ height: '42px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', border: '1px dashed rgba(255,255,255,0.2)', cursor: 'pointer' }}
+                     >
+                        Exporter ma configuration (QR Code)
+                     </button>
+
+                     {showExportConfig && qrCodeDataUrl && (
+                        <div 
+                           onClick={() => {
+                              setQrModalZoomed(false);
+                              setShowQrModal(true);
+                           }}
+                           style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', padding: '16px', backgroundColor: 'rgba(255,255,255,0.02)', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.06)', cursor: 'zoom-in' }}
+                           title="Cliquez pour agrandir"
+                        >
+                           <div style={{ backgroundColor: 'white', padding: '8px', borderRadius: '8px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                              <img src={qrCodeDataUrl} alt="Export QR Code" style={{ width: '150px', height: '150px' }} />
+                              <span style={{ fontSize: '10px', color: '#666', marginTop: '4px', fontWeight: '500' }}>
+                                 🔍 Cliquez pour agrandir
+                              </span>
+                           </div>
+                           <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)', textAlign: 'center' }}>
+                              Scannez ce QR Code depuis un autre téléphone lors de l'installation pour transférer instantanément votre profil et vos stockages.
+                           </span>
+                        </div>
+                     )}
+
+                     <button 
                         type="submit" 
                         className="action-button" 
-                        style={{ height: '48px', fontWeight: '600', marginTop: '10px' }}
+                        style={{ height: '48px', fontWeight: '600', marginTop: '10px', cursor: 'pointer' }}
                      >
                         Enregistrer les préférences
                      </button>
@@ -2761,7 +4617,7 @@ export default function Dashboard({
                    </div>
 
                    <div style={{ overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '8px', paddingRight: '4px' }}>
-                      {['all', ...Array.from(new Set(documents.map(d => d.category).filter(Boolean)))].map(cat => (
+                      {['all', ...Array.from(new Set(documents.map(d => d.category).filter(Boolean) as string[]))].map(cat => (
                          <button 
                             key={cat}
                             onClick={() => {

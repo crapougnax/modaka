@@ -20,7 +20,7 @@ async function _streamToString(stream: Readable): Promise<string> {
 }
 
 export const POST: APIRoute = async ({ request }) => {
-   initBackend();
+   await initBackend();
    const startTime = Date.now();
 
    try {

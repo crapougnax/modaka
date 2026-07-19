@@ -5,7 +5,7 @@ import { OKFBackendAdapter } from '@quatrain/okf';
 
 export const POST: APIRoute = async () => {
    try {
-      initBackend();
+      await initBackend();
       const okfAdapter = Backend.getBackend('default') as OKFBackendAdapter;
       if (!okfAdapter) {
          return new Response(JSON.stringify({ error: 'Backend default adapter not found' }), {

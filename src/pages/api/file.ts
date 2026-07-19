@@ -10,7 +10,7 @@ export const prerender = false;
  * Handles streaming from either S3 or local storage transparently via the storage adapter.
  */
 export const GET: APIRoute = async ({ request }) => {
-   initBackend();
+   await initBackend();
    try {
       const url = new URL(request.url);
       const ref = url.searchParams.get('ref');

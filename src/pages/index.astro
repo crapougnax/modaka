@@ -23,7 +23,7 @@ const elevenLabsVoiceId = import.meta.env.ELEVENLABS_VOICE_ID || '';
   </head>
   <body>
     <Dashboard 
-      client:load 
+      client:only="react" 
       initialDevMode={initialDevMode} 
       defaultElevenLabsApiKey={elevenLabsApiKey} 
       defaultElevenLabsVoiceId={elevenLabsVoiceId} 

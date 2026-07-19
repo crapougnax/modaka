@@ -1,0 +1,25 @@
+{
+  "lang": "Français",
+  "name": "Alice Smith",
+  "email": "",
+  "llm": {
+    "model": "gemini-2.5-flash",
+    "apiKey": ""
+  },
+  "okfStorage": {
+    "type": "local",
+    "githubToken": "",
+    "repoOwner": "",
+    "repoName": "",
+    "gitUrl": "",
+    "branch": "main"
+  },
+  "blobStorage": {
+    "type": "local",
+    "accessKey": "",
+    "secretKey": "",
+    "region": "us-east-1",
+    "endpoint": "",
+    "bucket": "second-brain"
+  }
+}

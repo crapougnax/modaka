@@ -16,6 +16,16 @@ export default defineConfig({
   },
   integrations: [react()],
   vite: {
+    plugins: [
+      {
+        name: 'alias-react-client-only',
+        resolveId(source, importer, options) {
+          if (options && !options.ssr && (source === 'react' || source === 'react-dom')) {
+            return path.resolve(`./node_modules/${source}`);
+          }
+        }
+      }
+    ],
     ssr: {
       noExternal: [
         '@quatrain/ux',
@@ -50,7 +60,8 @@ export default defineConfig({
         '@quatrain/ingestion-ocr': path.join(coreDir, 'ingestion-ocr/src/index.ts'),
         '@quatrain/ingestion-web': path.join(coreDir, 'ingestion-web/src/index.ts'),
         '@quatrain/queue': path.join(coreDir, 'queue/src/index.ts'),
-        '@quatrain/queue-sqlite': path.join(coreDir, 'queue-sqlite/src/index.ts')
+        '@quatrain/queue-sqlite': path.join(coreDir, 'queue-sqlite/src/index.ts'),
+        '@quatrain/git-client': path.join(coreDir, 'git-client/src/index.ts')
       }
     }
   }

@@ -3,6 +3,7 @@ export class AppConfig {
   static readonly logoText = 'SB';
   static readonly logoEmoji = '🧠';
   static readonly tagline = 'Votre base de connaissances locale-first';
+  static readonly apiMode: 'native-bridge' | 'hosted-api' = 'native-bridge';
   
   // Theme styling tokens (matching the CSS properties)
   static readonly theme = {

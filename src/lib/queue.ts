@@ -13,7 +13,7 @@ let backendPromise: Promise<void> | null = null;
 function ensureBackend() {
    if (!backendPromise) {
       backendPromise = import('./backend').then(({ initBackend }) => {
-         initBackend();
+         return initBackend();
       }).catch(e => {
          Queue.error(`[Queue] Failed to initialize backend dynamically: ${e.message}`);
       });
