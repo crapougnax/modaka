@@ -3587,90 +3587,6 @@ export default function Dashboard({
                                         </pre>
                                      </div>
                                      )}
-                                     {showQrModal && (
-                                        <div 
-                                           onClick={() => setShowQrModal(false)}
-                                           style={{
-                                              position: 'fixed',
-                                              top: 0,
-                                              left: 0,
-                                              right: 0,
-                                              bottom: 0,
-                                              backgroundColor: 'rgba(0,0,0,0.85)',
-                                              backdropFilter: 'blur(8px)',
-                                              zIndex: 3000,
-                                              display: 'flex',
-                                              flexDirection: 'column',
-                                              alignItems: 'center',
-                                              justifyContent: 'center',
-                                              padding: '24px',
-                                              cursor: 'pointer'
-                                           }}
-                                        >
-                                           <div 
-                                              onClick={(e) => e.stopPropagation()}
-                                              style={{
-                                                 backgroundColor: '#111827',
-                                                 border: '1px solid rgba(255,255,255,0.08)',
-                                                 borderRadius: '20px',
-                                                 padding: '24px',
-                                                 width: '100%',
-                                                 maxWidth: '400px',
-                                                 display: 'flex',
-                                                 flexDirection: 'column',
-                                                 alignItems: 'center',
-                                                 gap: '16px',
-                                                 boxShadow: '0 20px 25px -5px rgba(0,0,0,0.5)',
-                                                 textAlign: 'center'
-                                              }}
-                                           >
-                                              <h3 style={{ fontSize: '18px', fontWeight: 'bold', color: 'white', margin: 0 }}>QR Code de Configuration</h3>
-                                              <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.6)', margin: 0 }}>
-                                                 Scannez ce QR Code pour importer instantanément votre profil et vos stockages.
-                                              </p>
-
-                                              <div 
-                                                 onClick={() => setQrModalZoomed(!qrModalZoomed)}
-                                                 style={{ 
-                                                    backgroundColor: 'white', 
-                                                    padding: '12px', 
-                                                    borderRadius: '16px',
-                                                    cursor: 'zoom-in',
-                                                    transition: 'transform 0.2s ease',
-                                                    transform: qrModalZoomed ? 'scale(1.15)' : 'scale(1)',
-                                                    boxShadow: '0 10px 15px -3px rgba(0,0,0,0.3)',
-                                                    display: 'flex',
-                                                    alignItems: 'center',
-                                                    justifyContent: 'center'
-                                                 }}
-                                                 title="Cliquez pour zoomer"
-                                              >
-                                                 <img 
-                                                    src={qrCodeDataUrl} 
-                                                    alt="Zoomed QR Code" 
-                                                    style={{ 
-                                                       width: qrModalZoomed ? '280px' : '200px', 
-                                                       height: qrModalZoomed ? '280px' : '200px',
-                                                       transition: 'width 0.2s ease, height 0.2s ease'
-                                                    }} 
-                                                 />
-                                              </div>
-
-                                              <span style={{ fontSize: '11px', color: 'var(--color-vivid-green)', fontWeight: '500' }}>
-                                                 {qrModalZoomed ? '🔍 Cliquez pour réduire' : '🔍 Cliquez sur le QR Code pour l\'agrandir'}
-                                              </span>
-
-                                              <button 
-                                                 type="button"
-                                                 onClick={() => setShowQrModal(false)}
-                                                 className="action-button btn-secondary"
-                                                 style={{ width: '100%', height: '42px', marginTop: '8px', cursor: 'pointer' }}
-                                              >
-                                                 Fermer
-                                              </button>
-                                           </div>
-                                        </div>
-                                     )}
                                      </>
                                      )}
                                   </div>
@@ -4640,6 +4556,92 @@ export default function Dashboard({
                          </button>
                       ))}
                    </div>
+                </div>
+             </div>
+          )}
+
+
+          {showQrModal && (
+             <div 
+                onClick={() => setShowQrModal(false)}
+                style={{
+                   position: 'fixed',
+                   top: 0,
+                   left: 0,
+                   right: 0,
+                   bottom: 0,
+                   backgroundColor: 'rgba(0,0,0,0.85)',
+                   backdropFilter: 'blur(8px)',
+                   zIndex: 3000,
+                   display: 'flex',
+                   flexDirection: 'column',
+                   alignItems: 'center',
+                   justifyContent: 'center',
+                   padding: '24px',
+                   cursor: 'pointer'
+                }}
+             >
+                <div 
+                   onClick={(e) => e.stopPropagation()}
+                   style={{
+                      backgroundColor: '#111827',
+                      border: '1px solid rgba(255,255,255,0.08)',
+                      borderRadius: '20px',
+                      padding: '24px',
+                      width: '100%',
+                      maxWidth: '400px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      gap: '16px',
+                      boxShadow: '0 20px 25px -5px rgba(0,0,0,0.5)',
+                      textAlign: 'center'
+                   }}
+                >
+                   <h3 style={{ fontSize: '18px', fontWeight: 'bold', color: 'white', margin: 0 }}>QR Code de Configuration</h3>
+                   <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.6)', margin: 0 }}>
+                      Scannez ce QR Code pour importer instantanément votre profil et vos stockages.
+                   </p>
+
+                   <div 
+                      onClick={() => setQrModalZoomed(!qrModalZoomed)}
+                      style={{ 
+                         backgroundColor: 'white', 
+                         padding: '12px', 
+                         borderRadius: '16px',
+                         cursor: 'zoom-in',
+                         transition: 'transform 0.2s ease',
+                         transform: qrModalZoomed ? 'scale(1.15)' : 'scale(1)',
+                         boxShadow: '0 10px 15px -3px rgba(0,0,0,0.3)',
+                         display: 'flex',
+                         alignItems: 'center',
+                         justifyContent: 'center'
+                      }}
+                      title="Cliquez pour zoomer"
+                   >
+                      <img 
+                         src={qrCodeDataUrl} 
+                         alt="Zoomed QR Code" 
+                         style={{ 
+                            width: qrModalZoomed ? '280px' : '200px', 
+                            height: qrModalZoomed ? '280px' : '200px',
+                            transition: 'width 0.2s ease, height 0.2s ease'
+                         }} 
+                      />
+                   </div>
+
+                   <span style={{ fontSize: '11px', color: 'var(--color-vivid-green)', fontWeight: '500' }}>
+                      {qrModalZoomed ? '🔍 Cliquez pour réduire' : '🔍 Cliquez sur le QR Code pour l\'agrandir'}
+                   </span>
+
+                   <button 
+                      type="button"
+                      onClick={() => setShowQrModal(false)}
+                      className="action-button btn-secondary"
+                      style={{ width: '100%', height: '42px', marginTop: '8px', cursor: 'pointer' }}
+                   >
+                      Fermer
+                   </button>
                 </div>
              </div>
           )}
