@@ -225,7 +225,7 @@ export default function Dashboard({
    const [userProfile, setUserProfile] = useState({
       name: '',
       email: '',
-      language: 'Français',
+      language: 'fr_FR',
       ttsProvider: 'Browser',
       elevenLabsApiKey: defaultElevenLabsApiKey,
       elevenLabsVoiceId: defaultElevenLabsVoiceId
@@ -240,7 +240,7 @@ export default function Dashboard({
    // Onboarding config form states
    const [nameInput, setNameInput] = useState('');
    const [emailInput, setEmailInput] = useState('');
-   const [langInput, setLangInput] = useState('Français');
+   const [langInput, setLangInput] = useState('fr_FR');
    const [llmModel, setLlmModel] = useState('gemini-2.5-flash');
    const [llmApiKey, setLlmApiKey] = useState('');
 
@@ -652,10 +652,31 @@ export default function Dashboard({
        }
     }, [showProfileModal, userProfile]);
 
-   const handleSaveProfile = (profile: typeof userProfile) => {
+   const handleSaveProfile = async (profile: typeof userProfile) => {
       setUserProfile(profile);
       localStorage.setItem('sb_user_profile', JSON.stringify(profile));
       setShowProfileModal(false);
+      
+      // Save to backend config as well to keep in sync
+      try {
+         const res = await fetch('/api/config');
+         if (res.ok) {
+            const currentConfig = await res.json();
+            const updatedConfig = {
+               ...currentConfig,
+               name: profile.name,
+               email: profile.email,
+               lang: profile.language
+            };
+            await fetch('/api/config', {
+               method: 'POST',
+               headers: { 'Content-Type': 'application/json' },
+               body: JSON.stringify(updatedConfig)
+            });
+         }
+      } catch (err) {
+         console.error('Failed to sync profile changes to backend config', err);
+      }
    };
 
     const [speakingIndex, setSpeakingIndex] = useState<number | null>(null);
@@ -863,10 +884,7 @@ export default function Dashboard({
              okfStorage: {
                 type: okfType,
                 githubToken,
-                repoOwner: parseGitUrl(gitUrl)?.owner || repoOwner,
-                repoName: parseGitUrl(gitUrl)?.repo || repoName,
-                gitUrl: gitUrl,
-                branch: repoBranch
+                gitUrl: gitUrl
              },
              blobStorage: {
                 type: blobType,
@@ -955,13 +973,21 @@ export default function Dashboard({
                          if (config.llm.apiKey) setLlmApiKey(config.llm.apiKey);
                       }
                       if (config.okfStorage) {
-                          if (config.okfStorage.type) setOkfType(config.okfStorage.type);
-                          if (config.okfStorage.githubToken) setGithubToken(config.okfStorage.githubToken);
-                          if (config.okfStorage.repoOwner) setRepoOwner(config.okfStorage.repoOwner);
-                          if (config.okfStorage.repoName) setRepoName(config.okfStorage.repoName);
-                          if (config.okfStorage.gitUrl) setGitUrl(config.okfStorage.gitUrl);
-                          if (config.okfStorage.branch) setRepoBranch(config.okfStorage.branch);
-                      }
+                           if (config.okfStorage.type) setOkfType(config.okfStorage.type);
+                           if (config.okfStorage.githubToken) setGithubToken(config.okfStorage.githubToken);
+                           if (config.okfStorage.gitUrl) {
+                              setGitUrl(config.okfStorage.gitUrl);
+                              const parsed = parseGitUrl(config.okfStorage.gitUrl);
+                              if (parsed) {
+                                 setRepoOwner(parsed['owner']);
+                                 setRepoName(parsed['repo']);
+                              }
+                           } else {
+                              if (config.okfStorage.repoOwner) setRepoOwner(config.okfStorage.repoOwner);
+                              if (config.okfStorage.repoName) setRepoName(config.okfStorage.repoName);
+                           }
+                           setRepoBranch(config.okfStorage.branch || 'main');
+                        }
                       if (config.blobStorage) {
                          if (config.blobStorage.type) setBlobType(config.blobStorage.type);
                          if (config.blobStorage.accessKey) setS3AccessKey(config.blobStorage.accessKey);
@@ -1041,17 +1067,21 @@ export default function Dashboard({
                       if (config.llm.apiKey) setLlmApiKey(config.llm.apiKey);
                    }
                    if (config.okfStorage) {
-                      if (config.okfStorage.type) setOkfType(config.okfStorage.type);
-                      if (config.okfStorage.githubToken) setGithubToken(config.okfStorage.githubToken);
-                      if (config.okfStorage.repoOwner) setRepoOwner(config.okfStorage.repoOwner);
-                      if (config.okfStorage.repoName) setRepoName(config.okfStorage.repoName);
-                      if (config.okfStorage.branch) setRepoBranch(config.okfStorage.branch);
-                      if (config.okfStorage.gitUrl) {
-                         setGitUrl(config.okfStorage.gitUrl);
-                      } else if (config.okfStorage.repoOwner && config.okfStorage.repoName) {
-                         setGitUrl(`https://github.com/${config.okfStorage.repoOwner}/${config.okfStorage.repoName}`);
-                      }
-                   }
+                       if (config.okfStorage.type) setOkfType(config.okfStorage.type);
+                       if (config.okfStorage.githubToken) setGithubToken(config.okfStorage.githubToken);
+                       if (config.okfStorage.gitUrl) {
+                          setGitUrl(config.okfStorage.gitUrl);
+                          const parsed = parseGitUrl(config.okfStorage.gitUrl);
+                          if (parsed) {
+                             setRepoOwner(parsed['owner']);
+                             setRepoName(parsed['repo']);
+                          }
+                       } else {
+                          if (config.okfStorage.repoOwner) setRepoOwner(config.okfStorage.repoOwner);
+                          if (config.okfStorage.repoName) setRepoName(config.okfStorage.repoName);
+                       }
+                       setRepoBranch(config.okfStorage.branch || 'main');
+                    }
                    if (config.blobStorage) {
                       if (config.blobStorage.type) setBlobType(config.blobStorage.type);
                       if (config.blobStorage.accessKey) setS3AccessKey(config.blobStorage.accessKey);
@@ -1170,13 +1200,7 @@ export default function Dashboard({
 
 
    const handleToggleSpeech = async (text: string, index: number) => {
-      const LANG_MAP: Record<string, string> = {
-         'Français': 'fr-FR',
-         'English': 'en-US',
-         'Español': 'es-ES',
-         'Deutsch': 'de-DE',
-         'Italiano': 'it-IT'
-      };
+      
 
       if ((window as any).ReactNativeWebView && userProfile.ttsProvider !== 'ElevenLabs') {
          if (speakingIndex === index) {
@@ -1190,7 +1214,7 @@ export default function Dashboard({
             (window as any).ReactNativeWebView.postMessage(JSON.stringify({
                type: 'SPEAK',
                text: cleanText,
-               language: LANG_MAP[userProfile.language] || 'fr-FR'
+               language: userProfile.language ? userProfile.language.replace('_', '-') : 'fr-FR'
             }));
          }
          return;
@@ -1271,7 +1295,7 @@ export default function Dashboard({
             } else {
                const cleanText = text.replace(/[#*`[\]()]/g, '');
                const utterance = new SpeechSynthesisUtterance(cleanText);
-               utterance.lang = LANG_MAP[userProfile.language] || 'fr-FR';
+               utterance.lang = userProfile.language ? userProfile.language.replace('_', '-') : 'fr-FR';
 
                utterance.onend = () => setSpeakingIndex(null);
                utterance.onerror = () => setSpeakingIndex(null);
@@ -1390,19 +1414,33 @@ export default function Dashboard({
                if (config.name) {
                   setNameInput(config.name);
                   setEmailInput(config.email || '');
-                  setLangInput(config.lang || 'Français');
+                  setLangInput(config.lang || 'fr_FR');
+                  setUserProfile(prev => ({
+                     ...prev,
+                     name: config.name,
+                     email: config.email || '',
+                     language: config.lang || 'fr_FR'
+                  }));
                   if (config.llm) {
                      setLlmModel(config.llm.model || 'gemini-2.5-flash');
                      setLlmApiKey(config.llm.apiKey || '');
                   }
                   if (config.okfStorage) {
-                     setOkfType(config.okfStorage.type || 'local');
-                     setGithubToken(config.okfStorage.githubToken || '');
-                     setRepoOwner(config.okfStorage.repoOwner || '');
-                     setRepoName(config.okfStorage.repoName || '');
-                     setRepoBranch(config.okfStorage.branch || 'main');
-                     setGitUrl(config.okfStorage.gitUrl || (config.okfStorage.repoOwner && config.okfStorage.repoName ? `https://github.com/${config.okfStorage.repoOwner}/${config.okfStorage.repoName}` : ''));
-                  }
+                             if (config.okfStorage.type) setOkfType(config.okfStorage.type);
+                             if (config.okfStorage.githubToken) setGithubToken(config.okfStorage.githubToken);
+                             if (config.okfStorage.gitUrl) {
+                                setGitUrl(config.okfStorage.gitUrl);
+                                const parsed = parseGitUrl(config.okfStorage.gitUrl);
+                                if (parsed) {
+                                   setRepoOwner(parsed['owner']);
+                                   setRepoName(parsed['repo']);
+                                }
+                             } else {
+                                if (config.okfStorage.repoOwner) setRepoOwner(config.okfStorage.repoOwner);
+                                if (config.okfStorage.repoName) setRepoName(config.okfStorage.repoName);
+                             }
+                             setRepoBranch(config.okfStorage.branch || 'main');
+                         }
                   if (config.blobStorage) {
                      setBlobType(config.blobStorage.type || 'local');
                      setS3AccessKey(config.blobStorage.accessKey || '');
@@ -1954,14 +1992,8 @@ export default function Dashboard({
              recognition.continuous = false;
              recognition.interimResults = false;
              
-             const LANG_MAP: Record<string, string> = {
-                'Français': 'fr-FR',
-                'English': 'en-US',
-                'Español': 'es-ES',
-                'Deutsch': 'de-DE',
-                'Italiano': 'it-IT'
-             };
-             recognition.lang = LANG_MAP[userProfile.language] || 'fr-FR';
+             
+             recognition.lang = userProfile.language ? userProfile.language.replace('_', '-') : 'fr-FR';
 
              recognition.onstart = () => {
                 setIsDictating(true);
@@ -2515,9 +2547,9 @@ export default function Dashboard({
                             <label style={{ fontSize: '13px', fontWeight: '500', color: 'rgba(255,255,255,0.7)' }}>Langue de communication</label>
                             <div style={{ display: 'flex', gap: '10px' }}>
                                {[
-                                  { key: 'Français', flag: '🇫🇷', label: 'Français' },
-                                  { key: 'English', flag: '🇬🇧', label: 'English' },
-                                  { key: 'Español', flag: '🇪🇸', label: 'Español' }
+                                  { key: 'fr_FR', flag: '🇫🇷', label: 'Français' },
+                                  { key: 'en_US', flag: '🇬🇧', label: 'English' },
+                                  { key: 'es_ES', flag: '🇪🇸', label: 'Español' }
                                ].map(lang => (
                                   <button
                                      key={lang.key}
@@ -2682,18 +2714,7 @@ export default function Dashboard({
                                   />
                                </div>
 
-                               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                                  <label style={{ fontSize: '13px', fontWeight: '500', color: 'rgba(255,255,255,0.7)' }}>Branche du dépôt</label>
-                                  <input 
-                                     type="text" 
-                                     value={repoBranch} 
-                                     onChange={(e) => setRepoBranch(e.target.value)}
-                                     autoCapitalize="none"
-                                     autoCorrect="off"
-                                     autoComplete="off"
-                                     style={{ width: '100%', height: '42px', borderRadius: '8px', backgroundColor: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'white', padding: '0 12px', fontSize: '14px', boxSizing: 'border-box' }}
-                                  />
-                               </div>
+                               
                             </div>
                          )}
                       </div>
@@ -4234,11 +4255,11 @@ export default function Dashboard({
                            onChange={(e) => setModalLanguage(e.target.value)}
                            style={{ width: '100%', boxSizing: 'border-box', backgroundColor: '#182030', color: '#fff', border: '1px solid rgba(255,255,255,0.08)' }}
                         >
-                           <option value="Français">Français 🇫🇷</option>
-                           <option value="English">English 🇬🇧</option>
-                           <option value="Español">Español 🇪🇸</option>
-                           <option value="Deutsch">Deutsch 🇩🇪</option>
-                           <option value="Italiano">Italiano 🇮🇹</option>
+                           <option value="fr_FR">Français 🇫🇷</option>
+                           <option value="en_US">English 🇬🇧</option>
+                           <option value="es_ES">Español 🇪🇸</option>
+                           <option value="de_DE">Deutsch 🇩🇪</option>
+                           <option value="it_IT">Italiano 🇮🇹</option>
                         </select>
                      </div>
 
