@@ -266,6 +266,32 @@ export default function Dashboard({
    const videoRef = useRef<HTMLVideoElement | null>(null);
    const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
+   const [importType, setImportType] = useState<'pdf' | 'image' | 'url' | 'text' | 'audio'>('pdf');
+   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+   const [urlInput, setUrlInput] = useState('');
+   const [markdownInput, setMarkdownInput] = useState('');
+   const [contextNoteInput, setContextNoteInput] = useState('');
+   const [addingUrl, setAddingUrl] = useState(false);
+   const [selectedInterests, setSelectedInterests] = useState<string[]>([]);
+   const [expandedInterests, setExpandedInterests] = useState<string[]>([]);
+   const [onboardingOptions, setOnboardingOptions] = useState<any[]>([]);
+   const [initializing, setInitializing] = useState(false);
+   const [messages, setMessages] = useState<Message[]>([
+      { role: 'assistant', content: `Bonjour ! Je suis ${AppConfig.name}. Vous pouvez uploader des PDFs dans l'onglet "Documents" pour que je puisse les synthétiser et y accéder, ou simplement me poser des questions.` }
+   ]);
+   const [inputMessage, setInputMessage] = useState('');
+   const [sending, setSending] = useState(false);
+   const chatEndRef = useRef<HTMLDivElement>(null);
+   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+
+   // Audio recording state & handlers
+   const [recording, setRecording] = useState(false);
+   const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
+   const [audioUrl, setAudioUrl] = useState<string>('');
+   const [recordingSeconds, setRecordingSeconds] = useState(0);
+   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+   const recordingIntervalRef = useRef<any>(null);
+
    useEffect(() => {
       const stored = localStorage.getItem('sb_user_profile');
       if (stored) {
@@ -1280,31 +1306,6 @@ export default function Dashboard({
       return frontmatterLines.join('\n') + '\n' + (doc.body || '');
    };
 
-   const [importType, setImportType] = useState<'pdf' | 'image' | 'url' | 'text' | 'audio'>('pdf');
-   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
-   const [urlInput, setUrlInput] = useState('');
-   const [markdownInput, setMarkdownInput] = useState('');
-   const [contextNoteInput, setContextNoteInput] = useState('');
-   const [addingUrl, setAddingUrl] = useState(false);
-   const [selectedInterests, setSelectedInterests] = useState<string[]>([]);
-   const [expandedInterests, setExpandedInterests] = useState<string[]>([]);
-   const [onboardingOptions, setOnboardingOptions] = useState<any[]>([]);
-   const [initializing, setInitializing] = useState(false);
-   const [messages, setMessages] = useState<Message[]>([
-      { role: 'assistant', content: `Bonjour ! Je suis ${AppConfig.name}. Vous pouvez uploader des PDFs dans l'onglet "Documents" pour que je puisse les synthétiser et y accéder, ou simplement me poser des questions.` }
-   ]);
-   const [inputMessage, setInputMessage] = useState('');
-   const [sending, setSending] = useState(false);
-   const chatEndRef = useRef<HTMLDivElement>(null);
-    const [selectedFile, setSelectedFile] = useState<File | null>(null);
-
-    // Audio recording state & handlers
-    const [recording, setRecording] = useState(false);
-    const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
-    const [audioUrl, setAudioUrl] = useState<string>('');
-    const [recordingSeconds, setRecordingSeconds] = useState(0);
-    const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-    const recordingIntervalRef = useRef<any>(null);
 
     const startRecording = async () => {
        if ((window as any).ReactNativeWebView) {
