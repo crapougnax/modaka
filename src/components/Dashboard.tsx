@@ -4305,14 +4305,13 @@ export default function Dashboard({
                      </div>
 
                      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                        <label style={{ fontSize: '13px', color: 'rgba(255,255,255,0.6)' }}>Adresse email :</label>
+                        <label style={{ fontSize: '13px', color: 'rgba(255,255,255,0.6)' }}>Adresse email (facultatif) :</label>
                         <input 
                            type="email" 
                            name="email"
                            className="action-input"
                            value={modalEmail}
                            onChange={(e) => setModalEmail(e.target.value)}
-                           required
                            style={{ width: '100%', boxSizing: 'border-box' }}
                         />
                      </div>
