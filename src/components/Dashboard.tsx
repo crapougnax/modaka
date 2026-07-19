@@ -1026,7 +1026,7 @@ export default function Dashboard({
                 ctx.drawImage(img, 0, 0, width, height);
                 const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
                 const code = jsQR(imageData.data, imageData.width, imageData.height, {
-                   inversionAttempts: 'dontInvert',
+                   inversionAttempts: 'attemptBoth',
                 });
                 if (code) {
                    try {
@@ -1120,7 +1120,7 @@ export default function Dashboard({
              ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
              const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
              const code = jsQR(imageData.data, imageData.width, imageData.height, {
-                inversionAttempts: 'dontInvert',
+                inversionAttempts: 'attemptBoth',
              });
              if (code) {
                 try {
@@ -1970,12 +1970,24 @@ export default function Dashboard({
                const canvas = document.createElement('canvas');
                const ctx = canvas.getContext('2d');
                if (ctx) {
-                  canvas.width = img.width;
-                  canvas.height = img.height;
-                  ctx.drawImage(img, 0, 0, img.width, img.height);
+                  const maxDim = 800;
+                   let width = img.width;
+                   let height = img.height;
+                   if (width > maxDim || height > maxDim) {
+                      if (width > height) {
+                         height = Math.round((height * maxDim) / width);
+                         width = maxDim;
+                      } else {
+                         width = Math.round((width * maxDim) / height);
+                         height = maxDim;
+                      }
+                   }
+                   canvas.width = width;
+                   canvas.height = height;
+                   ctx.drawImage(img, 0, 0, width, height);
                   const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
                   const code = jsQR(imageData.data, imageData.width, imageData.height, {
-                     inversionAttempts: 'dontInvert',
+                     inversionAttempts: 'attemptBoth',
                   });
                   if (code) {
                      try {
