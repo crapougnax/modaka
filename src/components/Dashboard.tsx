@@ -253,6 +253,7 @@ interface ContentItemData {
    source?: string;
    markdownFileUri?: string;
    createdAt?: string;
+   documentDate?: string;
    contextNote?: string;
    body?: string;
    links?: string[];
@@ -1414,6 +1415,7 @@ export default function Dashboard({
          doc.summary ? `description: ${JSON.stringify(doc.summary)}` : null,
          doc.tags && doc.tags.length > 0 ? `tags:\n${doc.tags.map((t: string) => `  - ${t}`).join('\n')}` : null,
          doc.createdAt ? `timestamp: ${doc.createdAt}` : null,
+         doc.documentDate ? `documentDate: ${doc.documentDate}` : null,
          doc.category ? `category: ${doc.category}` : null,
          doc.originalFileUri ? `originalFileUri: ${doc.originalFileUri}` : null,
          doc.fileHash ? `fileHash: ${doc.fileHash}` : null,
@@ -3557,6 +3559,15 @@ export default function Dashboard({
                                ))}
                             </div>
 
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', fontSize: '12px', color: 'rgba(255,255,255,0.4)', marginTop: '8px' }}>
+                               <span>Créé le : {selectedDoc.createdAt ? new Date(selectedDoc.createdAt).toLocaleDateString('fr-FR') : 'N/A'}</span>
+                               {selectedDoc.documentDate && (
+                                  <span style={{ color: 'var(--color-vivid-green)', fontWeight: '500' }}>
+                                     📅 Événement : {new Date(selectedDoc.documentDate).toLocaleDateString('fr-FR')}
+                                  </span>
+                               )}
+                            </div>
+
                             {selectedDoc.contextNote && (
                                <div style={{ backgroundColor: 'rgba(255,255,255,0.05)', padding: '12px', borderRadius: '12px', fontSize: '13px', borderLeft: '3px solid var(--color-vivid-green)', marginTop: '8px' }}>
                                   <strong>Note de contexte :</strong> {selectedDoc.contextNote}
@@ -3852,7 +3863,7 @@ export default function Dashboard({
                                     {doc.category}
                                  </span>
                                  <span className="secondary-meta" style={{ fontSize: '12px' }}>
-                                    {formatRelativeDate(doc.createdAt)}
+                                    {formatRelativeDate(doc.documentDate || doc.createdAt)}
                                  </span>
                               </div>
                            </div>

@@ -513,20 +513,23 @@ class QueueManagerClass {
       const semanticId = existing ? existing.val('id') : (slugify(result.title || originalName) || crypto.randomUUID());
       
       let itemCreatedAt = new Date().toISOString();
-      if (!existing && result.deductedDate) {
+      let itemDocumentDate: string | undefined = undefined;
+
+      if (existing) {
+         itemCreatedAt = existing.val('createdAt') || new Date().toISOString();
+         itemDocumentDate = existing.val('documentDate');
+      }
+
+      if (result.deductedDate) {
          try {
             const parsed = new Date(result.deductedDate);
             if (!isNaN(parsed.getTime())) {
-               const now = new Date();
-               parsed.setHours(now.getHours(), now.getMinutes(), now.getSeconds(), now.getMilliseconds());
-               itemCreatedAt = parsed.toISOString();
-               Queue.info(`[Queue] Deducted date found: ${result.deductedDate}. Setting createdAt to ${itemCreatedAt}`);
+               itemDocumentDate = parsed.toISOString();
+               Queue.info(`[Queue] Deducted date found: ${result.deductedDate}. Setting documentDate to ${itemDocumentDate}`);
             }
          } catch (e: any) {
             Queue.warn(`[Queue] Failed to parse deductedDate "${result.deductedDate}": ${e.message}`);
          }
-      } else if (existing) {
-         itemCreatedAt = existing.val('createdAt') || new Date().toISOString();
       }
 
       await updateProgress(85);
@@ -548,6 +551,7 @@ class QueueManagerClass {
          contextNote: task.contextNote || '',
          body: result.markdown,
          createdAt: itemCreatedAt,
+         documentDate: itemDocumentDate,
          latitude: task.latitude !== undefined ? task.latitude.toString() : undefined,
          longitude: task.longitude !== undefined ? task.longitude.toString() : undefined,
          fileHash: task.fileHash,

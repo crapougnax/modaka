@@ -1,10 +1,15 @@
 import { PersistedBaseObject } from '@quatrain/backend';
-import { StringProperty, ArrayProperty } from '@quatrain/core';
+import { StringProperty, ArrayProperty, DateTimeProperty } from '@quatrain/core';
 
 export const ContentItemProperties = [
    {
       name: 'id',
       type: StringProperty.TYPE,
+      mandatory: false
+   },
+   {
+      name: 'documentDate',
+      type: DateTimeProperty.TYPE,
       mandatory: false
    },
    {
@@ -205,21 +210,18 @@ ${newBody}
                      });
                   }
                }
-               
-               if (result.deductedDate) {
-                  try {
-                     const parsed = new Date(result.deductedDate);
-                     if (!isNaN(parsed.getTime())) {
-                        const now = new Date();
-                        parsed.setHours(now.getHours(), now.getMinutes(), now.getSeconds(), now.getMilliseconds());
-                        const itemCreatedAt = parsed.toISOString();
-                        this.set('createdAt', itemCreatedAt);
-                        Log.info(`[ContentItem] Updated createdAt to deductedDate: ${itemCreatedAt}`);
-                     }
-                  } catch (e: any) {
-                     Log.warn(`[ContentItem] Failed to parse deductedDate "${result.deductedDate}": ${e.message}`);
-                  }
-               }
+                if (result.deductedDate) {
+                   try {
+                      const parsed = new Date(result.deductedDate);
+                      if (!isNaN(parsed.getTime())) {
+                         const documentDateIso = parsed.toISOString();
+                         this.set('documentDate', documentDateIso);
+                         Log.info(`[ContentItem] Updated documentDate to: ${documentDateIso}`);
+                      }
+                   } catch (e: any) {
+                      Log.warn(`[ContentItem] Failed to parse deductedDate "${result.deductedDate}": ${e.message}`);
+                   }
+                }
             }
          } catch (err: any) {
             Log.error(`[ContentItem] Failed to re-process with Gemini: ${err.message}`);
