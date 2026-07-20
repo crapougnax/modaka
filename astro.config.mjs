@@ -61,7 +61,9 @@ export default defineConfig({
         '@quatrain/ingestion-web': path.join(coreDir, 'ingestion-web/src/index.ts'),
         '@quatrain/queue': path.join(coreDir, 'queue/src/index.ts'),
         '@quatrain/queue-sqlite': path.join(coreDir, 'queue-sqlite/src/index.ts'),
-        '@quatrain/git-client': path.join(coreDir, 'git-client/src/index.ts')
+        '@quatrain/git-client': path.join(coreDir, 'git-client/src/index.ts'),
+        '@quatrain/auth': path.join(coreDir, 'auth/src/index.ts'),
+        '@quatrain/auth-github': path.join(coreDir, 'auth-github/src/index.ts')
       }
     }
   }

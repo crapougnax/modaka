@@ -1931,8 +1931,8 @@ __metadata:
   resolution: "@quatrain/ai-gemini@portal:/Users/crapougnax/CODE/QUATRAIN/Core/packages/ai-gemini::locator=%40quatrain%2Fmodaka%40workspace%3A."
   dependencies:
     "@google/genai": "npm:latest"
-    "@quatrain/ai": "npm:^1.1.3"
-    "@quatrain/core": "npm:^1.2.16"
+    "@quatrain/ai": "npm:^1.1.4"
+    "@quatrain/core": "npm:^1.2.17"
   languageName: node
   linkType: soft
 
@@ -1940,7 +1940,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@quatrain/ai@portal:/Users/crapougnax/CODE/QUATRAIN/Core/packages/ai::locator=%40quatrain%2Fmodaka%40workspace%3A."
   dependencies:
-    "@quatrain/core": "npm:^1.2.16"
+    "@quatrain/core": "npm:^1.2.17"
   languageName: node
   linkType: soft
 
@@ -1971,6 +1971,28 @@ __metadata:
     "@quatrain/core": "workspace:*"
     "@quatrain/http": "workspace:*"
     "@quatrain/log": "workspace:*"
+  languageName: node
+  linkType: soft
+
+"@quatrain/auth-github@portal:/Users/crapougnax/CODE/QUATRAIN/Core/packages/auth-github::locator=%40quatrain%2Fmodaka%40workspace%3A.":
+  version: 0.0.0-use.local
+  resolution: "@quatrain/auth-github@portal:/Users/crapougnax/CODE/QUATRAIN/Core/packages/auth-github::locator=%40quatrain%2Fmodaka%40workspace%3A."
+  dependencies:
+    "@quatrain/api": "workspace:*"
+    "@quatrain/auth": "npm:^1.2.9"
+    "@quatrain/backend": "npm:^1.2.17"
+    node-fetch-native: "npm:^1.6.4"
+  languageName: node
+  linkType: soft
+
+"@quatrain/auth@portal:/Users/crapougnax/CODE/QUATRAIN/Core/packages/auth::locator=%40quatrain%2Fmodaka%40workspace%3A.":
+  version: 0.0.0-use.local
+  resolution: "@quatrain/auth@portal:/Users/crapougnax/CODE/QUATRAIN/Core/packages/auth::locator=%40quatrain%2Fmodaka%40workspace%3A."
+  dependencies:
+    "@quatrain/api": "workspace:*"
+    "@quatrain/backend": "npm:^1.2.17"
+    "@quatrain/core": "npm:^1.2.17"
+    "@quatrain/http": "workspace:*"
   languageName: node
   linkType: soft
 
@@ -2104,6 +2126,8 @@ __metadata:
     "@quatrain/ai-gemini": "portal:/Users/crapougnax/CODE/QUATRAIN/Core/packages/ai-gemini"
     "@quatrain/api-server": "portal:/Users/crapougnax/CODE/QUATRAIN/Core/packages/api-server"
     "@quatrain/api-server-astro": "portal:/Users/crapougnax/CODE/QUATRAIN/Core/packages/api-server-astro"
+    "@quatrain/auth": "portal:/Users/crapougnax/CODE/QUATRAIN/Core/packages/auth"
+    "@quatrain/auth-github": "portal:/Users/crapougnax/CODE/QUATRAIN/Core/packages/auth-github"
     "@quatrain/backend": "portal:/Users/crapougnax/CODE/QUATRAIN/Core/packages/backend"
     "@quatrain/chat": "portal:/Users/crapougnax/CODE/QUATRAIN/Core/packages/chat"
     "@quatrain/core": "portal:/Users/crapougnax/CODE/QUATRAIN/Core/packages/core"
@@ -2174,7 +2198,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@quatrain/queue@portal:/Users/crapougnax/CODE/QUATRAIN/Core/packages/queue::locator=%40quatrain%2Fmodaka%40workspace%3A."
   dependencies:
-    "@quatrain/core": "npm:^1.2.16"
+    "@quatrain/core": "npm:^1.2.17"
     fs-extra: "npm:^11.2.0"
   languageName: node
   linkType: soft
@@ -2213,7 +2237,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@quatrain/storage@portal:/Users/crapougnax/CODE/QUATRAIN/Core/packages/storage::locator=%40quatrain%2Fmodaka%40workspace%3A."
   dependencies:
-    "@quatrain/core": "npm:^1.2.16"
+    "@quatrain/core": "npm:^1.2.17"
     fs-extra: "npm:^11.2.0"
     object-hash: "npm:^3.0.0"
     sharp: "npm:^0.33.5"
@@ -5989,7 +6013,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"node-fetch-native@npm:^1.6.7":
+"node-fetch-native@npm:^1.6.4, node-fetch-native@npm:^1.6.7":
   version: 1.6.7
   resolution: "node-fetch-native@npm:1.6.7"
   checksum: 10c0/8b748300fb053d21ca4d3db9c3ff52593d5e8f8a2d9fe90cbfad159676e324b954fdaefab46aeca007b5b9edab3d150021c4846444e4e8ab1f4e44cd3807be87

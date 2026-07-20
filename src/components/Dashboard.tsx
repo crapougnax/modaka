@@ -428,6 +428,8 @@ export default function Dashboard({
    const [repoOwner, setRepoOwner] = useState('');
    const [repoName, setRepoName] = useState('');
    const [repoBranch, setRepoBranch] = useState('main');
+   const [repoStatus, setRepoStatus] = useState<'idle' | 'checking' | 'found' | 'not_found' | 'creating' | 'created' | 'error'>('idle');
+   const [repoErrorMsg, setRepoErrorMsg] = useState('');
 
    const [blobType, setBlobType] = useState<'local' | 's3'>('local');
    const [s3AccessKey, setS3AccessKey] = useState('');
@@ -492,6 +494,39 @@ export default function Dashboard({
          }));
       }
    }, [defaultElevenLabsApiKey, defaultElevenLabsVoiceId]);
+
+   useEffect(() => {
+      const urlParams = new URLSearchParams(window.location.search);
+      const token = urlParams.get('token') || urlParams.get('github_token');
+      if (token) {
+         setGithubToken(token);
+         setOkfType('github');
+         
+         fetch('https://api.github.com/user', {
+            headers: {
+               'Authorization': `Bearer ${token}`,
+               'Accept': 'application/json'
+            }
+         })
+         .then(res => res.json())
+         .then(userData => {
+            if (userData && userData.login) {
+               setRepoOwner(userData.login);
+               setRepoName(prev => {
+                  const name = prev || 'second-brain-data';
+                  setGitUrl(`https://github.com/${userData.login}/${name}.git`);
+                  return name;
+               });
+            }
+         })
+         .catch(err => {
+            console.error('Failed to fetch Github user profile:', err);
+         });
+
+         const cleanUrl = window.location.origin + window.location.pathname + window.location.hash;
+         window.history.replaceState({}, document.title, cleanUrl);
+      }
+   }, []);
 
       useEffect(() => {
          if (AppConfig.apiMode === 'native-bridge') {
@@ -2189,6 +2224,81 @@ export default function Dashboard({
        }
     };
 
+   const handleVerifyOrCreateRepo = async () => {
+      if (!githubToken) {
+         alert("Veuillez d'abord vous connecter à GitHub ou renseigner votre token d'accès.");
+         return;
+      }
+      
+      const owner = parseGitUrl(gitUrl)?.owner || repoOwner;
+      const repo = parseGitUrl(gitUrl)?.repo || repoName;
+
+      if (!owner || !repo) {
+         alert("Veuillez renseigner le propriétaire et le nom du dépôt.");
+         return;
+      }
+
+      setRepoStatus('checking');
+      setRepoErrorMsg('');
+
+      try {
+         const checkRes = await fetch(`https://api.github.com/repos/${owner}/${repo}`, {
+            headers: {
+               'Authorization': `Bearer ${githubToken}`,
+               'Accept': 'application/json'
+            }
+         });
+
+         if (checkRes.status === 200) {
+            setRepoStatus('found');
+            setGitUrl(`https://github.com/${owner}/${repo}.git`);
+            alert("Dépôt GitHub validé avec succès !");
+            return;
+         }
+
+         if (checkRes.status === 404) {
+            setRepoStatus('not_found');
+            if (confirm(`Le dépôt "${owner}/${repo}" n'existe pas ou n'est pas accessible. Souhaitez-vous que nous le créions pour vous en mode privé ?`)) {
+               setRepoStatus('creating');
+               const createRes = await fetch('https://api.github.com/user/repos', {
+                  method: 'POST',
+                  headers: {
+                     'Authorization': `Bearer ${githubToken}`,
+                     'Content-Type': 'application/json',
+                     'Accept': 'application/json'
+                  },
+                  body: JSON.stringify({
+                     name: repo,
+                     private: true,
+                     description: 'Dépôt de connaissances créé automatiquement par Modaka',
+                     auto_init: true
+                  })
+               });
+
+               if (createRes.ok) {
+                  setRepoStatus('created');
+                  setGitUrl(`https://github.com/${owner}/${repo}.git`);
+                  alert(`Dépôt "${owner}/${repo}" créé avec succès !`);
+               } else {
+                  const errData = await createRes.json();
+                  throw new Error(errData.message || 'Impossible de créer le dépôt.');
+               }
+            } else {
+               setRepoStatus('idle');
+            }
+            return;
+         }
+
+         const errData = await checkRes.json().catch(() => ({}));
+         throw new Error(errData.message || `Erreur d'accès au dépôt (Code ${checkRes.status}).`);
+      } catch (err: any) {
+         console.error('Git repository verification failed:', err);
+         setRepoStatus('error');
+         setRepoErrorMsg(err.message || 'Une erreur est survenue.');
+         alert(`Erreur de vérification: ${err.message || 'Une erreur est survenue.'}`);
+      }
+   };
+
    const handleReindex = async () => {
       setReindexing(true);
       try {
@@ -2763,6 +2873,39 @@ export default function Dashboard({
 
                          {okfType === 'github' && (
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '8px', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '16px' }}>
+                               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginBottom: '8px' }}>
+                                  <button
+                                     type="button"
+                                     onClick={() => {
+                                        window.location.href = `/api/auth/github/login?redirect_uri=${encodeURIComponent(window.location.origin + '/api/auth/github/callback')}`;
+                                     }}
+                                     style={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        gap: '8px',
+                                        width: '100%',
+                                        height: '42px',
+                                        borderRadius: '8px',
+                                        backgroundColor: '#24292e',
+                                        border: '1px solid rgba(255,255,255,0.15)',
+                                        color: 'white',
+                                        fontSize: '14px',
+                                        fontWeight: '600',
+                                        cursor: 'pointer',
+                                        transition: 'background-color 0.2s ease',
+                                     }}
+                                     onMouseOver={(e) => (e.currentTarget.style.backgroundColor = '#2f363d')}
+                                     onMouseOut={(e) => (e.currentTarget.style.backgroundColor = '#24292e')}
+                                  >
+                                     <svg viewBox="0 0 16 16" width="16" height="16" fill="currentColor">
+                                        <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"></path>
+                                     </svg>
+                                     Associer mon compte GitHub via OAuth
+                                  </button>
+                                  <div style={{ textAlign: 'center', fontSize: '11px', opacity: 0.5, margin: '2px 0 6px 0' }}>ou saisir un token d'accès personnel manuellement ci-dessous :</div>
+                               </div>
+
                                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                                   <label style={{ fontSize: '13px', fontWeight: '500', color: 'rgba(255,255,255,0.7)' }}>URL du dépôt Git (HTTPS ou SSH)</label>
                                   <input 
@@ -2791,7 +2934,37 @@ export default function Dashboard({
                                   />
                                </div>
 
-                               
+                               {githubToken && (
+                                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '6px' }}>
+                                     <button
+                                        type="button"
+                                        onClick={handleVerifyOrCreateRepo}
+                                        disabled={repoStatus === 'checking' || repoStatus === 'creating'}
+                                        style={{
+                                           width: '100%',
+                                           height: '38px',
+                                           borderRadius: '8px',
+                                           backgroundColor: 'rgba(0, 229, 153, 0.1)',
+                                           border: '1px solid var(--color-vivid-green)',
+                                           color: 'var(--color-vivid-green)',
+                                           fontSize: '13px',
+                                           fontWeight: '600',
+                                           cursor: 'pointer',
+                                           display: 'flex',
+                                           alignItems: 'center',
+                                           justifyContent: 'center',
+                                           gap: '8px'
+                                        }}
+                                     >
+                                        {(repoStatus === 'checking' || repoStatus === 'creating') && (
+                                           <IconLoader2 style={{ animation: 'spin 1s linear infinite' }} size={14} />
+                                        )}
+                                        {repoStatus === 'checking' ? 'Vérification...' : 
+                                         repoStatus === 'creating' ? 'Création...' : 
+                                         '🛠️ Vérifier ou créer le dépôt sur GitHub'}
+                                     </button>
+                                  </div>
+                               )}
                             </div>
                          )}
                       </div>

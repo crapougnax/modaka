@@ -27,6 +27,8 @@ import { AudioIngestionAdapter } from '@quatrain/ingestion-audio';
 import { WebIngestionAdapter } from '@quatrain/ingestion-web';
 import { Queue } from '@quatrain/queue';
 import { SQLiteQueueAdapter } from '@quatrain/queue-sqlite';
+import { Auth } from '@quatrain/auth';
+import { GithubAuthAdapter } from '@quatrain/auth-github';
 
 const execPromise = promisify(exec);
 const GIT_SYNC_LOCK_KEY = Symbol.for('__second_brain_git_sync_lock');
@@ -400,8 +402,26 @@ export async function initBackend() {
 
    Backend.addBackend(okfAdapter, 'default', true);
 
-   // 4. Initialize API Server Astro Adapter
-   astroAdapter = new AstroAdapter();
+    // 4. Initialize API Server Astro Adapter
+    astroAdapter = new AstroAdapter();
+
+    // Register Github OAuth provider and endpoints if environment credentials exist
+    const githubClientId = process.env.GITHUB_CLIENT_ID;
+    const githubClientSecret = process.env.GITHUB_CLIENT_SECRET;
+    if (githubClientId && githubClientSecret) {
+       const githubAdapter = GithubAuthAdapter.factory({
+          clientId: githubClientId,
+          clientSecret: githubClientSecret
+       });
+       if (githubAdapter) {
+          Auth.addProvider(githubAdapter, 'github');
+          astroAdapter.addEndpoint(githubAdapter.getEndpointHandler(), '/api/auth/github', {
+             adapter: githubAdapter,
+             webRedirectUri: '/'
+          });
+          Log.info('[Auth] Github OAuth adapter and API endpoints registered successfully.');
+       }
+    }
 
    // Register endpoint for ContentItem
    const ContentItemApi = (router: any, rootPath: string, options: any) => {
