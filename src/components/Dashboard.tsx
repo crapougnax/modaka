@@ -737,6 +737,8 @@ export default function Dashboard({
     const [modalElevenLabsVoiceId, setModalElevenLabsVoiceId] = useState<string>('bVsJfghVbJypxgwVISO3');
     const [searchQuery, setSearchQuery] = useState<string>('');
     const [showCategoryModal, setShowCategoryModal] = useState<boolean>(false);
+    const [showClassifyModal, setShowClassifyModal] = useState<boolean>(false);
+    const [customCategoryInput, setCustomCategoryInput] = useState<string>('');
 
     useEffect(() => {
        if (AppConfig.apiMode === 'native-bridge') {
@@ -3670,7 +3672,7 @@ export default function Dashboard({
                                      {selectedDoc.category || 'inbox'}
                                   </span>
                                   <button 
-                                     onClick={() => setShowCategoryModal(true)}
+                                     onClick={() => setShowClassifyModal(true)}
                                      className="status-badge status-nominal"
                                      style={{ border: 'none', cursor: 'pointer', padding: '6px 12px', fontSize: '12px', background: 'rgba(255,255,255,0.08)' }}
                                      title="Choisir une autre catégorie"
@@ -3908,7 +3910,7 @@ export default function Dashboard({
                </div>
             )}
 
-          {showCategoryModal && selectedDoc && (
+          {showClassifyModal && selectedDoc && (
              <div 
                 style={{
                    position: 'fixed',
@@ -3927,7 +3929,7 @@ export default function Dashboard({
                 }}
                 onClick={(e) => {
                    if (e.target === e.currentTarget) {
-                      setShowCategoryModal(false);
+                      setShowClassifyModal(false);
                    }
                 }}
              >
@@ -3949,7 +3951,7 @@ export default function Dashboard({
                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <h3 style={{ fontSize: '18px', fontWeight: 'bold', margin: 0 }}>Classer le document</h3>
                       <button 
-                         onClick={() => setShowCategoryModal(false)}
+                         onClick={() => setShowClassifyModal(false)}
                          style={{ background: 'none', border: 'none', color: '#fff', fontSize: '18px', fontWeight: 900, cursor: 'pointer', opacity: 0.6 }}
                       >
                          ✕
@@ -3961,12 +3963,12 @@ export default function Dashboard({
                    </p>
 
                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', maxHeight: '160px', overflowY: 'auto', padding: '4px' }}>
-                      {['inbox', 'work', 'personal', 'urgent', ...Array.from(new Set(documents.map(d => d.category).filter(Boolean) as string[]))].filter((value, index, self) => self.indexOf(value) === index).map(cat => (
+                      {['inbox', 'work', 'personal', 'urgent', ...Array.from(new Set(documents.map(d => d?.category).filter(Boolean) as string[]))].filter((value, index, self) => self.indexOf(value) === index).map(cat => (
                          <button 
                             key={cat}
                             onClick={async () => {
                                await handleUpdateCategory(selectedDoc, cat);
-                               setShowCategoryModal(false);
+                               setShowClassifyModal(false);
                             }}
                             className={`status-badge ${selectedDoc.category === cat ? 'status-optimal' : 'status-nominal'}`}
                             style={{ border: 'none', cursor: 'pointer', padding: '8px 14px', fontSize: '13px', borderRadius: '12px' }}
@@ -3999,7 +4001,7 @@ export default function Dashboard({
                                   if (trimmed) {
                                      await handleUpdateCategory(selectedDoc, trimmed);
                                      setCustomCategoryInput('');
-                                     setShowCategoryModal(false);
+                                     setShowClassifyModal(false);
                                   }
                                }
                             }}
@@ -4010,7 +4012,7 @@ export default function Dashboard({
                                if (trimmed) {
                                   await handleUpdateCategory(selectedDoc, trimmed);
                                   setCustomCategoryInput('');
-                                  setShowCategoryModal(false);
+                                  setShowClassifyModal(false);
                                }
                             }}
                             className="status-badge status-optimal"
