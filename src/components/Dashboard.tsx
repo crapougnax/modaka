@@ -255,6 +255,8 @@ interface ContentItemData {
    createdAt?: string;
    contextNote?: string;
    body?: string;
+   links?: string[];
+   backlinks?: { id: string; title: string; category: string }[];
 }
 
 interface Message {
@@ -3572,6 +3574,81 @@ export default function Dashboard({
                                   <div style={{ color: 'rgba(255,255,255,0.85)', lineHeight: '1.6' }}>
                                      <Markdown content={selectedDoc.body} />
                                   </div>
+                               </div>
+                            )}
+
+                            {((selectedDoc.links && selectedDoc.links.length > 0) || (selectedDoc.backlinks && selectedDoc.backlinks.length > 0)) && (
+                               <div style={{ 
+                                  marginTop: '16px',
+                                  borderTop: '1px solid rgba(255,255,255,0.08)',
+                                  paddingTop: '16px',
+                                  display: 'flex',
+                                  flexDirection: 'column',
+                                  gap: '12px'
+                               }}>
+                                  {selectedDoc.links && selectedDoc.links.length > 0 && (
+                                     <div>
+                                        <h4 style={{ fontSize: '11px', fontWeight: 'bold', color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '6px' }}>
+                                           Liens sortants
+                                        </h4>
+                                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                                           {selectedDoc.links.map((linkUid) => {
+                                              const cleanUid = linkUid.replace(/\.md$/, '').split('/').pop() || '';
+                                              const targetDoc = documents.find(d => d.id === cleanUid);
+                                              if (targetDoc) {
+                                                 return (
+                                                    <button
+                                                       key={linkUid}
+                                                       onClick={() => setSelectedDoc(targetDoc)}
+                                                       className="status-badge status-optimal"
+                                                       style={{ fontSize: '11px', padding: '4px 10px', cursor: 'pointer', border: 'none', background: 'rgba(52, 211, 153, 0.1)', color: '#34d399', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '4px' }}
+                                                    >
+                                                       <span>🔗 {targetDoc.title || cleanUid}</span>
+                                                    </button>
+                                                 );
+                                              } else {
+                                                 return (
+                                                    <span
+                                                       key={linkUid}
+                                                       className="status-badge"
+                                                       style={{ fontSize: '11px', padding: '4px 10px', background: 'rgba(255, 255, 255, 0.05)', color: 'rgba(255,255,255,0.4)', borderRadius: '8px', border: '1px dashed rgba(255,255,255,0.2)', display: 'inline-block' }}
+                                                       title="Ce document n'existe pas encore"
+                                                    >
+                                                       ❓ {cleanUid}
+                                                    </span>
+                                                 );
+                                              }
+                                           })}
+                                        </div>
+                                     </div>
+                                  )}
+                                  
+                                  {selectedDoc.backlinks && selectedDoc.backlinks.length > 0 && (
+                                     <div>
+                                        <h4 style={{ fontSize: '11px', fontWeight: 'bold', color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '6px' }}>
+                                           Références (Backlinks)
+                                        </h4>
+                                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                                           {selectedDoc.backlinks.map((backlink) => {
+                                              const targetDoc = documents.find(d => d.id === backlink.id);
+                                              return (
+                                                 <button
+                                                    key={backlink.id}
+                                                    onClick={() => {
+                                                       if (targetDoc) {
+                                                          setSelectedDoc(targetDoc);
+                                                       }
+                                                    }}
+                                                    className="status-badge status-nominal"
+                                                    style={{ fontSize: '11px', padding: '4px 10px', cursor: 'pointer', border: 'none', background: 'rgba(96, 165, 250, 0.1)', color: '#60a5fa', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '4px' }}
+                                                 >
+                                                    <span>⬅️ {backlink.title}</span>
+                                                 </button>
+                                              );
+                                           })}
+                                        </div>
+                                     </div>
+                                  )}
                                </div>
                             )}
 

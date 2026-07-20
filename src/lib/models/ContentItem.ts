@@ -32,6 +32,19 @@ export const ContentItemProperties = [
       defaultValue: []
    },
    {
+      name: 'links',
+      type: ArrayProperty.TYPE,
+      itemType: StringProperty.TYPE,
+      mandatory: false,
+      defaultValue: []
+   },
+   {
+      name: 'backlinks',
+      type: ArrayProperty.TYPE,
+      mandatory: false,
+      defaultValue: []
+   },
+   {
       name: 'summary',
       type: StringProperty.TYPE,
       mandatory: false
