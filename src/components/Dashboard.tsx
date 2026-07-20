@@ -3663,37 +3663,20 @@ export default function Dashboard({
                                </div>
                             )}
 
-                            <div style={{ borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                               <p className="secondary-meta" style={{ fontSize: '13px', margin: 0 }}>Classer le document :</p>
-                               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                                  {['inbox', 'work', 'personal', 'urgent', ...Array.from(new Set(documents.map(d => d.category).filter(Boolean) as string[]))].filter((value, index, self) => self.indexOf(value) === index).map(cat => (
-                                     <button 
-                                        key={cat}
-                                        onClick={() => handleUpdateCategory(selectedDoc, cat)}
-                                        className={`status-badge ${selectedDoc.category === cat ? 'status-optimal' : 'status-nominal'}`}
-                                        style={{ border: 'none', cursor: 'pointer', padding: '6px 12px', fontSize: '12px' }}
-                                     >
-                                        {cat}
-                                     </button>
-                                  ))}
-                               </div>
-                               <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                                  <input 
-                                     type="text" 
-                                     placeholder="Créer/Déplacer vers un dossier personnalisé (ex: literature/sci-fi)..."
-                                     className="action-input"
-                                     style={{ height: '36px', fontSize: '13px', padding: '0 12px', flex: 1 }}
-                                     onKeyDown={(e) => {
-                                        if (e.key === 'Enter') {
-                                           e.preventDefault();
-                                           const inputVal = (e.target as HTMLInputElement).value.trim();
-                                           if (inputVal) {
-                                              handleUpdateCategory(selectedDoc, inputVal);
-                                              (e.target as HTMLInputElement).value = '';
-                                           }
-                                        }
-                                     }}
-                                  />
+                            <div style={{ borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                               <p className="secondary-meta" style={{ fontSize: '13px', margin: 0 }}>Catégorie :</p>
+                               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                  <span className="status-badge status-optimal" style={{ fontSize: '12px', padding: '6px 12px' }}>
+                                     {selectedDoc.category || 'inbox'}
+                                  </span>
+                                  <button 
+                                     onClick={() => setShowCategoryModal(true)}
+                                     className="status-badge status-nominal"
+                                     style={{ border: 'none', cursor: 'pointer', padding: '6px 12px', fontSize: '12px', background: 'rgba(255,255,255,0.08)' }}
+                                     title="Choisir une autre catégorie"
+                                  >
+                                     ...
+                                  </button>
                                </div>
                             </div>
 
@@ -3924,6 +3907,122 @@ export default function Dashboard({
                   </button>
                </div>
             )}
+
+          {showCategoryModal && selectedDoc && (
+             <div 
+                style={{
+                   position: 'fixed',
+                   top: 0,
+                   left: 0,
+                   right: 0,
+                   bottom: 0,
+                   backgroundColor: 'rgba(9, 13, 22, 0.85)',
+                   backdropFilter: 'blur(12px)',
+                   display: 'flex',
+                   alignItems: 'center',
+                   justifyContent: 'center',
+                   zIndex: 1000,
+                   padding: '20px',
+                   boxSizing: 'border-box'
+                }}
+                onClick={(e) => {
+                   if (e.target === e.currentTarget) {
+                      setShowCategoryModal(false);
+                   }
+                }}
+             >
+                <div 
+                   style={{
+                      backgroundColor: '#131924',
+                      padding: '24px',
+                      borderRadius: '24px',
+                      border: '1px solid rgba(255,255,255,0.08)',
+                      maxWidth: '500px',
+                      width: '100%',
+                      boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.7)',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '16px',
+                      boxSizing: 'border-box'
+                   }}
+                >
+                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <h3 style={{ fontSize: '18px', fontWeight: 'bold', margin: 0 }}>Classer le document</h3>
+                      <button 
+                         onClick={() => setShowCategoryModal(false)}
+                         style={{ background: 'none', border: 'none', color: '#fff', fontSize: '18px', fontWeight: 900, cursor: 'pointer', opacity: 0.6 }}
+                      >
+                         ✕
+                      </button>
+                   </div>
+
+                   <p className="secondary-meta" style={{ fontSize: '14px', margin: 0 }}>
+                      Sélectionnez une catégorie existante :
+                   </p>
+
+                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', maxHeight: '160px', overflowY: 'auto', padding: '4px' }}>
+                      {['inbox', 'work', 'personal', 'urgent', ...Array.from(new Set(documents.map(d => d.category).filter(Boolean) as string[]))].filter((value, index, self) => self.indexOf(value) === index).map(cat => (
+                         <button 
+                            key={cat}
+                            onClick={async () => {
+                               await handleUpdateCategory(selectedDoc, cat);
+                               setShowCategoryModal(false);
+                            }}
+                            className={`status-badge ${selectedDoc.category === cat ? 'status-optimal' : 'status-nominal'}`}
+                            style={{ border: 'none', cursor: 'pointer', padding: '8px 14px', fontSize: '13px', borderRadius: '12px' }}
+                         >
+                            {cat}
+                         </button>
+                      ))}
+                   </div>
+
+                   <div style={{ borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: '16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                      <label style={{ fontSize: '13px', color: 'rgba(255,255,255,0.6)', fontWeight: 'bold' }}>Créer une nouvelle catégorie :</label>
+                      <div style={{ display: 'flex', gap: '8px' }}>
+                         <input 
+                            type="text"
+                            placeholder="Nom de la catégorie..."
+                            value={customCategoryInput}
+                            onChange={(e) => setCustomCategoryInput(e.target.value)}
+                            style={{
+                               flex: 1,
+                               backgroundColor: 'rgba(255,255,255,0.05)',
+                               border: '1px solid rgba(255,255,255,0.1)',
+                               borderRadius: '12px',
+                               padding: '10px 14px',
+                               color: '#fff',
+                               fontSize: '14px'
+                            }}
+                            onKeyDown={async (e) => {
+                               if (e.key === 'Enter') {
+                                  const trimmed = customCategoryInput.trim();
+                                  if (trimmed) {
+                                     await handleUpdateCategory(selectedDoc, trimmed);
+                                     setCustomCategoryInput('');
+                                     setShowCategoryModal(false);
+                                  }
+                               }
+                            }}
+                         />
+                         <button
+                            onClick={async () => {
+                               const trimmed = customCategoryInput.trim();
+                               if (trimmed) {
+                                  await handleUpdateCategory(selectedDoc, trimmed);
+                                  setCustomCategoryInput('');
+                                  setShowCategoryModal(false);
+                               }
+                            }}
+                            className="status-badge status-optimal"
+                            style={{ border: 'none', cursor: 'pointer', padding: '10px 18px', fontSize: '13px', borderRadius: '12px', fontWeight: 'bold' }}
+                         >
+                            Appliquer
+                         </button>
+                      </div>
+                   </div>
+                </div>
+             </div>
+          )}
 
          {showUploadModal && (
             <div 
