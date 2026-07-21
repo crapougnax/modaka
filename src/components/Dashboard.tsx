@@ -2877,20 +2877,28 @@ export default function Dashboard({
                                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginBottom: '8px' }}>
                                   <button
                                      type="button"
-                                     onClick={() => {
+                                     onClick={async () => {
                                         const callbackUrl = window.location.origin + '/api/auth/github/callback';
                                         const loginUrl = `/api/auth/github/login?redirect_uri=${encodeURIComponent(callbackUrl)}&app_scheme=modaka`;
-                                        if ((window as any).ReactNativeWebView) {
-                                           console.log('[WebView Bridge] Triggering GITHUB_OAUTH_LOGIN message for Expo...');
-                                           (window as any).ReactNativeWebView.postMessage(JSON.stringify({
-                                              type: 'GITHUB_OAUTH_LOGIN',
-                                              url: loginUrl,
-                                              redirectUri: callbackUrl,
-                                              appScheme: 'modaka'
-                                           }));
-                                        } else {
-                                           window.location.href = loginUrl;
+                                        try {
+                                           const res = await fetch(`${loginUrl}&json=true`);
+                                           if (res.ok) {
+                                              const data = await res.json();
+                                              if (data.url) {
+                                                 window.location.href = data.url;
+                                                 return;
+                                              }
+                                           } else {
+                                              const err = await res.json().catch(() => ({}));
+                                              if (err.error) {
+                                                 alert(err.error);
+                                                 return;
+                                              }
+                                           }
+                                        } catch (e) {
+                                           console.warn('[OAuth] JSON fetch failed, navigating directly:', e);
                                         }
+                                        window.location.href = loginUrl;
                                      }}
                                      style={{
                                         display: 'flex',
