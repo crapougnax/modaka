@@ -7,7 +7,8 @@ import { Ingestion } from '@quatrain/ingestion';
 import { Queue } from '@quatrain/queue';
 import { ContentItem } from './models/ContentItem';
 import { fetchHtmlWithJs } from './browser';
-import { gitAddIfRepo, normalizeUrl, extractLinks, slugify } from './utils';
+import { gitAddIfRepo } from './utils/git';
+import { normalizeUrl, extractLinks, slugify } from './utils';
 
 let backendPromise: Promise<void> | null = null;
 function ensureBackend() {

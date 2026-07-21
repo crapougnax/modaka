@@ -2,84 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import QRCode from 'qrcode';
 import jsQR from 'jsqr';
 import { AppConfig } from '../config/AppConfig';
-
-function parseGitUrl(url: string): { owner: string; repo: string } | null {
-   if (!url) return null;
-   let clean = url.trim();
-   clean = clean.replace(/^(https?:\/\/github\.com\/|git@github\.com:)/i, '');
-   clean = clean.replace(/\.git$/i, '');
-   const parts = clean.split('/');
-   if (parts.length >= 2) {
-      return {
-         owner: parts[0],
-         repo: parts[1]
-      };
-   }
-   return null;
-}
-
-
-
-function compressConfig(config: any): any {
-   if (!config) return null;
-   return {
-      lg: config.lang,
-      nm: config.name,
-      em: config.email,
-      ai: config.llm ? {
-         md: config.llm.model,
-         ak: config.llm.apiKey
-      } : undefined,
-      ok: config.okfStorage ? {
-         ty: config.okfStorage.type,
-         tk: config.okfStorage.githubToken,
-         ur: config.okfStorage.gitUrl ? config.okfStorage.gitUrl.replace(/^(https?:\/\/github\.com\/|git@github\.com:)/i, '') : ''
-      } : undefined,
-      bl: config.blobStorage ? {
-         type: config.blobStorage.type,
-         ak: config.blobStorage.accessKey,
-         sk: config.blobStorage.secretKey,
-         rg: config.blobStorage.region,
-         ep: config.blobStorage.endpoint,
-         bk: config.blobStorage.bucket
-      } : undefined,
-      in: config.interests
-   };
-}
-
-function decompressConfig(compressed: any): any {
-   if (!compressed) return null;
-   if (compressed.lang || compressed.name || compressed.okfStorage || compressed.blobStorage) {
-      return compressed;
-   }
-   let gitUrl = compressed.ok?.ur || '';
-   if (gitUrl && !gitUrl.includes('://')) {
-      gitUrl = 'https://github.com/' + gitUrl;
-   }
-   return {
-      lang: compressed.lg,
-      name: compressed.nm,
-      email: compressed.em,
-      llm: compressed.ai ? {
-         model: compressed.ai.md,
-         apiKey: compressed.ai.ak
-      } : undefined,
-      okfStorage: compressed.ok ? {
-         type: compressed.ok.ty,
-         githubToken: compressed.ok.tk,
-         gitUrl: gitUrl
-      } : undefined,
-      blobStorage: compressed.bl ? {
-         type: compressed.bl.ty,
-         accessKey: compressed.bl.ak,
-         secretKey: compressed.bl.sk,
-         region: compressed.bl.rg,
-         endpoint: compressed.bl.ep,
-         bucket: compressed.bl.bk
-      } : undefined,
-      interests: compressed.in
-   };
-}
+import { compressConfig, decompressConfig, formatRelativeDate, Markdown, parseGitUrl } from '../lib/utils';
+import '../styles/dashboard.css';
 import { 
    IconMessage, 
    IconFileText, 
@@ -163,99 +87,6 @@ interface Message {
    };
 }
 
-function Markdown({ content }: { content: string }) {
-   if (!content) return null;
-   
-   const lines = content.split('\n');
-   let inList = false;
-   const elements: React.ReactNode[] = [];
-   let currentListItems: React.ReactNode[] = [];
-
-   const parseInline = (text: string) => {
-      let html = text
-         .replace(/&/g, '&amp;')
-         .replace(/</g, '&lt;')
-         .replace(/>/g, '&gt;')
-         .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-         .replace(/\*(.*?)\*/g, '<em>$1</em>')
-         .replace(/`([^`]+)`/g, '<code style="background: rgba(255,255,255,0.08); padding: 2px 6px; border-radius: 4px; font-family: monospace;">$1</code>')
-         .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer" style="color: #00e599; text-decoration: underline;">$1</a>');
-      
-      return <span dangerouslySetInnerHTML={{ __html: html }} />;
-   };
-
-   for (let i = 0; i < lines.length; i++) {
-      const line = lines[i].trim();
-      
-      if (line.startsWith('* ') || line.startsWith('- ')) {
-         if (!inList) {
-            inList = true;
-            currentListItems = [];
-         }
-         currentListItems.push(
-            <li key={`li-${i}`} style={{ marginBottom: '4px', fontSize: '15px' }}>
-               {parseInline(line.substring(2))}
-            </li>
-         );
-      } else {
-         if (inList) {
-            inList = false;
-            elements.push(<ul key={`ul-${i}`} style={{ marginLeft: '20px', marginBottom: '12px', listStyleType: 'disc' }}>{currentListItems}</ul>);
-         }
-         
-         if (line.startsWith('### ')) {
-            elements.push(<h4 key={i} style={{ fontSize: '16px', fontWeight: 'bold', marginTop: '16px', marginBottom: '8px' }}>{parseInline(line.substring(4))}</h4>);
-         } else if (line.startsWith('## ')) {
-            elements.push(<h3 key={i} style={{ fontSize: '18px', fontWeight: 'bold', marginTop: '20px', marginBottom: '10px' }}>{parseInline(line.substring(3))}</h3>);
-         } else if (line.startsWith('# ')) {
-            elements.push(<h2 key={i} style={{ fontSize: '22px', fontWeight: 'bold', marginTop: '24px', marginBottom: '12px' }}>{parseInline(line.substring(2))}</h2>);
-         } else if (line) {
-            elements.push(<p key={i} style={{ fontSize: '15px', lineHeight: '1.6', marginBottom: '12px' }}>{parseInline(line)}</p>);
-         }
-      }
-   }
-   
-   if (inList) {
-      elements.push(<ul key="ul-end" style={{ marginLeft: '20px', marginBottom: '12px', listStyleType: 'disc' }}>{currentListItems}</ul>);
-   }
-
-   return <div style={{ display: 'flex', flexDirection: 'column' }}>{elements}</div>;
-}
-
-function formatRelativeDate(dateString?: string): string {
-   if (!dateString) return '';
-   try {
-      const date = new Date(dateString);
-      const now = new Date();
-      const diffMs = now.getTime() - date.getTime();
-      if (diffMs < 0) {
-         return date.toLocaleDateString();
-      }
-
-      const diffSec = Math.floor(diffMs / 1000);
-      const diffMin = Math.floor(diffSec / 60);
-      const diffHrs = Math.floor(diffMin / 60);
-      const diffDays = Math.floor(diffHrs / 24);
-
-      if (diffDays < 3) {
-         if (diffSec < 60) {
-            return "À l'instant";
-         }
-         if (diffMin < 60) {
-            return `Il y a ${diffMin} min`;
-         }
-         if (diffHrs < 24) {
-            return `Il y a ${diffHrs} h`;
-         }
-         return `Il y a ${diffDays} jour${diffDays > 1 ? 's' : ''}`;
-      }
-
-      return date.toLocaleDateString();
-   } catch (e) {
-      return '';
-   }
-}
-
 interface DashboardProps {
    initialDevMode?: boolean;
    defaultElevenLabsApiKey?: string;
@@ -308,7 +139,9 @@ export default function Dashboard({
    const [nameInput, setNameInput] = useState('');
    const [emailInput, setEmailInput] = useState('');
    const [langInput, setLangInput] = useState('fr_FR');
+   const [llmProvider, setLlmProvider] = useState<'gemini' | 'llama'>('gemini');
    const [llmModel, setLlmModel] = useState('gemini-2.5-flash');
+   const [llamaEndpoint, setLlamaEndpoint] = useState('http://10.0.2.2:8080/v1');
    const [llmApiKey, setLlmApiKey] = useState('');
 
    const [okfType, setOkfType] = useState<'local' | 'github'>('local');
@@ -392,8 +225,10 @@ export default function Dashboard({
          if (config.email) setEmailInput(config.email || '');
          if (config.lang) setLangInput(config.lang);
          if (config.llm) {
+            if (config.llm.provider) setLlmProvider(config.llm.provider);
             if (config.llm.model) setLlmModel(config.llm.model);
             if (config.llm.apiKey) setLlmApiKey(config.llm.apiKey);
+            if (config.llm.llamaEndpoint) setLlamaEndpoint(config.llm.llamaEndpoint);
          }
          if (config.okfStorage) {
             if (config.okfStorage.type) setOkfType(config.okfStorage.type);
@@ -431,8 +266,10 @@ export default function Dashboard({
             name: config.name || '',
             email: config.email || '',
             llm: {
+               provider: config.llm?.provider || (config.llm?.model?.includes('gemma') || config.llm?.model?.includes('llama') ? 'llama' : 'gemini'),
                model: config.llm?.model || 'gemini-2.5-flash',
-               apiKey: config.llm?.apiKey || ''
+               apiKey: config.llm?.apiKey || '',
+               llamaEndpoint: config.llm?.llamaEndpoint || 'http://10.0.2.2:8080/v1'
             },
             okfStorage: {
                type: config.okfStorage?.type || 'local',
@@ -1099,7 +936,7 @@ export default function Dashboard({
              lang: langInput,
              name: nameInput,
              email: emailInput,
-             llm: { model: llmModel, apiKey: llmApiKey },
+             llm: { provider: llmProvider, model: llmModel, apiKey: llmApiKey, llamaEndpoint },
              okfStorage: {
                 type: okfType,
                 githubToken,
@@ -1842,7 +1679,7 @@ export default function Dashboard({
             lang: langInput,
             name: nameInput,
             email: emailInput,
-            llm: { model: llmModel, apiKey: llmApiKey },
+            llm: { provider: llmProvider, model: llmModel, apiKey: llmApiKey, llamaEndpoint },
             okfStorage: {
                type: okfType,
                githubToken,
@@ -2806,33 +2643,85 @@ canvas.width = width;
                          </div>
 
                          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                            <label style={{ fontSize: '13px', fontWeight: '500', color: 'rgba(255,255,255,0.7)' }}>Modèle de LLM</label>
+                            <label style={{ fontSize: '13px', fontWeight: '500', color: 'rgba(255,255,255,0.7)' }}>Fournisseur & Modèle de LLM</label>
                             <select 
                                value={llmModel} 
-                               onChange={(e) => setLlmModel(e.target.value)}
+                               onChange={(e) => {
+                                  const val = e.target.value;
+                                  setLlmModel(val);
+                                  if (val === 'gemma-4-embedded' || val === 'gemma-4') {
+                                     setLlmProvider('embedded-llama');
+                                  } else if (val === 'gemma-4-server') {
+                                     setLlmProvider('llama');
+                                  } else {
+                                     setLlmProvider('gemini');
+                                  }
+                               }}
                                style={{ width: '100%', height: '42px', borderRadius: '8px', backgroundColor: '#182030', border: '1px solid rgba(255,255,255,0.1)', color: 'white', padding: '0 12px', fontSize: '14px' }}
                             >
-                               <option value="gemini-2.5-flash">Gemini 2.5 Flash (Recommandé)</option>
-                               <option value="gemini-2.5-pro">Gemini 2.5 Pro</option>
+                               <option value="gemini-2.5-flash">Gemini 2.5 Flash (Google Cloud API)</option>
+                               <option value="gemini-2.5-pro">Gemini 2.5 Pro (Google Cloud API)</option>
+                               <option value="gemma-4-embedded">Gemma 4 (Embarqué 100% Offline / Native llama.cpp) 📱</option>
+                               <option value="gemma-4-server">Gemma 4 (Serveur Llama.cpp / Ollama Distant) 🦙</option>
                             </select>
                          </div>
 
-                         <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                            <label style={{ fontSize: '13px', fontWeight: '500', color: 'rgba(255,255,255,0.7)' }}>Clé API Google AI Studio</label>
-                            <input 
-                               type="password" 
-                               placeholder="Clé API AIzaSy..." 
-                               value={llmApiKey} 
-                               onChange={(e) => setLlmApiKey(e.target.value)}
-                               autoCapitalize="none"
-                               autoCorrect="off"
-                               autoComplete="off"
-                               style={{ width: '100%', height: '42px', borderRadius: '8px', backgroundColor: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'white', padding: '0 12px', fontSize: '14px', boxSizing: 'border-box' }}
-                            />
-                            <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)', margin: 0 }}>
-                               Clé API Gemini requise pour faire fonctionner l'IA. Elle reste stockée localement sur votre téléphone.
-                            </p>
-                         </div>
+                         {(llmProvider === 'embedded-llama' || llmModel === 'gemma-4-embedded' || llmModel === 'gemma-4') && (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                               <label style={{ fontSize: '13px', fontWeight: '500', color: 'rgba(255,255,255,0.7)' }}>Fichier du Modèle Embarqué (.gguf)</label>
+                               <input 
+                                  type="text" 
+                                  placeholder="models/gemma-4.gguf" 
+                                  value={llamaEndpoint.startsWith('http') ? 'models/gemma-4.gguf' : llamaEndpoint} 
+                                  onChange={(e) => setLlamaEndpoint(e.target.value)}
+                                  autoCapitalize="none"
+                                  autoCorrect="off"
+                                  autoComplete="off"
+                                  style={{ width: '100%', height: '42px', borderRadius: '8px', backgroundColor: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'white', padding: '0 12px', fontSize: '14px', boxSizing: 'border-box' }}
+                               />
+                               <p style={{ fontSize: '11px', color: 'var(--color-vivid-green)', margin: 0 }}>
+                                  ⚡ Mode 100% local embarqué. Le modèle Gemma 4 est exécuté directement par le processeur/NPU de votre appareil via llama.cpp natif.
+                               </p>
+                            </div>
+                         )}
+
+                         {llmProvider === 'llama' || llmModel === 'gemma-4-server' ? (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                               <label style={{ fontSize: '13px', fontWeight: '500', color: 'rgba(255,255,255,0.7)' }}>URL du Serveur Llama Distant (Endpoint API)</label>
+                               <input 
+                                  type="text" 
+                                  placeholder="http://10.0.2.2:8080/v1" 
+                                  value={llamaEndpoint} 
+                                  onChange={(e) => setLlamaEndpoint(e.target.value)}
+                                  autoCapitalize="none"
+                                  autoCorrect="off"
+                                  autoComplete="off"
+                                  style={{ width: '100%', height: '42px', borderRadius: '8px', backgroundColor: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'white', padding: '0 12px', fontSize: '14px', boxSizing: 'border-box' }}
+                               />
+                               <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)', margin: 0 }}>
+                                  Endpoint Llama API (ex: http://10.0.2.2:8080/v1 pour Android, http://localhost:8080/v1 pour Web/iOS).
+                               </p>
+                            </div>
+                         ) : null}
+
+                         {llmProvider === 'gemini' && (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                               <label style={{ fontSize: '13px', fontWeight: '500', color: 'rgba(255,255,255,0.7)' }}>Clé API Google AI Studio</label>
+                               <input 
+                                  type="password" 
+                                  placeholder="Clé API AIzaSy..." 
+                                  value={llmApiKey} 
+                                  onChange={(e) => setLlmApiKey(e.target.value)}
+                                  autoCapitalize="none"
+                                  autoCorrect="off"
+                                  autoComplete="off"
+                                  style={{ width: '100%', height: '42px', borderRadius: '8px', backgroundColor: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'white', padding: '0 12px', fontSize: '14px', boxSizing: 'border-box' }}
+                               />
+                               <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)', margin: 0 }}>
+                                  Clé API Gemini requise pour faire fonctionner l'IA Google Cloud. Elle reste stockée localement sur votre téléphone.
+                               </p>
+                            </div>
+                         )}
                       </div>
                    )}
 

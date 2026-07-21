@@ -1,7 +1,14 @@
 {
   "name": "@quatrain/modaka",
   "type": "module",
-  "version": "1.0.0",
+  "version": "0.1.0",
+  "description": "Modaka local-first knowledge base engine",
+  "author": "Olivier Lépine <olivier@lepine.fr>",
+  "license": "AGPL-3.0-only",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/crapougnax/modaka.git"
+  },
   "engines": {
     "node": ">=22.0.0"
   },

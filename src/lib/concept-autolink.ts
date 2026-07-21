@@ -3,6 +3,13 @@ import { Storage } from '@quatrain/storage';
 import { Log } from '@quatrain/log';
 import { Readable } from 'node:stream';
 
+/**
+ * Searches Wikipedia for a given proper noun and automatically creates a Concept OKF document
+ * if it does not already exist in the user's Second Brain knowledge base.
+ *
+ * @param properNoun - The name or proper noun string to look up and turn into a concept document.
+ * @returns Promise resolving when the concept search and document creation completes.
+ */
 export async function searchAndCreateConcept(properNoun: string): Promise<void> {
    const slug = properNoun.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
    if (!slug) return;

@@ -14,6 +14,27 @@ export function normalizeUrl(urlStr: string): string {
 }
 
 /**
+ * Parses a Git remote URL into repository owner and repository name.
+ *
+ * @param url - The raw Git or GitHub URL string.
+ * @returns Object with owner and repo strings, or null if unparseable.
+ */
+export function parseGitUrl(url?: string | null): { owner: string; repo: string } | null {
+   if (!url) return null;
+   let clean = url.trim();
+   clean = clean.replace(/^(https?:\/\/github\.com\/|git@github\.com:)/i, '');
+   clean = clean.replace(/\.git$/i, '');
+   const parts = clean.split('/');
+   if (parts.length >= 2) {
+      return {
+         owner: parts[0],
+         repo: parts[1]
+      };
+   }
+   return null;
+}
+
+/**
  * Extracts and filters same-origin links from an HTML body (ignoring assets/binaries).
  *
  * @param html - The raw HTML content to search for links.

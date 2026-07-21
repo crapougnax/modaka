@@ -1,0 +1,71 @@
+# This workflow runs tests and builds/publishes @quatrain/modaka to GitHub Packages on push to main or manual dispatch.
+# Inspired by api-common-npm-package.yml workflow pattern.
+
+name: Modaka Node.js Package
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'src/**'
+      - 'package.json'
+      - 'astro.config.mjs'
+      - '.github/workflows/modaka-npm-package.yml'
+  workflow_dispatch:
+
+env:
+  REGISTRY: ghcr.io
+  NAMESPACE: quatrain
+  PACKAGE: modaka
+
+jobs:
+  build-publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set Node.js v22.x
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: 'https://npm.pkg.github.com'
+          scope: '@quatrain'
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Configure Yarn & NPM Auth
+        run: |
+          echo "//npm.pkg.github.com/:_authToken=${GITHUB_TOKEN}" > ~/.npmrc
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Save short SHA
+        id: vars
+        run: echo "sha_short=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+
+      - name: Install dependencies
+        run: yarn install
+
+      - name: Run unit tests
+        run: yarn test
+
+      - name: Run build
+        run: yarn build
+
+      - name: Update package version for dev release
+        run: npm version 0.1.0-dev-sha${{ steps.vars.outputs.sha_short }}-${{ github.run_number }}-${{ github.run_attempt }} --no-git-tag-version
+
+      - name: Publish in GitHub Packages repository
+        run: npm publish --tag=latest-dev
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
