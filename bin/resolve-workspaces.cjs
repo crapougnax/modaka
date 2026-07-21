@@ -4,6 +4,7 @@
  * @file resolve-workspaces.cjs
  * @description Prepares package.json for CI builds by replacing local portal: dependencies
  * and resolutions with latest published versions queried directly from the NPM registry.
+ * Unpublished 404 packages are safely omitted so yarn install succeeds.
  */
 
 const fs = require('fs');
@@ -14,7 +15,7 @@ const { execSync } = require('child_process');
  * Queries the NPM registry for the latest published version of a given package.
  *
  * @param {string} packageName - The NPM package name (e.g. '@quatrain/chat').
- * @returns {string} SemVer range string (^x.y.z) or fallback range ^1.0.0.
+ * @returns {string|null} SemVer range string (^x.y.z) or null if package is not published.
  */
 function fetchLatestNpmVersion(packageName) {
   try {
@@ -24,9 +25,9 @@ function fetchLatestNpmVersion(packageName) {
       return `^${version}`;
     }
   } catch (e) {
-    console.warn(`[CI] Package ${packageName} not found on NPM registry. Using fallback ^1.0.0`);
+    console.warn(`[CI] Package ${packageName} not found on NPM registry.`);
   }
-  return '^1.0.0';
+  return null;
 }
 
 /**
@@ -55,13 +56,18 @@ function resolveWorkspaceDependencies() {
     }
   }
 
-  // 2. Query NPM registry for each portal: dependency and resolve to latest version
+  // 2. Query NPM registry for each portal: dependency; resolve to latest version or omit if unpublished 404
   for (const depType of ['dependencies', 'devDependencies', 'peerDependencies']) {
     if (!targetPkg[depType]) continue;
     for (const dep in targetPkg[depType]) {
       if (typeof targetPkg[depType][dep] === 'string' && targetPkg[depType][dep].startsWith('portal:')) {
         const resolvedRange = fetchLatestNpmVersion(dep);
-        targetPkg[depType][dep] = resolvedRange;
+        if (resolvedRange) {
+          targetPkg[depType][dep] = resolvedRange;
+        } else {
+          console.log(`[CI] Omitted unpublished dependency from build: ${dep}`);
+          delete targetPkg[depType][dep];
+        }
       }
     }
   }
