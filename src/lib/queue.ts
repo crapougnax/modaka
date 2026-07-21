@@ -15,7 +15,7 @@ function ensureBackend() {
       backendPromise = import('./backend').then(({ initBackend }) => {
          return initBackend();
       }).catch(e => {
-         Queue.error(`[Queue] Failed to initialize backend dynamically: ${e.message}`);
+         Queue.error(`Failed to initialize backend dynamically: ${e.message}`);
       });
    }
 }
@@ -56,14 +56,14 @@ class QueueManagerClass {
       
       const adapter = Queue.getQueue<any>();
       adapter.listen('ingestion', async (task: any, options: { updateProgress: Function }) => {
-         Queue.info(`[Queue] Processing task ${task.name || 'unnamed'}`);
+         Queue.info(`Processing task ${task.name || 'unnamed'}`);
          try {
             await this.executeTask(task, async (progress: number) => {
                await options.updateProgress(progress);
             });
-            Queue.info(`[Queue] Completed task ${task.name || 'unnamed'}`);
+            Queue.info(`Completed task ${task.name || 'unnamed'}`);
          } catch (err: any) {
-            Queue.error(`[Queue] Failed task ${task.name || 'unnamed'}: ${err.message || err}`);
+            Queue.error(`Failed task ${task.name || 'unnamed'}: ${err.message || err}`);
             throw err;
          }
       });
@@ -114,7 +114,7 @@ class QueueManagerClass {
       const adapter = Queue.getQueue<any>();
       
       const tasks = await adapter.getTasks('ingestion');
-      const task = tasks.find(t => t.id === id);
+      const task = tasks.find((t: { id: string; }) => t.id === id);
       if (task && task.tempFilePath) {
          fs.unlink(task.tempFilePath).catch(() => {});
       }

@@ -18,119 +18,7 @@ function parseGitUrl(url: string): { owner: string; repo: string } | null {
    return null;
 }
 
-   const applyImportedConfig = async (config: any) => {
-      try {
-         // 1. Update React state inputs
-         if (config.name) setNameInput(config.name);
-         if (config.email) setEmailInput(config.email || '');
-         if (config.lang) setLangInput(config.lang);
-         if (config.llm) {
-            if (config.llm.model) setLlmModel(config.llm.model);
-            if (config.llm.apiKey) setLlmApiKey(config.llm.apiKey);
-         }
-         if (config.okfStorage) {
-            if (config.okfStorage.type) setOkfType(config.okfStorage.type);
-            if (config.okfStorage.githubToken) setGithubToken(config.okfStorage.githubToken);
-            if (config.okfStorage.gitUrl) {
-               setGitUrl(config.okfStorage.gitUrl);
-               const parsed = parseGitUrl(config.okfStorage.gitUrl);
-               if (parsed) {
-                  setRepoOwner(parsed.owner);
-                  setRepoName(parsed.repo);
-               }
-            } else {
-               if (config.okfStorage.repoOwner) setRepoOwner(config.okfStorage.repoOwner);
-               if (config.okfStorage.repoName) setRepoName(config.okfStorage.repoName);
-            }
-            setRepoBranch(config.okfStorage.branch || 'main');
-         }
-         if (config.blobStorage) {
-            if (config.blobStorage.type) setBlobType(config.blobStorage.type);
-            if (config.blobStorage.accessKey) setS3AccessKey(config.blobStorage.accessKey);
-            if (config.blobStorage.secretKey) setS3SecretKey(config.blobStorage.secretKey);
-            if (config.blobStorage.region) setS3Region(config.blobStorage.region);
-            if (config.blobStorage.endpoint) setS3Endpoint(config.blobStorage.endpoint);
-            if (config.blobStorage.bucket) setS3Bucket(config.blobStorage.bucket);
-         }
-         if (config.interests) {
-            if (Array.isArray(config.interests)) {
-               setSelectedInterests(config.interests);
-            }
-         }
 
-         // 2. Build full config to post to backend
-         const configObj = {
-            lang: config.lang || 'fr_FR',
-            name: config.name || '',
-            email: config.email || '',
-            llm: {
-               model: config.llm?.model || 'gemini-2.5-flash',
-               apiKey: config.llm?.apiKey || ''
-            },
-            okfStorage: {
-               type: config.okfStorage?.type || 'local',
-               githubToken: config.okfStorage?.githubToken || '',
-               repoOwner: config.okfStorage?.repoOwner || (config.okfStorage?.gitUrl ? parseGitUrl(config.okfStorage.gitUrl)?.owner : '') || '',
-               repoName: config.okfStorage?.repoName || (config.okfStorage?.gitUrl ? parseGitUrl(config.okfStorage.gitUrl)?.repo : '') || '',
-               gitUrl: config.okfStorage?.gitUrl || '',
-               branch: config.okfStorage?.branch || 'main'
-            },
-            blobStorage: {
-               type: config.blobStorage?.type || 'local',
-               accessKey: config.blobStorage?.accessKey || '',
-               secretKey: config.blobStorage?.secretKey || '',
-               region: config.blobStorage?.region || 'us-east-1',
-               endpoint: config.blobStorage?.endpoint || '',
-               bucket: config.blobStorage?.bucket || 'second-brain'
-            }
-         };
-
-         const configRes = await fetch('/api/config', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(configObj)
-         });
-
-         if (!configRes.ok) {
-            const err = await configRes.json();
-            alert(`Erreur d'importation backend : ${err.error}`);
-            return;
-         }
-
-         // Initialize folders if interests are selected
-         const interests = config.interests || [];
-         if (interests.length > 0) {
-            await fetch('/api/initialize', {
-               method: 'POST',
-               headers: { 'Content-Type': 'application/json' },
-               body: JSON.stringify({ categories: interests })
-            });
-         }
-
-         // 3. Persist local profile and change view mode to configured
-         const newProfile = {
-            name: config.name || '',
-            email: config.email || '',
-            language: config.lang || 'fr_FR',
-            ttsProvider: 'Browser',
-            elevenLabsApiKey: defaultElevenLabsApiKey,
-            elevenLabsVoiceId: defaultElevenLabsVoiceId
-         };
-         setUserProfile(newProfile);
-         localStorage.setItem('sb_user_profile', JSON.stringify(newProfile));
-         localStorage.setItem('sb_app_configured', 'true');
-         setConfigured(true);
-         
-         // Fetch fresh data
-         fetchDocuments();
-         fetchQueue();
-         
-         alert("Configuration importée et appliquée avec succès !");
-      } catch (err: any) {
-         console.error('Failed to apply imported configuration', err);
-         alert("Erreur lors de l'application de la configuration : " + err.message);
-      }
-   };
 
 function compressConfig(config: any): any {
    if (!config) return null;
@@ -210,7 +98,8 @@ import {
        IconTrash,
        IconMicrophone,
        IconPlayerStop,
-       IconQrcode
+       IconQrcode,
+       IconLink
     } from '@tabler/icons-react';
 
    const ONBOARDING_SUBTHEMES = [
@@ -495,6 +384,120 @@ export default function Dashboard({
          }));
       }
    }, [defaultElevenLabsApiKey, defaultElevenLabsVoiceId]);
+
+   const applyImportedConfig = async (config: any) => {
+      try {
+         // 1. Update React state inputs
+         if (config.name) setNameInput(config.name);
+         if (config.email) setEmailInput(config.email || '');
+         if (config.lang) setLangInput(config.lang);
+         if (config.llm) {
+            if (config.llm.model) setLlmModel(config.llm.model);
+            if (config.llm.apiKey) setLlmApiKey(config.llm.apiKey);
+         }
+         if (config.okfStorage) {
+            if (config.okfStorage.type) setOkfType(config.okfStorage.type);
+            if (config.okfStorage.githubToken) setGithubToken(config.okfStorage.githubToken);
+            if (config.okfStorage.gitUrl) {
+               setGitUrl(config.okfStorage.gitUrl);
+               const parsed = parseGitUrl(config.okfStorage.gitUrl);
+               if (parsed) {
+                  setRepoOwner(parsed.owner);
+                  setRepoName(parsed.repo);
+               }
+            } else {
+               if (config.okfStorage.repoOwner) setRepoOwner(config.okfStorage.repoOwner);
+               if (config.okfStorage.repoName) setRepoName(config.okfStorage.repoName);
+            }
+            setRepoBranch(config.okfStorage.branch || 'main');
+         }
+         if (config.blobStorage) {
+            if (config.blobStorage.type) setBlobType(config.blobStorage.type);
+            if (config.blobStorage.accessKey) setS3AccessKey(config.blobStorage.accessKey);
+            if (config.blobStorage.secretKey) setS3SecretKey(config.blobStorage.secretKey);
+            if (config.blobStorage.region) setS3Region(config.blobStorage.region);
+            if (config.blobStorage.endpoint) setS3Endpoint(config.blobStorage.endpoint);
+            if (config.blobStorage.bucket) setS3Bucket(config.blobStorage.bucket);
+         }
+         if (config.interests) {
+            if (Array.isArray(config.interests)) {
+               setSelectedInterests(config.interests);
+            }
+         }
+
+         // 2. Build full config to post to backend
+         const configObj = {
+            lang: config.lang || 'fr_FR',
+            name: config.name || '',
+            email: config.email || '',
+            llm: {
+               model: config.llm?.model || 'gemini-2.5-flash',
+               apiKey: config.llm?.apiKey || ''
+            },
+            okfStorage: {
+               type: config.okfStorage?.type || 'local',
+               githubToken: config.okfStorage?.githubToken || '',
+               repoOwner: config.okfStorage?.repoOwner || (config.okfStorage?.gitUrl ? parseGitUrl(config.okfStorage.gitUrl)?.owner : '') || '',
+               repoName: config.okfStorage?.repoName || (config.okfStorage?.gitUrl ? parseGitUrl(config.okfStorage.gitUrl)?.repo : '') || '',
+               gitUrl: config.okfStorage?.gitUrl || '',
+               branch: config.okfStorage?.branch || 'main'
+            },
+            blobStorage: {
+               type: config.blobStorage?.type || 'local',
+               accessKey: config.blobStorage?.accessKey || '',
+               secretKey: config.blobStorage?.secretKey || '',
+               region: config.blobStorage?.region || 'us-east-1',
+               endpoint: config.blobStorage?.endpoint || '',
+               bucket: config.blobStorage?.bucket || 'second-brain'
+            }
+         };
+
+         const configRes = await fetch('/api/config', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(configObj)
+         });
+
+         if (!configRes.ok) {
+            const err = await configRes.json();
+            alert(`Erreur d'importation backend : ${err.error}`);
+            return;
+         }
+
+         // Initialize folders if interests are selected
+         const interests = config.interests || [];
+         if (interests.length > 0) {
+            await fetch('/api/initialize', {
+               method: 'POST',
+               headers: { 'Content-Type': 'application/json' },
+               body: JSON.stringify({ categories: interests })
+            });
+         }
+
+         // 3. Persist local profile and change view mode to configured
+         const newProfile = {
+            name: config.name || '',
+            email: config.email || '',
+            language: config.lang || 'fr_FR',
+            ttsProvider: 'Browser',
+            elevenLabsApiKey: defaultElevenLabsApiKey,
+            elevenLabsVoiceId: defaultElevenLabsVoiceId
+         };
+         setUserProfile(newProfile);
+         localStorage.setItem('sb_user_profile', JSON.stringify(newProfile));
+         localStorage.setItem('sb_app_configured', 'true');
+         setConfigured(true);
+         
+         // Fetch fresh data
+         fetchDocuments();
+         fetchQueue();
+         
+         alert("Configuration importée et appliquée avec succès !");
+      } catch (err: any) {
+         console.error('Failed to apply imported configuration', err);
+         alert("Erreur lors de l'application de la configuration : " + err.message);
+      }
+   };
 
    useEffect(() => {
       const urlParams = new URLSearchParams(window.location.search);
@@ -1184,7 +1187,13 @@ export default function Dashboard({
                    inversionAttempts: 'attemptBoth',
                 });
                 if (code) {
-                   applyImportedConfig(config);
+                   try {
+                      stopScanner();
+                      const parsedConfig = decompressConfig(JSON.parse(code.data));
+                      applyImportedConfig(parsedConfig);
+                   } catch (e) {
+                      console.error('Failed to parse scanned QR config', e);
+                   }
                 } else {
                    alert("Aucun QR Code n'a pu être détecté dans cette image. Assurez-vous que l'image est nette et bien centrée.");
                 }
@@ -1894,9 +1903,6 @@ export default function Dashboard({
             setConfigured(true);
 
             fetchDocuments();
-         } else {
-            const err = await initRes.json();
-            alert(`Erreur d'initialisation des dossiers: ${err.error}`);
          }
       } catch (err) {
          console.error('Wizard submission failed', err);
@@ -2052,7 +2058,7 @@ export default function Dashboard({
                          height = maxDim;
                       }
                    }
-                   canvas.width = width;
+canvas.width = width;
                    canvas.height = height;
                    ctx.drawImage(img, 0, 0, width, height);
                   const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
@@ -2060,7 +2066,12 @@ export default function Dashboard({
                      inversionAttempts: 'attemptBoth',
                   });
                   if (code) {
-                     applyImportedConfig(config);
+                     try {
+                        const parsedConfig = decompressConfig(JSON.parse(code.data));
+                        applyImportedConfig(parsedConfig);
+                     } catch (e) {
+                        console.error('Failed to parse camera QR code config', e);
+                     }
                   } else {
                      alert("Aucun QR Code n'a pu être détecté sur la photo. Assurez-vous d'être stable, bien éclairé et de cadrer le QR Code de près.");
                   }
@@ -4042,7 +4053,7 @@ export default function Dashboard({
                                         <IconTrash size={16} />
                                      </button>
                                   </div>
-                              </div>
+                               </div>
                               <p className="secondary-meta" style={{ fontSize: '14px', overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', margin: 0, flex: 1 }}>
                                  {doc.summary}
                               </p>
@@ -4058,37 +4069,7 @@ export default function Dashboard({
                         ))
                      )}
                   </div>
-               </div>
-            )}
-
-            {activeTab === 'stats' && (
-               <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '20px', padding: '20px 20px 30px 20px' }}>
-                  <div className="card-teal" style={{ textAlign: 'center', padding: '30px' }}>
-                     <p className="secondary-meta" style={{ fontSize: '16px', textTransform: 'uppercase', letterSpacing: '1px' }}>Total Documents</p>
-                     <div className="giant-metric" style={{ margin: '16px 0' }}>{documents.length}</div>
-                     <span className="secondary-meta">Indexés et prêts dans {AppConfig.name}</span>
-                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', maxHeight: '200px', overflowY: 'auto', paddingRight: '4px' }}>
-                        {Array.from(new Set(documents.map(d => d.category).filter(Boolean))).map((cat, idx) => {
-                           const count = documents.filter(d => d.category === cat).length;
-                           const cardClasses = ['card-grey', 'card-teal', 'card-green', 'card-orange'];
-                           const cardClass = cardClasses[idx % cardClasses.length];
-                           return (
-                              <div key={cat} className={cardClass} style={{ padding: '16px' }}>
-                                 <h4 className="secondary-meta" style={{ fontSize: '14px', color: cardClass !== 'card-grey' ? '#fff' : undefined }}>{cat}</h4>
-                                 <div style={{ fontSize: '28px', fontWeight: 900, marginTop: '8px', color: cardClass !== 'card-grey' ? '#fff' : undefined }}>
-                                    {count}
-                                 </div>
-                              </div>
-                           );
-                        })}
-                     </div>
-                  </div>
-
-                  <a href="/api/export-csv" className="action-button" style={{ textDecoration: 'none', marginTop: '20px' }}>
-                     <IconDownload size={24} />
-                     Exporter la base en CSV
-                  </a>
-
+                  
                   <button 
                      onClick={handleReindex}
                      className="action-button btn-secondary"
@@ -5065,27 +5046,26 @@ export default function Dashboard({
                 }}
              >
                 <div 
-                   onClick={(e) => e.stopPropagation()}
-                   style={{
-                      backgroundColor: '#111827',
-                      border: '1px solid rgba(255,255,255,0.08)',
-                      borderRadius: '20px',
-                      padding: '24px',
-                      width: '100%',
-                      maxWidth: '400px',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      alignItems: 'center',
-                      gap: '16px',
-                      boxShadow: '0 20px 25px -5px rgba(0,0,0,0.5)',
-                      textAlign: 'center'
-                   }}
-                >
-                   <h3 style={{ fontSize: '18px', fontWeight: 'bold', color: 'white', margin: 0 }}>QR Code de Configuration</h3>
-                   <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.6)', margin: 0 }}>
-                      Scannez ce QR Code pour importer instantanément votre profil et vos stockages.
-                   </p>
-
+                    onClick={(e) => e.stopPropagation()}
+                    style={{
+                       backgroundColor: '#111827',
+                       border: '1px solid rgba(255,255,255,0.08)',
+                       borderRadius: '20px',
+                       padding: '24px',
+                       width: '100%',
+                       maxWidth: '400px',
+                       display: 'flex',
+                       flexDirection: 'column',
+                       alignItems: 'center',
+                       gap: '16px',
+                       boxShadow: '0 20px 25px -5px rgba(0,0,0,0.5)',
+                       textAlign: 'center'
+                    }}
+                 >
+                    <h3 style={{ fontSize: '18px', fontWeight: 'bold', color: 'white', margin: 0 }}>QR Code de Configuration</h3>
+                    <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.6)', margin: 0 }}>
+                   Scannez ce QR Code pour importer instantanément votre profil et vos stockages.
+                    </p>
                    <div 
                       onClick={() => setQrModalZoomed(!qrModalZoomed)}
                       style={{ 
