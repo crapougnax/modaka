@@ -49,9 +49,11 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Save short SHA
+      - name: Save date & short SHA
         id: vars
-        run: echo "sha_short=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+        run: |
+          echo "today=$(date -u +'%Y%m%d')" >> $GITHUB_OUTPUT
+          echo "sha_short=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
 
       - name: Install dependencies
         run: yarn install
@@ -62,8 +64,8 @@ jobs:
       - name: Run build
         run: yarn build
 
-      - name: Update package version for dev release
-        run: npm version 0.1.0-dev-sha${{ steps.vars.outputs.sha_short }}-${{ github.run_number }}-${{ github.run_attempt }} --no-git-tag-version
+      - name: Update package version for dev release (TypeScript-style SemVer)
+        run: npm version 0.1.0-dev.${{ steps.vars.outputs.today }}.${{ github.run_number }} --no-git-tag-version
 
       - name: Publish in GitHub Packages repository
         run: npm publish --tag=latest-dev
