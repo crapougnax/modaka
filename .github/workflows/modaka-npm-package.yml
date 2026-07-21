@@ -47,6 +47,9 @@ jobs:
           echo "today=$(date -u +'%Y%m%d')" >> $GITHUB_OUTPUT
           echo "sha_short=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
 
+      - name: Prepare package.json for NPM registry (Resolve local portal links)
+        run: node ./bin/resolve-workspaces.cjs
+
       - name: Install dependencies from public NPM registry
         run: yarn install
 
