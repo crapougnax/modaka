@@ -203,7 +203,11 @@ function applyConfigToProcessEnv(config: any) {
       if (config.llm.apiKey) process.env.GEMINI_API_KEY = config.llm.apiKey;
       if (config.llm.model) process.env.GEMINI_MODEL = config.llm.model;
    }
+   if (config.githubClientId) process.env.GITHUB_CLIENT_ID = config.githubClientId;
+   if (config.githubClientSecret) process.env.GITHUB_CLIENT_SECRET = config.githubClientSecret;
    if (config.okfStorage) {
+      if (config.okfStorage.githubClientId) process.env.GITHUB_CLIENT_ID = config.okfStorage.githubClientId;
+      if (config.okfStorage.githubClientSecret) process.env.GITHUB_CLIENT_SECRET = config.okfStorage.githubClientSecret;
       process.env.GIT_MODE = config.okfStorage.type === 'github' ? 'github' : 'local';
       if (config.okfStorage.githubToken) process.env.GIT_GITHUB_TOKEN = config.okfStorage.githubToken;
       if (config.okfStorage.gitUrl) process.env.GIT_URL = config.okfStorage.gitUrl;
@@ -328,9 +332,49 @@ export async function reconfigureBackend() {
       }
       (globalThis as any)[GIT_SYNC_INTERVAL_KEY] = interval;
    }
+
+   // Re-register Github OAuth endpoints if configuration changed
+   registerGithubAuthEndpoints();
 }
 
 
+
+export function registerGithubAuthEndpoints() {
+   if (!astroAdapter) return;
+   const githubClientId = process.env.GITHUB_CLIENT_ID;
+   const githubClientSecret = process.env.GITHUB_CLIENT_SECRET;
+
+   if (githubClientId && githubClientSecret) {
+      const githubAdapter = GithubAuthAdapter.factory({
+         clientId: githubClientId,
+         clientSecret: githubClientSecret
+      });
+      if (githubAdapter) {
+         Auth.addProvider(githubAdapter, 'github');
+         astroAdapter.addEndpoint(githubAdapter.getEndpointHandler(), '/api/auth/github', {
+            adapter: githubAdapter,
+            webRedirectUri: '/'
+         });
+         Log.info('[Auth] Github OAuth adapter and API endpoints registered successfully.');
+         return;
+      }
+   }
+
+   const fallbackAuthApi = (router: any) => {
+      router.get('/login', async (_req: any, res: any) => {
+         res.status(500).json({
+            error: "Identifiants GitHub OAuth non configurés sur le serveur. Définissez GITHUB_CLIENT_ID et GITHUB_CLIENT_SECRET dans l'environnement."
+         });
+      });
+      router.get('/callback', async (_req: any, res: any) => {
+         res.status(500).json({
+            error: "Identifiants GitHub OAuth non configurés sur le serveur."
+         });
+      });
+   };
+   astroAdapter.addEndpoint(fallbackAuthApi, '/api/auth/github');
+   Log.warn('[Auth] Github OAuth credentials missing. Fallback diagnostic endpoints registered under /api/auth/github.');
+}
 
 export async function initBackend() {
    if (initialized) return;
@@ -404,24 +448,7 @@ export async function initBackend() {
 
     // 4. Initialize API Server Astro Adapter
     astroAdapter = new AstroAdapter();
-
-    // Register Github OAuth provider and endpoints if environment credentials exist
-    const githubClientId = process.env.GITHUB_CLIENT_ID;
-    const githubClientSecret = process.env.GITHUB_CLIENT_SECRET;
-    if (githubClientId && githubClientSecret) {
-       const githubAdapter = GithubAuthAdapter.factory({
-          clientId: githubClientId,
-          clientSecret: githubClientSecret
-       });
-       if (githubAdapter) {
-          Auth.addProvider(githubAdapter, 'github');
-          astroAdapter.addEndpoint(githubAdapter.getEndpointHandler(), '/api/auth/github', {
-             adapter: githubAdapter,
-             webRedirectUri: '/'
-          });
-          Log.info('[Auth] Github OAuth adapter and API endpoints registered successfully.');
-       }
-    }
+    registerGithubAuthEndpoints();
 
    // Register endpoint for ContentItem
    const ContentItemApi = (router: any, rootPath: string, options: any) => {

@@ -550,7 +550,8 @@ export default function Dashboard({
                 url.startsWith('/api/upload') ||
                 url.startsWith('/api/chat') ||
                 url.startsWith('/api/git-sync') ||
-                url.startsWith('/api/reindex');
+                url.startsWith('/api/reindex') ||
+                url.startsWith('/api/auth');
              
              if (isNativeRoute) {
                   if (url.startsWith('/api/chat')) {
@@ -2877,7 +2878,19 @@ export default function Dashboard({
                                   <button
                                      type="button"
                                      onClick={() => {
-                                        window.location.href = `/api/auth/github/login?redirect_uri=${encodeURIComponent(window.location.origin + '/api/auth/github/callback')}`;
+                                        const callbackUrl = window.location.origin + '/api/auth/github/callback';
+                                        const loginUrl = `/api/auth/github/login?redirect_uri=${encodeURIComponent(callbackUrl)}&app_scheme=modaka`;
+                                        if ((window as any).ReactNativeWebView) {
+                                           console.log('[WebView Bridge] Triggering GITHUB_OAUTH_LOGIN message for Expo...');
+                                           (window as any).ReactNativeWebView.postMessage(JSON.stringify({
+                                              type: 'GITHUB_OAUTH_LOGIN',
+                                              url: loginUrl,
+                                              redirectUri: callbackUrl,
+                                              appScheme: 'modaka'
+                                           }));
+                                        } else {
+                                           window.location.href = loginUrl;
+                                        }
                                      }}
                                      style={{
                                         display: 'flex',
