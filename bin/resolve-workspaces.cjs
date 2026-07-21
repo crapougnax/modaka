@@ -3,11 +3,31 @@
 /**
  * @file resolve-workspaces.cjs
  * @description Prepares package.json for CI builds by replacing local portal: dependencies
- * and portal: resolutions with published ^1.0.0 SemVer ranges.
+ * and resolutions with latest published versions queried directly from the NPM registry.
  */
 
 const fs = require('fs');
 const path = require('path');
+const { execSync } = require('child_process');
+
+/**
+ * Queries the NPM registry for the latest published version of a given package.
+ *
+ * @param {string} packageName - The NPM package name (e.g. '@quatrain/chat').
+ * @returns {string} SemVer range string (^x.y.z) or fallback range ^1.0.0.
+ */
+function fetchLatestNpmVersion(packageName) {
+  try {
+    const version = execSync(`npm view ${packageName} version`, { encoding: 'utf8' }).trim();
+    if (version) {
+      console.log(`[CI] Queried NPM registry for ${packageName} -> ^${version}`);
+      return `^${version}`;
+    }
+  } catch (e) {
+    console.warn(`[CI] Could not query NPM for ${packageName}. Using fallback ^1.0.0`);
+  }
+  return '^1.0.0';
+}
 
 /**
  * Resolves workspace package.json dependencies for CI deployment.
@@ -35,13 +55,13 @@ function resolveWorkspaceDependencies() {
     }
   }
 
-  // 2. Replace portal: paths in dependencies with ^1.0.0 SemVer range to match 1.x.x releases
+  // 2. Query NPM registry for each portal: dependency and resolve to latest version
   for (const depType of ['dependencies', 'devDependencies', 'peerDependencies']) {
     if (!targetPkg[depType]) continue;
     for (const dep in targetPkg[depType]) {
       if (typeof targetPkg[depType][dep] === 'string' && targetPkg[depType][dep].startsWith('portal:')) {
-        console.log(`[CI] Resolved portal dependency ${dep} -> ^1.0.0`);
-        targetPkg[depType][dep] = '^1.0.0';
+        const resolvedRange = fetchLatestNpmVersion(dep);
+        targetPkg[depType][dep] = resolvedRange;
       }
     }
   }
