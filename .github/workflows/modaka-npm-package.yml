@@ -37,21 +37,9 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
-          registry-url: 'https://npm.pkg.github.com'
-          scope: '@quatrain'
 
       - name: Enable Corepack
         run: corepack enable
-
-      - name: Configure Yarn & NPM Registry Auth
-        run: |
-          TOKEN="${{ secrets.PACKAGES_READ_TOKEN || secrets.GH_TOKEN || secrets.GITHUB_TOKEN }}"
-          echo "//npm.pkg.github.com/:_authToken=${TOKEN}" > ~/.npmrc
-          echo "@quatrain:registry=https://npm.pkg.github.com" >> ~/.npmrc
-          echo "//npm.pkg.github.com/:_authToken=${TOKEN}" > .npmrc
-          echo "@quatrain:registry=https://npm.pkg.github.com" >> .npmrc
-          yarn config set "//npm.pkg.github.com/:_authToken" "${TOKEN}" || true
-          yarn config set npmScopes.quatrain.npmAuthToken "${TOKEN}" || true
 
       - name: Save date & short SHA
         id: vars
@@ -59,10 +47,8 @@ jobs:
           echo "today=$(date -u +'%Y%m%d')" >> $GITHUB_OUTPUT
           echo "sha_short=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
 
-      - name: Install dependencies
+      - name: Install dependencies from public NPM registry
         run: yarn install
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.PACKAGES_READ_TOKEN || secrets.GH_TOKEN || secrets.GITHUB_TOKEN }}
 
       - name: Run unit tests
         run: yarn test
@@ -72,6 +58,12 @@ jobs:
 
       - name: Update package version for dev release (TypeScript-style SemVer)
         run: npm version 0.1.0-dev.${{ steps.vars.outputs.today }}.${{ github.run_number }} --no-git-tag-version
+
+      - name: Setup auth for GitHub Packages publishing
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: 'https://npm.pkg.github.com'
 
       - name: Publish in GitHub Packages repository
         run: npm publish --tag=latest-dev
