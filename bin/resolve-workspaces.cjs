@@ -18,13 +18,13 @@ const { execSync } = require('child_process');
  */
 function fetchLatestNpmVersion(packageName) {
   try {
-    const version = execSync(`npm view ${packageName} version`, { encoding: 'utf8' }).trim();
+    const version = execSync(`npm view ${packageName} version 2>/dev/null`, { encoding: 'utf8' }).trim();
     if (version) {
       console.log(`[CI] Queried NPM registry for ${packageName} -> ^${version}`);
       return `^${version}`;
     }
   } catch (e) {
-    console.warn(`[CI] Could not query NPM for ${packageName}. Using fallback ^1.0.0`);
+    console.warn(`[CI] Package ${packageName} not found on NPM registry. Using fallback ^1.0.0`);
   }
   return '^1.0.0';
 }
