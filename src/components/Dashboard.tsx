@@ -424,6 +424,7 @@ export default function Dashboard({
 
    const [okfType, setOkfType] = useState<'local' | 'github'>('local');
    const [githubToken, setGithubToken] = useState('');
+   const [githubClientId, setGithubClientId] = useState('');
    const [gitUrl, setGitUrl] = useState('');
    const [repoOwner, setRepoOwner] = useState('');
    const [repoName, setRepoName] = useState('');
@@ -550,8 +551,7 @@ export default function Dashboard({
                 url.startsWith('/api/upload') ||
                 url.startsWith('/api/chat') ||
                 url.startsWith('/api/git-sync') ||
-                url.startsWith('/api/reindex') ||
-                url.startsWith('/api/auth');
+                url.startsWith('/api/reindex');
              
              if (isNativeRoute) {
                   if (url.startsWith('/api/chat')) {
@@ -2874,31 +2874,40 @@ export default function Dashboard({
 
                          {okfType === 'github' && (
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '8px', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '16px' }}>
-                               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginBottom: '8px' }}>
+                               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginBottom: '4px' }}>
+                                  <label style={{ fontSize: '12px', fontWeight: '500', color: 'rgba(255,255,255,0.6)' }}>Client ID OAuth GitHub (facultatif si configuré sur serveur)</label>
+                                  <input 
+                                     type="text" 
+                                     placeholder="ex: Ov23az..." 
+                                     value={githubClientId} 
+                                     onChange={(e) => setGithubClientId(e.target.value)}
+                                     autoCapitalize="none"
+                                     autoCorrect="off"
+                                     autoComplete="off"
+                                     style={{ width: '100%', height: '36px', borderRadius: '6px', backgroundColor: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: 'white', padding: '0 10px', fontSize: '13px', boxSizing: 'border-box' }}
+                                  />
+                               </div>
+
+                               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                                   <button
                                      type="button"
-                                     onClick={async () => {
+                                     onClick={() => {
                                         const callbackUrl = window.location.origin + '/api/auth/github/callback';
-                                        const loginUrl = `/api/auth/github/login?redirect_uri=${encodeURIComponent(callbackUrl)}&app_scheme=modaka`;
-                                        try {
-                                           const res = await fetch(`${loginUrl}&json=true`);
-                                           if (res.ok) {
-                                              const data = await res.json();
-                                              if (data.url) {
-                                                 window.location.href = data.url;
-                                                 return;
-                                              }
-                                           } else {
-                                              const err = await res.json().catch(() => ({}));
-                                              if (err.error) {
-                                                 alert(err.error);
-                                                 return;
-                                              }
-                                           }
-                                        } catch (e) {
-                                           console.warn('[OAuth] JSON fetch failed, navigating directly:', e);
+                                        
+                                        let targetUrl = `/api/auth/github/login?redirect_uri=${encodeURIComponent(callbackUrl)}&app_scheme=modaka`;
+                                        
+                                        if (githubClientId && githubClientId.trim().length > 0) {
+                                           targetUrl = `https://github.com/login/oauth/authorize?client_id=${encodeURIComponent(githubClientId.trim())}&redirect_uri=${encodeURIComponent(callbackUrl)}&scope=repo`;
                                         }
-                                        window.location.href = loginUrl;
+                                        
+                                        console.log('[OAuth Navigation] Navigating to:', targetUrl);
+                                        if ((window as any).ReactNativeWebView) {
+                                           (window as any).ReactNativeWebView.postMessage(JSON.stringify({
+                                              type: 'OPEN_URL',
+                                              url: targetUrl
+                                           }));
+                                        }
+                                        window.location.href = targetUrl;
                                      }}
                                      style={{
                                         display: 'flex',
