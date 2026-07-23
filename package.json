@@ -44,6 +44,7 @@
     "@quatrain/searchengine": "^1.0.0",
     "@quatrain/searchengine-qmd": "^1.0.0",
     "@quatrain/storage": "^1.2.13",
+    "@quatrain/storage-git": "^1.2.13",
     "@quatrain/storage-local": "^1.1.7",
     "@quatrain/storage-s3": "^1.2.8",
     "@quatrain/ux": "^1.1.9",
