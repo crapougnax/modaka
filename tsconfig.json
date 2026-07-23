@@ -4,7 +4,13 @@
     "jsx": "react-jsx",
     "jsxImportSource": "react",
     "moduleResolution": "node",
-    "target": "es2022"
+    "target": "es2022",
+    "baseUrl": ".",
+    "paths": {
+      "@quatrain/storage-git": ["../QUATRAIN/Core/packages/storage-git/src/index.ts"],
+      "@quatrain/searchengine": ["../QUATRAIN/Core/packages/searchengine/src/index.ts"],
+      "@quatrain/searchengine-qmd": ["../QUATRAIN/Core/packages/searchengine-qmd/src/index.ts"]
+    }
   },
   "include": [".astro/types.d.ts", "**/*"],
   "exclude": ["dist"]

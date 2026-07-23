@@ -14,7 +14,6 @@ import { Log, DefaultLoggerAdapter, LogLevel } from '@quatrain/log';
 import { Backend, InjectMetaMiddleware } from '@quatrain/backend';
 import { OKFBackendAdapter } from '@quatrain/okf';
 import { Storage } from '@quatrain/storage';
-import { GitStorageAdapter } from '@quatrain/storage-git';
 import { LocalStorageAdapter } from '@quatrain/storage-local';
 import { AstroAdapter } from '@quatrain/api-server-astro';
 import { CrudEndpoint, ValuesEndpoint, ListEndpoint } from '@quatrain/api-server';
@@ -291,6 +290,7 @@ export async function reconfigureBackend() {
    // Re-init Git Storage
    const gitMode = (process.env.GIT_MODE as 'local' | 'github') || 'local';
    const gitLocalPath = process.env.GIT_LOCAL_PATH || path.resolve(process.cwd(), '.second-brain-git');
+   const { GitStorageAdapter } = await import('@quatrain/storage-git');
    const gitAdapter = new GitStorageAdapter({
       config: {
          mode: gitMode,
@@ -421,7 +421,8 @@ export async function initBackend() {
     }
     Storage.addStorage(docAdapter, 'document-storage', false);
 
-   // 2. Initialize Git Metadata Storage (GitStorageAdapter)
+   // 2. Initialize Git Storage Adapter
+   const { GitStorageAdapter } = await import('@quatrain/storage-git');
    const gitAdapter = new GitStorageAdapter({
       config: {
          mode: gitMode,
