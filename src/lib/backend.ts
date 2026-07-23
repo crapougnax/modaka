@@ -259,6 +259,7 @@ export async function reconfigureBackend() {
    // Re-init AI Adapter
    const geminiApiKey = process.env.GEMINI_API_KEY;
    if (geminiApiKey) {
+      const { GeminiAdapter } = await import('@quatrain/ai-gemini');
       Ai.setAdapter(new GeminiAdapter(geminiApiKey));
       Log.info('[Backend] AI adapter reconfigured successfully');
    }
