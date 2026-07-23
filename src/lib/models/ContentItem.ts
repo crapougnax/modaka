@@ -109,9 +109,10 @@ export class ContentItem extends PersistedBaseObject {
       return super.factory(src, ContentItem);
    }
 
-   async save(): Promise<void> {
+   async save(options?: { skipAiReprocess?: boolean }): Promise<void> {
       let bodyChanged = false;
       const id = this.val('id');
+      const itemType = this.val('type');
       if (id) {
          try {
             const oldItem = await ContentItem.factory();
@@ -129,7 +130,9 @@ export class ContentItem extends PersistedBaseObject {
          bodyChanged = !!this.val('body');
       }
 
-      if (bodyChanged) {
+      const shouldSkipReprocess = options?.skipAiReprocess || itemType === 'concept';
+
+      if (bodyChanged && !shouldSkipReprocess) {
          const newBody = this.val('body');
          const { Ai } = await import('@quatrain/ai');
          const { Log } = await import('@quatrain/log');

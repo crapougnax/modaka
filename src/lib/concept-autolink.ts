@@ -71,7 +71,7 @@ export async function searchAndCreateConcept(properNoun: string): Promise<void> 
                await docStorage.create(getDocFile(mdRef) as any, Readable.from([body]));
             }
 
-            await conceptItem.save();
+            await conceptItem.save({ skipAiReprocess: true });
             Log.info(`[Concept Auto-Link] Successfully created concept document for "${data.title}"`);
          }
       } else {
