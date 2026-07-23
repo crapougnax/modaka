@@ -1,6 +1,5 @@
-import { defineConfig } from 'astro/config';
-import react from '@astrojs/react';
-import node from '@astrojs/node';
+import { defineConfig } from 'vitest/config';
+import react from '@vitejs/plugin-react';
 import * as path from 'node:path';
 import * as fs from 'node:fs';
 
@@ -36,42 +35,21 @@ const localAliases = hasLocalPortal ? {
 } : {};
 
 export default defineConfig({
-  output: 'server',
-  adapter: node({
-    mode: 'standalone',
-  }),
-  server: {
-    host: true,
-    port: 4321
+  plugins: [react()],
+  resolve: {
+    alias: {
+      '@quatrain/ux-react': 'react',
+      ...localAliases
+    }
   },
-  integrations: [react()],
-  vite: {
-    plugins: [
-      {
-        name: 'alias-react-client-only',
-        resolveId(source, importer, options) {
-          if (options && !options.ssr && (source === 'react' || source === 'react-dom')) {
-            return path.resolve(`./node_modules/${source}`);
-          }
-        }
-      }
-    ],
-    ssr: {
-      noExternal: [
-        '@quatrain/ux',
-        '@quatrain/ux-form-react',
-        '@quatrain/ux-list-react',
-        '@quatrain/ux-react',
-        /@quatrain\/.*/
-      ]
-    },
-    resolve: {
-      dedupe: ['react', 'react-dom'],
-      alias: {
-        '@quatrain/ux-react': 'react',
-        ...localAliases
-      }
+  test: {
+    globals: true,
+    environment: 'happy-dom',
+    setupFiles: ['./src/test-setup.ts'],
+    coverage: {
+      provider: 'v8',
+      include: ['src/**/*.{ts,tsx}'],
+      exclude: ['src/**/*.d.ts', 'src/**/*.test.{ts,tsx}']
     }
   }
 });
-

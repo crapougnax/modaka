@@ -15,9 +15,9 @@ ENV CHROME_PATH=/usr/bin/chromium-browser
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
 
 # OCI standard labels
-LABEL org.opencontainers.image.title="Second Brain"
+LABEL org.opencontainers.image.title="Modaka"
 LABEL org.opencontainers.image.description="Tactile and touch-first PWA knowledge management system"
-LABEL org.opencontainers.image.source="https://github.com/Quatrain/CoreApps"
+LABEL org.opencontainers.image.source="https://github.com/crapougnax/modaka"
 LABEL org.opencontainers.image.licenses="AGPL-3.0"
 LABEL org.opencontainers.image.vendor="Quatrain Technologies"
 LABEL org.opencontainers.image.authors="Quatrain Developers <developers@quatrain.com>"
@@ -28,8 +28,8 @@ COPY node_modules ./node_modules
 COPY package.json ./
 
 # Create data directories for Local Storage
-RUN mkdir -p /data/second-brain/metadata /data/second-brain/documents && \
-    chown -R bun:bun /data/second-brain
+RUN mkdir -p /data/modaka/metadata /data/modaka/documents && \
+    chown -R bun:bun /data/modaka
 
 # Run as non-root unprivileged user
 USER bun

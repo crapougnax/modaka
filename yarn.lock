@@ -5,6 +5,23 @@ __metadata:
   version: 8
   cacheKey: 10c0
 
+"@adobe/css-tools@npm:^4.4.0":
+  version: 4.5.0
+  resolution: "@adobe/css-tools@npm:4.5.0"
+  checksum: 10c0/fc969e1117098eb4cccdb73beb2508daa0e52760af1183d6288bafea59204943490ab3ede28593032ffb8929c0cee270b2a53254fe61139ab00604ea8fc33cea
+  languageName: node
+  linkType: hard
+
+"@ampproject/remapping@npm:^2.3.0":
+  version: 2.3.0
+  resolution: "@ampproject/remapping@npm:2.3.0"
+  dependencies:
+    "@jridgewell/gen-mapping": "npm:^0.3.5"
+    "@jridgewell/trace-mapping": "npm:^0.3.24"
+  checksum: 10c0/81d63cca5443e0f0c72ae18b544cc28c7c0ec2cea46e7cb888bb0e0f411a1191d0d6b7af798d54e30777d8d1488b2ec0732aac2be342d3d7d3ffd271c6f489ed
+  languageName: node
+  linkType: hard
+
 "@astrojs/compiler@npm:^2.13.0":
   version: 2.13.1
   resolution: "@astrojs/compiler@npm:2.13.1"
@@ -370,7 +387,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@babel/code-frame@npm:^7.29.7":
+"@babel/code-frame@npm:^7.10.4, @babel/code-frame@npm:^7.29.7":
   version: 7.29.7
   resolution: "@babel/code-frame@npm:7.29.7"
   dependencies:
@@ -505,7 +522,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@babel/parser@npm:^7.1.0, @babel/parser@npm:^7.20.7, @babel/parser@npm:^7.29.3, @babel/parser@npm:^7.29.7":
+"@babel/parser@npm:^7.1.0, @babel/parser@npm:^7.20.7, @babel/parser@npm:^7.25.4, @babel/parser@npm:^7.29.3, @babel/parser@npm:^7.29.7":
   version: 7.29.7
   resolution: "@babel/parser@npm:7.29.7"
   dependencies:
@@ -538,7 +555,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@babel/runtime@npm:^7.20.13":
+"@babel/runtime@npm:^7.12.5, @babel/runtime@npm:^7.20.13":
   version: 7.29.7
   resolution: "@babel/runtime@npm:7.29.7"
   checksum: 10c0/ca11572f7146b21e0bde6a9ed4bb6a89eafbee5f0944c7eb54d0d8a2dac962c33638a1d611e14faa71dfbb92b4b5f9236232208568a6b7d5c6f3f39ddb91771e
@@ -571,13 +588,20 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@babel/types@npm:^7.0.0, @babel/types@npm:^7.20.7, @babel/types@npm:^7.28.2, @babel/types@npm:^7.29.0, @babel/types@npm:^7.29.7":
+"@babel/types@npm:^7.0.0, @babel/types@npm:^7.20.7, @babel/types@npm:^7.25.4, @babel/types@npm:^7.28.2, @babel/types@npm:^7.29.0, @babel/types@npm:^7.29.7":
   version: 7.29.7
   resolution: "@babel/types@npm:7.29.7"
   dependencies:
     "@babel/helper-string-parser": "npm:^7.29.7"
     "@babel/helper-validator-identifier": "npm:^7.29.7"
   checksum: 10c0/b6623994c69717fa27294f5fa46d59140338e2d86c6c1c13085c84ef7d53086ee357fbf4fe9abe3dd3da75734dc77c4c0df2f90fb29e667558bb3b3fb705e88f
+  languageName: node
+  linkType: hard
+
+"@bcoe/v8-coverage@npm:^0.2.3":
+  version: 0.2.3
+  resolution: "@bcoe/v8-coverage@npm:0.2.3"
+  checksum: 10c0/6b80ae4cb3db53f486da2dc63b6e190a74c8c3cca16bb2733f234a0b6a9382b09b146488ae08e2b22cf00f6c83e20f3e040a2f7894f05c045c946d6a090b1d52
   languageName: node
   linkType: hard
 
@@ -1609,12 +1633,33 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@isaacs/cliui@npm:^8.0.2":
+  version: 8.0.2
+  resolution: "@isaacs/cliui@npm:8.0.2"
+  dependencies:
+    string-width: "npm:^5.1.2"
+    string-width-cjs: "npm:string-width@^4.2.0"
+    strip-ansi: "npm:^7.0.1"
+    strip-ansi-cjs: "npm:strip-ansi@^6.0.1"
+    wrap-ansi: "npm:^8.1.0"
+    wrap-ansi-cjs: "npm:wrap-ansi@^7.0.0"
+  checksum: 10c0/b1bf42535d49f11dc137f18d5e4e63a28c5569de438a221c369483731e9dac9fb797af554e8bf02b6192d1e5eba6e6402cf93900c3d0ac86391d00d04876789e
+  languageName: node
+  linkType: hard
+
 "@isaacs/fs-minipass@npm:^4.0.0":
   version: 4.0.1
   resolution: "@isaacs/fs-minipass@npm:4.0.1"
   dependencies:
     minipass: "npm:^7.0.4"
   checksum: 10c0/c25b6dc1598790d5b55c0947a9b7d111cfa92594db5296c3b907e2f533c033666f692a3939eadac17b1c7c40d362d0b0635dc874cbfe3e70db7c2b07cc97a5d2
+  languageName: node
+  linkType: hard
+
+"@istanbuljs/schema@npm:^0.1.2":
+  version: 0.1.6
+  resolution: "@istanbuljs/schema@npm:0.1.6"
+  checksum: 10c0/bb0d370bf3dd454d2f37f1bccb8921e2da99adacef2da56ef47850e25d7a4de69cf639ead8c189755aef38921369024b4afea3535a5c2ac9082b3e1171bcbc3a
   languageName: node
   linkType: hard
 
@@ -1652,7 +1697,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@jridgewell/trace-mapping@npm:^0.3.24, @jridgewell/trace-mapping@npm:^0.3.28":
+"@jridgewell/trace-mapping@npm:^0.3.23, @jridgewell/trace-mapping@npm:^0.3.24, @jridgewell/trace-mapping@npm:^0.3.28":
   version: 0.3.31
   resolution: "@jridgewell/trace-mapping@npm:0.3.31"
   dependencies:
@@ -1709,135 +1754,17 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@octokit/auth-token@npm:^4.0.0":
-  version: 4.0.0
-  resolution: "@octokit/auth-token@npm:4.0.0"
-  checksum: 10c0/57acaa6c394c5abab2f74e8e1dcf4e7a16b236f713c77a54b8f08e2d14114de94b37946259e33ec2aab0566b26f724c2b71d2602352b59e541a9854897618f3c
-  languageName: node
-  linkType: hard
-
-"@octokit/core@npm:^5.0.2":
-  version: 5.2.2
-  resolution: "@octokit/core@npm:5.2.2"
-  dependencies:
-    "@octokit/auth-token": "npm:^4.0.0"
-    "@octokit/graphql": "npm:^7.1.0"
-    "@octokit/request": "npm:^8.4.1"
-    "@octokit/request-error": "npm:^5.1.1"
-    "@octokit/types": "npm:^13.0.0"
-    before-after-hook: "npm:^2.2.0"
-    universal-user-agent: "npm:^6.0.0"
-  checksum: 10c0/b4484d85552303b839613e2133dcd064fa06a7c10fe0ebd11ba8f67cb8e3384e48983c589f4d1dc0fa3754857784e3d90ff4eab9782e118baf13ddd1b834957c
-  languageName: node
-  linkType: hard
-
-"@octokit/endpoint@npm:^9.0.6":
-  version: 9.0.6
-  resolution: "@octokit/endpoint@npm:9.0.6"
-  dependencies:
-    "@octokit/types": "npm:^13.1.0"
-    universal-user-agent: "npm:^6.0.0"
-  checksum: 10c0/8e06197b21869aeb498e0315093ca6fbee12bd1bdcfc1667fcd7d79d827d84f2c5a30702ffd28bba7879780e367d14c30df5b20d47fcaed5de5fdc05f5d4e013
-  languageName: node
-  linkType: hard
-
-"@octokit/graphql@npm:^7.1.0":
-  version: 7.1.1
-  resolution: "@octokit/graphql@npm:7.1.1"
-  dependencies:
-    "@octokit/request": "npm:^8.4.1"
-    "@octokit/types": "npm:^13.0.0"
-    universal-user-agent: "npm:^6.0.0"
-  checksum: 10c0/c27216200f3f4ce7ce2a694fb7ea43f8ea4a807fbee3a423c41ed137dd7948dfc0bbf6ea1656f029a7625c84b583acdef740a7032266d0eff55305c91c3a1ed6
-  languageName: node
-  linkType: hard
-
-"@octokit/openapi-types@npm:^24.2.0":
-  version: 24.2.0
-  resolution: "@octokit/openapi-types@npm:24.2.0"
-  checksum: 10c0/8f47918b35e9b7f6109be6f7c8fc3a64ad13a48233112b29e92559e64a564b810eb3ebf81b4cd0af1bb2989d27b9b95cca96e841ec4e23a3f68703cefe62fd9e
-  languageName: node
-  linkType: hard
-
-"@octokit/plugin-paginate-rest@npm:11.4.4-cjs.2":
-  version: 11.4.4-cjs.2
-  resolution: "@octokit/plugin-paginate-rest@npm:11.4.4-cjs.2"
-  dependencies:
-    "@octokit/types": "npm:^13.7.0"
-  peerDependencies:
-    "@octokit/core": 5
-  checksum: 10c0/1d61a63c98a18c171bccdc6cf63ffe279fe852e8bdc9db6647ffcb27f4ea485fdab78fb71b552ed0f2186785cf5264f8ed3f9a8f33061e4697b5f73b097accb1
-  languageName: node
-  linkType: hard
-
-"@octokit/plugin-request-log@npm:^4.0.0":
-  version: 4.0.1
-  resolution: "@octokit/plugin-request-log@npm:4.0.1"
-  peerDependencies:
-    "@octokit/core": 5
-  checksum: 10c0/6f556f86258c5fbff9b1821075dc91137b7499f2ad0fd12391f0876064a6daa88abe1748336b2d483516505771d358aa15cb4bcdabc348a79e3d951fe9726798
-  languageName: node
-  linkType: hard
-
-"@octokit/plugin-rest-endpoint-methods@npm:13.3.2-cjs.1":
-  version: 13.3.2-cjs.1
-  resolution: "@octokit/plugin-rest-endpoint-methods@npm:13.3.2-cjs.1"
-  dependencies:
-    "@octokit/types": "npm:^13.8.0"
-  peerDependencies:
-    "@octokit/core": ^5
-  checksum: 10c0/810fe5cb1861386746bf0218ea969d87c56e553ff339490526483b4b66f53c4b4c6092034bec30c5d453172eb6f33e75b5748ade1b401b76774b5a994e2c10b0
-  languageName: node
-  linkType: hard
-
-"@octokit/request-error@npm:^5.1.1":
-  version: 5.1.1
-  resolution: "@octokit/request-error@npm:5.1.1"
-  dependencies:
-    "@octokit/types": "npm:^13.1.0"
-    deprecation: "npm:^2.0.0"
-    once: "npm:^1.4.0"
-  checksum: 10c0/dc9fc76ea5e4199273e4665ce9ddf345fe8f25578d9999c9a16f276298e61ee6fe0e6f5a6147b91ba3b34fdf5b9e6b7af6ae13d6333175e95b30c574088f7a2d
-  languageName: node
-  linkType: hard
-
-"@octokit/request@npm:^8.4.1":
-  version: 8.4.1
-  resolution: "@octokit/request@npm:8.4.1"
-  dependencies:
-    "@octokit/endpoint": "npm:^9.0.6"
-    "@octokit/request-error": "npm:^5.1.1"
-    "@octokit/types": "npm:^13.1.0"
-    universal-user-agent: "npm:^6.0.0"
-  checksum: 10c0/1a69dcb7336de708a296db9e9a58040e5b284a87495a63112f80eb0007da3fc96a9fadecb9e875fc63cf179c23a0f81031fbef2a6f610a219e45805ead03fcf3
-  languageName: node
-  linkType: hard
-
-"@octokit/rest@npm:^20.1.1":
-  version: 20.1.2
-  resolution: "@octokit/rest@npm:20.1.2"
-  dependencies:
-    "@octokit/core": "npm:^5.0.2"
-    "@octokit/plugin-paginate-rest": "npm:11.4.4-cjs.2"
-    "@octokit/plugin-request-log": "npm:^4.0.0"
-    "@octokit/plugin-rest-endpoint-methods": "npm:13.3.2-cjs.1"
-  checksum: 10c0/712e08c43c7af37c5c219f95ae289b3ac2646270be4e8a7141fa2aa9340ed8f7134f117c9467e89206c5a9797c49c8d2c039b884d4865bb3bde91bc5adb3c38c
-  languageName: node
-  linkType: hard
-
-"@octokit/types@npm:^13.0.0, @octokit/types@npm:^13.1.0, @octokit/types@npm:^13.7.0, @octokit/types@npm:^13.8.0":
-  version: 13.10.0
-  resolution: "@octokit/types@npm:13.10.0"
-  dependencies:
-    "@octokit/openapi-types": "npm:^24.2.0"
-  checksum: 10c0/f66a401b89d653ec28e5c1529abdb7965752db4d9d40fa54c80e900af4c6bf944af6bd0a83f5b4f1eecb72e3d646899dfb27ffcf272ac243552de7e3b97a038d
-  languageName: node
-  linkType: hard
-
 "@oslojs/encoding@npm:^1.1.0":
   version: 1.1.0
   resolution: "@oslojs/encoding@npm:1.1.0"
   checksum: 10c0/5553a0974dca60e1a8b247b7b97abcb141cc7ee4e22444f424a07921d6a5f76a43c316f3ee669222787fdef6549f8749cc6d68ff5a631e2542521c56fe36417f
+  languageName: node
+  linkType: hard
+
+"@pkgjs/parseargs@npm:^0.11.0":
+  version: 0.11.0
+  resolution: "@pkgjs/parseargs@npm:0.11.0"
+  checksum: 10c0/5bd7576bb1b38a47a7fc7b51ac9f38748e772beebc56200450c4a817d712232b8f1d3ef70532c80840243c657d491cf6a6be1e3a214cff907645819fdc34aadd
   languageName: node
   linkType: hard
 
@@ -1926,117 +1853,128 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@quatrain/ai-gemini@portal:/Users/crapougnax/CODE/QUATRAIN/Core/packages/ai-gemini::locator=%40quatrain%2Fmodaka%40workspace%3A.":
-  version: 0.0.0-use.local
-  resolution: "@quatrain/ai-gemini@portal:/Users/crapougnax/CODE/QUATRAIN/Core/packages/ai-gemini::locator=%40quatrain%2Fmodaka%40workspace%3A."
+"@quatrain/ai-gemini@npm:^1.1.4":
+  version: 1.1.4
+  resolution: "@quatrain/ai-gemini@npm:1.1.4"
   dependencies:
     "@google/genai": "npm:latest"
     "@quatrain/ai": "npm:^1.1.4"
-    "@quatrain/core": "npm:^1.2.17"
+    "@quatrain/core": "npm:^1.2.16"
+  checksum: 10c0/eed7b9d138bfadf959d2c50217751e7012cb26d7cb9aee0df678d2388e87180ef3cdaad01e3de769edae3b12f35a722104ac139c0d1069eee3c628a01b49c786
   languageName: node
-  linkType: soft
+  linkType: hard
 
-"@quatrain/ai@portal:/Users/crapougnax/CODE/QUATRAIN/Core/packages/ai::locator=%40quatrain%2Fmodaka%40workspace%3A.":
-  version: 0.0.0-use.local
-  resolution: "@quatrain/ai@portal:/Users/crapougnax/CODE/QUATRAIN/Core/packages/ai::locator=%40quatrain%2Fmodaka%40workspace%3A."
+"@quatrain/ai@npm:^1.1.4":
+  version: 1.1.4
+  resolution: "@quatrain/ai@npm:1.1.4"
   dependencies:
-    "@quatrain/core": "npm:^1.2.17"
+    "@quatrain/core": "npm:^1.2.16"
+  checksum: 10c0/2479dcf74e2df411635f9e24342bfe71d6b020a00ecf162faf104be7257544a70c56fc1ec2102d621cb755a63c16098b919ab393db31f788c81d059ece4b0e18
   languageName: node
-  linkType: soft
+  linkType: hard
 
-"@quatrain/api-server-astro@portal:/Users/crapougnax/CODE/QUATRAIN/Core/packages/api-server-astro::locator=%40quatrain%2Fmodaka%40workspace%3A.":
-  version: 0.0.0-use.local
-  resolution: "@quatrain/api-server-astro@portal:/Users/crapougnax/CODE/QUATRAIN/Core/packages/api-server-astro::locator=%40quatrain%2Fmodaka%40workspace%3A."
+"@quatrain/api-server-astro@npm:^1.1.15":
+  version: 1.1.15
+  resolution: "@quatrain/api-server-astro@npm:1.1.15"
   dependencies:
-    "@quatrain/api": "workspace:*"
-    "@quatrain/api-server": "workspace:*"
+    "@quatrain/api": "npm:^1.1.6"
+    "@quatrain/api-server": "npm:^1.1.10"
+  checksum: 10c0/07774f4f27565bb161c057fbcba98fc395fa374c2955ccfd370373e942bf08462f41d194a1f44b776d171d5e8a950743939197e5dfdd3e78735b4fb064d35b42
   languageName: node
-  linkType: soft
+  linkType: hard
 
-"@quatrain/api-server@portal:/Users/crapougnax/CODE/QUATRAIN/Core/packages/api-server::locator=%40quatrain%2Fmodaka%40workspace%3A.":
-  version: 0.0.0-use.local
-  resolution: "@quatrain/api-server@portal:/Users/crapougnax/CODE/QUATRAIN/Core/packages/api-server::locator=%40quatrain%2Fmodaka%40workspace%3A."
+"@quatrain/api-server@npm:^1.1.10, @quatrain/api-server@npm:^1.1.11":
+  version: 1.1.11
+  resolution: "@quatrain/api-server@npm:1.1.11"
   dependencies:
-    "@quatrain/api": "workspace:*"
-    "@quatrain/backend": "workspace:*"
-    "@quatrain/core": "workspace:*"
-    "@quatrain/http": "workspace:*"
+    "@quatrain/api": "npm:^1.1.7"
+    "@quatrain/backend": "npm:^1.2.17"
+    "@quatrain/core": "npm:^1.2.16"
+    "@quatrain/http": "npm:^1.0.4"
+  checksum: 10c0/ced082ea1837cb3895523415cb4d450752afb973ecb42ee87803ce25f033cd1f7881c573d3dd7417c4b1a478a792231f916be3665f93dbc2dc13246b37ba6273
   languageName: node
-  linkType: soft
+  linkType: hard
 
-"@quatrain/api@portal:/Users/crapougnax/CODE/QUATRAIN/Core/packages/api::locator=%40quatrain%2Fmodaka%40workspace%3A.":
-  version: 0.0.0-use.local
-  resolution: "@quatrain/api@portal:/Users/crapougnax/CODE/QUATRAIN/Core/packages/api::locator=%40quatrain%2Fmodaka%40workspace%3A."
+"@quatrain/api@npm:^1.1.6, @quatrain/api@npm:^1.1.7":
+  version: 1.1.7
+  resolution: "@quatrain/api@npm:1.1.7"
   dependencies:
-    "@quatrain/core": "workspace:*"
-    "@quatrain/http": "workspace:*"
-    "@quatrain/log": "workspace:*"
+    "@quatrain/core": "npm:^1.2.16"
+    "@quatrain/http": "npm:^1.0.3"
+    "@quatrain/log": "npm:^1.2.4"
+  checksum: 10c0/7ab11f2a403fd2479468984f25328e12d35d2ddd82cf6485ced9ce06793fedfe01f50143ee4e8e19a4d3c1786895764d45c5cd6f319eeb1c1a847d1b826ccb82
   languageName: node
-  linkType: soft
+  linkType: hard
 
-"@quatrain/auth-github@portal:/Users/crapougnax/CODE/QUATRAIN/Core/packages/auth-github::locator=%40quatrain%2Fmodaka%40workspace%3A.":
-  version: 0.0.0-use.local
-  resolution: "@quatrain/auth-github@portal:/Users/crapougnax/CODE/QUATRAIN/Core/packages/auth-github::locator=%40quatrain%2Fmodaka%40workspace%3A."
+"@quatrain/auth-github@npm:^1.2.10":
+  version: 1.2.10
+  resolution: "@quatrain/auth-github@npm:1.2.10"
   dependencies:
-    "@quatrain/api": "workspace:*"
-    "@quatrain/auth": "npm:^1.2.9"
+    "@quatrain/api": "npm:^1.1.7"
+    "@quatrain/auth": "npm:^1.2.10"
     "@quatrain/backend": "npm:^1.2.17"
     node-fetch-native: "npm:^1.6.4"
+  checksum: 10c0/1879aeb2ca63ebf709560d9150bb5068eea730149f14048f6b32ed2caf605a30175b63e728d5b5f9518474d8b03c72b5504b8e7040f9b07292a9efedb790d6d8
   languageName: node
-  linkType: soft
+  linkType: hard
 
-"@quatrain/auth@portal:/Users/crapougnax/CODE/QUATRAIN/Core/packages/auth::locator=%40quatrain%2Fmodaka%40workspace%3A.":
-  version: 0.0.0-use.local
-  resolution: "@quatrain/auth@portal:/Users/crapougnax/CODE/QUATRAIN/Core/packages/auth::locator=%40quatrain%2Fmodaka%40workspace%3A."
+"@quatrain/auth@npm:^1.2.10":
+  version: 1.2.10
+  resolution: "@quatrain/auth@npm:1.2.10"
   dependencies:
-    "@quatrain/api": "workspace:*"
+    "@quatrain/api": "npm:^1.1.7"
     "@quatrain/backend": "npm:^1.2.17"
     "@quatrain/core": "npm:^1.2.17"
-    "@quatrain/http": "workspace:*"
+    "@quatrain/http": "npm:^1.0.4"
+  checksum: 10c0/41f36f4c0959dc40d5393a36d80a5ff62f72334b7e4efae4fb37f31bbe5f461f49d55e9528cb225daa806000f259ae18f274f03f4078b80c32788e4706e546c7
   languageName: node
-  linkType: soft
+  linkType: hard
 
-"@quatrain/backend@portal:/Users/crapougnax/CODE/QUATRAIN/Core/packages/backend::locator=%40quatrain%2Fmodaka%40workspace%3A.":
-  version: 0.0.0-use.local
-  resolution: "@quatrain/backend@portal:/Users/crapougnax/CODE/QUATRAIN/Core/packages/backend::locator=%40quatrain%2Fmodaka%40workspace%3A."
+"@quatrain/backend@npm:^1.2.17":
+  version: 1.2.17
+  resolution: "@quatrain/backend@npm:1.2.17"
   dependencies:
     "@faker-js/faker": "npm:^7.6.0"
-    "@quatrain/core": "workspace:*"
-    "@quatrain/log": "workspace:*"
-    "@quatrain/types": "workspace:*"
+    "@quatrain/core": "npm:^1.2.16"
+    "@quatrain/log": "npm:^1.2.3"
+    "@quatrain/types": "npm:^1.2.15"
+  checksum: 10c0/d8e2e0413be7684a2af3ae33b8fa8697c69f708476bd8028be565993bb01b2feee499a36449d0b2ec34cfc75168a3d35aecc9919aee6d33143c3037da763ab60
   languageName: node
-  linkType: soft
+  linkType: hard
 
-"@quatrain/chat@portal:/Users/crapougnax/CODE/QUATRAIN/Core/packages/chat::locator=%40quatrain%2Fmodaka%40workspace%3A.":
-  version: 0.0.0-use.local
-  resolution: "@quatrain/chat@portal:/Users/crapougnax/CODE/QUATRAIN/Core/packages/chat::locator=%40quatrain%2Fmodaka%40workspace%3A."
+"@quatrain/chat@npm:^1.0.3":
+  version: 1.0.3
+  resolution: "@quatrain/chat@npm:1.0.3"
   dependencies:
-    "@quatrain/ai": "workspace:*"
-    "@quatrain/backend": "workspace:*"
-    "@quatrain/core": "workspace:*"
-    "@quatrain/log": "workspace:*"
-    "@quatrain/storage": "workspace:*"
-    "@quatrain/types": "workspace:*"
+    "@quatrain/ai": "npm:^1.1.4"
+    "@quatrain/backend": "npm:^1.2.17"
+    "@quatrain/core": "npm:^1.2.17"
+    "@quatrain/log": "npm:^1.2.4"
+    "@quatrain/storage": "npm:^1.2.13"
+    "@quatrain/types": "npm:^1.2.16"
     yaml: "npm:^2.4.0"
+  checksum: 10c0/b7d3c0d70c5b5692d3aec02d561f351be8511d92a6a3b0543def9017e776afa46fe33306d419bffd1cf0c483423c329d097a9f18d2ca7300aa9cd23fdb4726df
   languageName: node
-  linkType: soft
+  linkType: hard
 
-"@quatrain/core@portal:/Users/crapougnax/CODE/QUATRAIN/Core/packages/core::locator=%40quatrain%2Fmodaka%40workspace%3A.":
-  version: 0.0.0-use.local
-  resolution: "@quatrain/core@portal:/Users/crapougnax/CODE/QUATRAIN/Core/packages/core::locator=%40quatrain%2Fmodaka%40workspace%3A."
+"@quatrain/core@npm:*, @quatrain/core@npm:^1.2.16, @quatrain/core@npm:^1.2.17, @quatrain/core@npm:^1.2.6":
+  version: 1.2.17
+  resolution: "@quatrain/core@npm:1.2.17"
   dependencies:
-    "@quatrain/log": "workspace:*"
-    "@quatrain/types": "workspace:*"
+    "@quatrain/log": "npm:^1.2.4"
+    "@quatrain/types": "npm:^1.2.16"
     node-persist: "npm:^4.0.4"
     which: "npm:^5.0.0"
+  checksum: 10c0/7191992eed0b7ae87d4f590a730704ba04cfad16f4ff182b90f637b6f891b9a7f5766aee10f7e525b676eb8c611715516d323a3d372c22e27df11f2dcfadc92f
   languageName: node
-  linkType: soft
+  linkType: hard
 
-"@quatrain/http@portal:/Users/crapougnax/CODE/QUATRAIN/Core/packages/http::locator=%40quatrain%2Fmodaka%40workspace%3A.":
-  version: 0.0.0-use.local
-  resolution: "@quatrain/http@portal:/Users/crapougnax/CODE/QUATRAIN/Core/packages/http::locator=%40quatrain%2Fmodaka%40workspace%3A."
+"@quatrain/http@npm:^1.0.3, @quatrain/http@npm:^1.0.4":
+  version: 1.0.4
+  resolution: "@quatrain/http@npm:1.0.4"
+  checksum: 10c0/ea76c1cf027107bff4c9bdffeb8d2b316d5e9b446a1ea5122783d9a965233a042e358fcdcf412fedf8822f6fecd8bbfe29403ca690f16341cfbef461a8d939e4
   languageName: node
-  linkType: soft
+  linkType: hard
 
 "@quatrain/i18n-en@npm:*":
   version: 1.0.7
@@ -2063,56 +2001,61 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@quatrain/ingestion-audio@portal:/Users/crapougnax/CODE/QUATRAIN/Core/packages/ingestion-audio::locator=%40quatrain%2Fmodaka%40workspace%3A.":
-  version: 0.0.0-use.local
-  resolution: "@quatrain/ingestion-audio@portal:/Users/crapougnax/CODE/QUATRAIN/Core/packages/ingestion-audio::locator=%40quatrain%2Fmodaka%40workspace%3A."
+"@quatrain/ingestion-audio@npm:^1.0.1":
+  version: 1.0.1
+  resolution: "@quatrain/ingestion-audio@npm:1.0.1"
   dependencies:
-    "@quatrain/ai": "workspace:*"
-    "@quatrain/core": "workspace:*"
-    "@quatrain/ingestion": "workspace:*"
+    "@quatrain/ai": "npm:^1.1.4"
+    "@quatrain/core": "npm:^1.2.17"
+    "@quatrain/ingestion": "npm:^1.0.1"
+  checksum: 10c0/912aa3b4cdf0947d9131ca65462576783eff5d39296092ce8ba25dc194e95df2a1a590799b5546e46701a79f943caafbc2f5b369bc51448bfacf8c7a454c64f3
   languageName: node
-  linkType: soft
+  linkType: hard
 
-"@quatrain/ingestion-ocr@portal:/Users/crapougnax/CODE/QUATRAIN/Core/packages/ingestion-ocr::locator=%40quatrain%2Fmodaka%40workspace%3A.":
-  version: 0.0.0-use.local
-  resolution: "@quatrain/ingestion-ocr@portal:/Users/crapougnax/CODE/QUATRAIN/Core/packages/ingestion-ocr::locator=%40quatrain%2Fmodaka%40workspace%3A."
+"@quatrain/ingestion-ocr@npm:^1.0.1":
+  version: 1.0.1
+  resolution: "@quatrain/ingestion-ocr@npm:1.0.1"
   dependencies:
-    "@quatrain/ai": "workspace:*"
-    "@quatrain/core": "workspace:*"
-    "@quatrain/ingestion": "workspace:*"
+    "@quatrain/ai": "npm:^1.1.4"
+    "@quatrain/core": "npm:^1.2.17"
+    "@quatrain/ingestion": "npm:^1.0.1"
     pdf-parse: "npm:^1.1.1"
+  checksum: 10c0/a91eb1e7b2424d191034bea942aab953d4d8537e72ffdac86d32708aecbbd91fc1b80a65379fdeceaab4a69912687623bdff9c9d5b40aba08bf7db7a9da25a65
   languageName: node
-  linkType: soft
+  linkType: hard
 
-"@quatrain/ingestion-web@portal:/Users/crapougnax/CODE/QUATRAIN/Core/packages/ingestion-web::locator=%40quatrain%2Fmodaka%40workspace%3A.":
-  version: 0.0.0-use.local
-  resolution: "@quatrain/ingestion-web@portal:/Users/crapougnax/CODE/QUATRAIN/Core/packages/ingestion-web::locator=%40quatrain%2Fmodaka%40workspace%3A."
+"@quatrain/ingestion-web@npm:^1.0.1":
+  version: 1.0.1
+  resolution: "@quatrain/ingestion-web@npm:1.0.1"
   dependencies:
-    "@quatrain/ai": "workspace:*"
-    "@quatrain/core": "workspace:*"
-    "@quatrain/ingestion": "workspace:*"
+    "@quatrain/ai": "npm:^1.1.4"
+    "@quatrain/core": "npm:^1.2.17"
+    "@quatrain/ingestion": "npm:^1.0.1"
+  checksum: 10c0/2c7edc33c9f457337399beadad7ee7dd5d6e000669d96245d06e87049e0ab6e1d34bf130f39a00c2e02bfe50618fa26e8e10b659a79bb50c40b8b94f80e41611
   languageName: node
-  linkType: soft
+  linkType: hard
 
-"@quatrain/ingestion@portal:/Users/crapougnax/CODE/QUATRAIN/Core/packages/ingestion::locator=%40quatrain%2Fmodaka%40workspace%3A.":
-  version: 0.0.0-use.local
-  resolution: "@quatrain/ingestion@portal:/Users/crapougnax/CODE/QUATRAIN/Core/packages/ingestion::locator=%40quatrain%2Fmodaka%40workspace%3A."
+"@quatrain/ingestion@npm:^1.0.1":
+  version: 1.0.1
+  resolution: "@quatrain/ingestion@npm:1.0.1"
   dependencies:
-    "@quatrain/backend": "workspace:*"
-    "@quatrain/core": "workspace:*"
-    "@quatrain/log": "workspace:*"
-    "@quatrain/types": "workspace:*"
+    "@quatrain/backend": "npm:^1.2.17"
+    "@quatrain/core": "npm:^1.2.17"
+    "@quatrain/log": "npm:^1.2.4"
+    "@quatrain/types": "npm:^1.2.16"
+  checksum: 10c0/3b6bdff9c67a9d23f4ef2bd6df736591678e3a0042958ad0a07d890fb73e1b61191a7c019fa1b8a4d8953e177445a1d75868b72d3c780400a726bb803a5fe9a6
   languageName: node
-  linkType: soft
+  linkType: hard
 
-"@quatrain/log@portal:/Users/crapougnax/CODE/QUATRAIN/Core/packages/log::locator=%40quatrain%2Fmodaka%40workspace%3A.":
-  version: 0.0.0-use.local
-  resolution: "@quatrain/log@portal:/Users/crapougnax/CODE/QUATRAIN/Core/packages/log::locator=%40quatrain%2Fmodaka%40workspace%3A."
+"@quatrain/log@npm:^1.2.3, @quatrain/log@npm:^1.2.4":
+  version: 1.2.4
+  resolution: "@quatrain/log@npm:1.2.4"
   dependencies:
     chalk: "npm:^4.1.2"
     loglevel: "npm:^1.9.2"
+  checksum: 10c0/427af50f5613b203bf4380aafba6f0758d72aad67b71158668510464eb588f0f2321664ee9acd7dc42d1faaa3f32c0fe653980912170fa904bc8545ebf76d45b
   languageName: node
-  linkType: soft
+  linkType: hard
 
 "@quatrain/modaka@workspace:.":
   version: 0.0.0-use.local
@@ -2122,40 +2065,43 @@ __metadata:
     "@astrojs/react": "npm:^4.2.0"
     "@mantine/core": "npm:^7.10.0"
     "@mantine/hooks": "npm:^7.10.0"
-    "@quatrain/ai": "portal:/Users/crapougnax/CODE/QUATRAIN/Core/packages/ai"
-    "@quatrain/ai-gemini": "portal:/Users/crapougnax/CODE/QUATRAIN/Core/packages/ai-gemini"
-    "@quatrain/api-server": "portal:/Users/crapougnax/CODE/QUATRAIN/Core/packages/api-server"
-    "@quatrain/api-server-astro": "portal:/Users/crapougnax/CODE/QUATRAIN/Core/packages/api-server-astro"
-    "@quatrain/auth": "portal:/Users/crapougnax/CODE/QUATRAIN/Core/packages/auth"
-    "@quatrain/auth-github": "portal:/Users/crapougnax/CODE/QUATRAIN/Core/packages/auth-github"
-    "@quatrain/backend": "portal:/Users/crapougnax/CODE/QUATRAIN/Core/packages/backend"
-    "@quatrain/chat": "portal:/Users/crapougnax/CODE/QUATRAIN/Core/packages/chat"
-    "@quatrain/core": "portal:/Users/crapougnax/CODE/QUATRAIN/Core/packages/core"
-    "@quatrain/ingestion": "portal:/Users/crapougnax/CODE/QUATRAIN/Core/packages/ingestion"
-    "@quatrain/ingestion-audio": "portal:/Users/crapougnax/CODE/QUATRAIN/Core/packages/ingestion-audio"
-    "@quatrain/ingestion-ocr": "portal:/Users/crapougnax/CODE/QUATRAIN/Core/packages/ingestion-ocr"
-    "@quatrain/ingestion-web": "portal:/Users/crapougnax/CODE/QUATRAIN/Core/packages/ingestion-web"
-    "@quatrain/log": "portal:/Users/crapougnax/CODE/QUATRAIN/Core/packages/log"
-    "@quatrain/okf": "portal:/Users/crapougnax/CODE/QUATRAIN/Core/packages/okf"
-    "@quatrain/queue": "portal:/Users/crapougnax/CODE/QUATRAIN/Core/packages/queue"
-    "@quatrain/queue-sqlite": "portal:/Users/crapougnax/CODE/QUATRAIN/Core/packages/queue-sqlite"
-    "@quatrain/storage": "portal:/Users/crapougnax/CODE/QUATRAIN/Core/packages/storage"
-    "@quatrain/storage-git": "portal:/Users/crapougnax/CODE/QUATRAIN/Core/packages/storage-git"
-    "@quatrain/storage-local": "portal:/Users/crapougnax/CODE/QUATRAIN/Core/packages/storage-local"
-    "@quatrain/storage-s3": "portal:/Users/crapougnax/CODE/QUATRAIN/Core/packages/storage-s3"
-    "@quatrain/ux": "portal:/Users/crapougnax/CODE/QUATRAIN/CoreUX/packages/ux"
-    "@quatrain/ux-form-react": "portal:/Users/crapougnax/CODE/QUATRAIN/CoreUX/packages/ux-form-react"
-    "@quatrain/ux-list-react": "portal:/Users/crapougnax/CODE/QUATRAIN/CoreUX/packages/ux-list-react"
-    "@quatrain/ux-react": "portal:/Users/crapougnax/CODE/QUATRAIN/CoreUX/packages/ux-react"
+    "@quatrain/ai": "npm:^1.1.4"
+    "@quatrain/ai-gemini": "npm:^1.1.4"
+    "@quatrain/api-server": "npm:^1.1.11"
+    "@quatrain/api-server-astro": "npm:^1.1.15"
+    "@quatrain/auth": "npm:^1.2.10"
+    "@quatrain/auth-github": "npm:^1.2.10"
+    "@quatrain/backend": "npm:^1.2.17"
+    "@quatrain/chat": "npm:^1.0.3"
+    "@quatrain/core": "npm:^1.2.17"
+    "@quatrain/ingestion": "npm:^1.0.1"
+    "@quatrain/ingestion-audio": "npm:^1.0.1"
+    "@quatrain/ingestion-ocr": "npm:^1.0.1"
+    "@quatrain/ingestion-web": "npm:^1.0.1"
+    "@quatrain/log": "npm:^1.2.4"
+    "@quatrain/okf": "npm:^1.0.4"
+    "@quatrain/queue": "npm:^1.2.3"
+    "@quatrain/queue-sqlite": "npm:^1.0.1"
+    "@quatrain/storage": "npm:^1.2.13"
+    "@quatrain/storage-local": "npm:^1.1.7"
+    "@quatrain/storage-s3": "npm:^1.2.8"
+    "@quatrain/ux": "npm:^1.1.9"
+    "@quatrain/ux-form-react": "npm:^1.1.6"
+    "@quatrain/ux-list-react": "npm:^1.1.5"
     "@tabler/icons-react": "npm:^3.5.0"
+    "@testing-library/dom": "npm:^10.4.1"
+    "@testing-library/jest-dom": "npm:^7.0.0"
+    "@testing-library/react": "npm:^16.3.2"
     "@types/fs-extra": "npm:^11.0.4"
     "@types/pdf-parse": "npm:^1.1.4"
     "@types/qrcode": "npm:^1.5.6"
     "@types/react": "npm:^18.3.3"
     "@types/react-dom": "npm:^18.3.0"
+    "@vitest/coverage-v8": "npm:^2.0.0"
     astro: "npm:^5.0.0"
     dotenv: "npm:^16.4.5"
     fs-extra: "npm:^11.2.0"
+    happy-dom: "npm:^20.11.1"
     jsqr: "npm:^1.4.0"
     pdf-parse: "npm:^1.1.1"
     postcss: "npm:^8.4.38"
@@ -2171,143 +2117,135 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@quatrain/okf@portal:/Users/crapougnax/CODE/QUATRAIN/Core/packages/okf::locator=%40quatrain%2Fmodaka%40workspace%3A.":
-  version: 0.0.0-use.local
-  resolution: "@quatrain/okf@portal:/Users/crapougnax/CODE/QUATRAIN/Core/packages/okf::locator=%40quatrain%2Fmodaka%40workspace%3A."
+"@quatrain/okf@npm:^1.0.4":
+  version: 1.0.4
+  resolution: "@quatrain/okf@npm:1.0.4"
   dependencies:
-    "@quatrain/backend": "workspace:*"
-    "@quatrain/log": "workspace:*"
-    "@quatrain/storage": "workspace:*"
-    "@quatrain/types": "workspace:*"
+    "@quatrain/backend": "npm:^1.2.17"
+    "@quatrain/log": "npm:^1.2.4"
+    "@quatrain/storage": "npm:^1.2.13"
+    "@quatrain/types": "npm:^1.2.16"
     yaml: "npm:^2.4.0"
+  checksum: 10c0/287f92fc74ce6a1b190296f417c7c4e222198bd10f54ee905c24e867b215d565f732eff44fffd712356a8fbe8b6466d361ae4bdf273d48fc58ed99f88495a5bd
   languageName: node
-  linkType: soft
+  linkType: hard
 
-"@quatrain/queue-sqlite@portal:/Users/crapougnax/CODE/QUATRAIN/Core/packages/queue-sqlite::locator=%40quatrain%2Fmodaka%40workspace%3A.":
-  version: 0.0.0-use.local
-  resolution: "@quatrain/queue-sqlite@portal:/Users/crapougnax/CODE/QUATRAIN/Core/packages/queue-sqlite::locator=%40quatrain%2Fmodaka%40workspace%3A."
-  dependencies:
-    "@quatrain/core": "workspace:*"
-    "@quatrain/queue": "workspace:*"
-    sqlite: "npm:^5.1.1"
-    sqlite3: "npm:^5.1.7"
-  languageName: node
-  linkType: soft
-
-"@quatrain/queue@portal:/Users/crapougnax/CODE/QUATRAIN/Core/packages/queue::locator=%40quatrain%2Fmodaka%40workspace%3A.":
-  version: 0.0.0-use.local
-  resolution: "@quatrain/queue@portal:/Users/crapougnax/CODE/QUATRAIN/Core/packages/queue::locator=%40quatrain%2Fmodaka%40workspace%3A."
+"@quatrain/queue-sqlite@npm:^1.0.1":
+  version: 1.0.1
+  resolution: "@quatrain/queue-sqlite@npm:1.0.1"
   dependencies:
     "@quatrain/core": "npm:^1.2.17"
-    fs-extra: "npm:^11.2.0"
+    "@quatrain/queue": "npm:^1.2.3"
+    sqlite: "npm:^5.1.1"
+    sqlite3: "npm:^5.1.7"
+  checksum: 10c0/afa3021d8605a895b2529ba6516fdeecf3f342e41a129e83f3be5974fcabce8aae9dfa958a62b877f28356af5b900daced056c3cef4d12020f4055768496f243
   languageName: node
-  linkType: soft
+  linkType: hard
 
-"@quatrain/storage-git@portal:/Users/crapougnax/CODE/QUATRAIN/Core/packages/storage-git::locator=%40quatrain%2Fmodaka%40workspace%3A.":
-  version: 0.0.0-use.local
-  resolution: "@quatrain/storage-git@portal:/Users/crapougnax/CODE/QUATRAIN/Core/packages/storage-git::locator=%40quatrain%2Fmodaka%40workspace%3A."
+"@quatrain/queue@npm:^1.2.3":
+  version: 1.2.3
+  resolution: "@quatrain/queue@npm:1.2.3"
   dependencies:
-    "@octokit/rest": "npm:^20.1.1"
-    "@quatrain/log": "workspace:*"
-    "@quatrain/storage": "workspace:*"
-  languageName: node
-  linkType: soft
-
-"@quatrain/storage-local@portal:/Users/crapougnax/CODE/QUATRAIN/Core/packages/storage-local::locator=%40quatrain%2Fmodaka%40workspace%3A.":
-  version: 0.0.0-use.local
-  resolution: "@quatrain/storage-local@portal:/Users/crapougnax/CODE/QUATRAIN/Core/packages/storage-local::locator=%40quatrain%2Fmodaka%40workspace%3A."
-  dependencies:
-    "@quatrain/storage": "workspace:*"
+    "@quatrain/core": "npm:^1.2.6"
     fs-extra: "npm:^11.2.0"
+  checksum: 10c0/0c38c2c1900d3fbb9eb265569e1de0a7d48e889d23a4f868e944e0b1c2226c23ce639db7fff05cc4984099b4c54cfc10ce9c89fb51d34fc576eb07de3e3bf219
   languageName: node
-  linkType: soft
+  linkType: hard
 
-"@quatrain/storage-s3@portal:/Users/crapougnax/CODE/QUATRAIN/Core/packages/storage-s3::locator=%40quatrain%2Fmodaka%40workspace%3A.":
-  version: 0.0.0-use.local
-  resolution: "@quatrain/storage-s3@portal:/Users/crapougnax/CODE/QUATRAIN/Core/packages/storage-s3::locator=%40quatrain%2Fmodaka%40workspace%3A."
+"@quatrain/storage-local@npm:^1.1.7":
+  version: 1.1.7
+  resolution: "@quatrain/storage-local@npm:1.1.7"
+  dependencies:
+    "@quatrain/storage": "npm:^1.2.13"
+    fs-extra: "npm:^11.2.0"
+  checksum: 10c0/bad328c2b26b956fc707e489db50b811562507b5e0ad518bc59130c17096f89eacef077f8110162dd5fdee1d798482b07bf7d4f7f9542f4bd9a874c77c50b653
+  languageName: node
+  linkType: hard
+
+"@quatrain/storage-s3@npm:^1.2.8":
+  version: 1.2.8
+  resolution: "@quatrain/storage-s3@npm:1.2.8"
   dependencies:
     "@aws-sdk/client-s3": "npm:^3.337.0"
     "@aws-sdk/s3-request-presigner": "npm:^3.342.0"
     "@quatrain/storage": "npm:^1.2.13"
     fs-extra: "npm:^11.2.0"
+  checksum: 10c0/a2776dd703c6e7ae5dbd0a7277b0f02e8dd261c870aa483355816ac18767c34542dea2e95f6b0c5678680592324307bb5c2fae1b9e2722673f1020cda67f1232
   languageName: node
-  linkType: soft
+  linkType: hard
 
-"@quatrain/storage@portal:/Users/crapougnax/CODE/QUATRAIN/Core/packages/storage::locator=%40quatrain%2Fmodaka%40workspace%3A.":
-  version: 0.0.0-use.local
-  resolution: "@quatrain/storage@portal:/Users/crapougnax/CODE/QUATRAIN/Core/packages/storage::locator=%40quatrain%2Fmodaka%40workspace%3A."
+"@quatrain/storage@npm:^1.2.13":
+  version: 1.2.13
+  resolution: "@quatrain/storage@npm:1.2.13"
   dependencies:
-    "@quatrain/core": "npm:^1.2.17"
+    "@quatrain/core": "npm:^1.2.16"
     fs-extra: "npm:^11.2.0"
     object-hash: "npm:^3.0.0"
     sharp: "npm:^0.33.5"
+  checksum: 10c0/05af846411efe6f1b83c3f20b456b95b648332945951dc7a58c28ac0f7501d8032a0457e16a7d7324b2078068d97d391b8f8608cc7d3b424d9bfa6022a6391ec
   languageName: node
-  linkType: soft
+  linkType: hard
 
-"@quatrain/types@portal:/Users/crapougnax/CODE/QUATRAIN/Core/packages/types::locator=%40quatrain%2Fmodaka%40workspace%3A.":
-  version: 0.0.0-use.local
-  resolution: "@quatrain/types@portal:/Users/crapougnax/CODE/QUATRAIN/Core/packages/types::locator=%40quatrain%2Fmodaka%40workspace%3A."
+"@quatrain/types@npm:^1.2.15, @quatrain/types@npm:^1.2.16":
+  version: 1.2.17
+  resolution: "@quatrain/types@npm:1.2.17"
+  checksum: 10c0/95b63990227e5c1e46c6ec5d66f87c9b93072fd18d4d11c1e2c27154081bd5d368ce17a3edd31e7d0d461d0f999bfe41cd1c88a4c4db07eddcf3a660989b4ce4
   languageName: node
-  linkType: soft
+  linkType: hard
 
-"@quatrain/ux-form-react@portal:/Users/crapougnax/CODE/QUATRAIN/CoreUX/packages/ux-form-react::locator=%40quatrain%2Fmodaka%40workspace%3A.":
-  version: 0.0.0-use.local
-  resolution: "@quatrain/ux-form-react@portal:/Users/crapougnax/CODE/QUATRAIN/CoreUX/packages/ux-form-react::locator=%40quatrain%2Fmodaka%40workspace%3A."
+"@quatrain/ux-form-react@npm:^1.1.6":
+  version: 1.1.6
+  resolution: "@quatrain/ux-form-react@npm:1.1.6"
   dependencies:
     "@mantine/core": "npm:^7.11.1"
     "@mantine/hooks": "npm:^7.11.1"
     "@quatrain/core": "npm:*"
-    "@quatrain/ux": "workspace:*"
+    "@quatrain/ux": "npm:^1.1.9"
     "@tabler/icons-react": "npm:^3.10.0"
   peerDependencies:
     react: ^18.3.1
     react-dom: ^18.3.1
+  checksum: 10c0/34421b5b43ed6faab6ecf6e951c61879fc567fcbe159fa9896c830c4f49290e084db45c2e0e2baf6c9e53daf1c4451b5faab005d7dc705bdb896325c6abc9c32
   languageName: node
-  linkType: soft
+  linkType: hard
 
-"@quatrain/ux-list-react@portal:/Users/crapougnax/CODE/QUATRAIN/CoreUX/packages/ux-list-react::locator=%40quatrain%2Fmodaka%40workspace%3A.":
-  version: 0.0.0-use.local
-  resolution: "@quatrain/ux-list-react@portal:/Users/crapougnax/CODE/QUATRAIN/CoreUX/packages/ux-list-react::locator=%40quatrain%2Fmodaka%40workspace%3A."
+"@quatrain/ux-list-react@npm:^1.1.5":
+  version: 1.1.5
+  resolution: "@quatrain/ux-list-react@npm:1.1.5"
   dependencies:
     "@mantine/core": "npm:^7.11.1"
     "@mantine/hooks": "npm:^7.11.1"
     "@quatrain/i18n": "npm:*"
     "@quatrain/i18n-en": "npm:*"
     "@quatrain/i18n-fr": "npm:*"
-    "@quatrain/ux": "workspace:*"
-    "@quatrain/ux-list": "workspace:*"
+    "@quatrain/ux": "npm:^1.1.9"
+    "@quatrain/ux-list": "npm:^1.0.5"
   peerDependencies:
     react: ^18.3.1
     react-dom: ^18.3.1
+  checksum: 10c0/6ced7e8e01e8505ccfd208941ef04d657a94c1416a1cf4ff3092c9082581428a4be81e235031864b35f55df30835cb30e3ef8e4b7b4a95986263f2a7d7585baa
   languageName: node
-  linkType: soft
+  linkType: hard
 
-"@quatrain/ux-list@portal:/Users/crapougnax/CODE/QUATRAIN/CoreUX/packages/ux-list::locator=%40quatrain%2Fmodaka%40workspace%3A.":
-  version: 0.0.0-use.local
-  resolution: "@quatrain/ux-list@portal:/Users/crapougnax/CODE/QUATRAIN/CoreUX/packages/ux-list::locator=%40quatrain%2Fmodaka%40workspace%3A."
+"@quatrain/ux-list@npm:^1.0.5":
+  version: 1.0.5
+  resolution: "@quatrain/ux-list@npm:1.0.5"
+  checksum: 10c0/76567a90aeb8852f6098715665beb0ee2e8ab2e72e245572a1ff8cbfc5b52074ba69bf181cc4d48e9999df65c75f62f2c0f0b08ef1178b79c63f7f8fa87b38aa
   languageName: node
-  linkType: soft
+  linkType: hard
 
-"@quatrain/ux-react@portal:/Users/crapougnax/CODE/QUATRAIN/CoreUX/packages/ux-react::locator=%40quatrain%2Fmodaka%40workspace%3A.":
-  version: 0.0.0-use.local
-  resolution: "@quatrain/ux-react@portal:/Users/crapougnax/CODE/QUATRAIN/CoreUX/packages/ux-react::locator=%40quatrain%2Fmodaka%40workspace%3A."
-  peerDependencies:
-    react: ^18.0.0 || ^19.0.0
-    react-dom: ^18.0.0 || ^19.0.0
-  languageName: node
-  linkType: soft
-
-"@quatrain/ux@portal:/Users/crapougnax/CODE/QUATRAIN/CoreUX/packages/ux::locator=%40quatrain%2Fmodaka%40workspace%3A.":
-  version: 0.0.0-use.local
-  resolution: "@quatrain/ux@portal:/Users/crapougnax/CODE/QUATRAIN/CoreUX/packages/ux::locator=%40quatrain%2Fmodaka%40workspace%3A."
+"@quatrain/ux@npm:^1.1.9":
+  version: 1.1.9
+  resolution: "@quatrain/ux@npm:1.1.9"
   dependencies:
     "@mantine/core": "npm:^7.15.0"
     "@mantine/hooks": "npm:^7.15.0"
   peerDependencies:
     react: ^18.3.1
     react-dom: ^18.3.1
+  checksum: 10c0/5cc5bf59a671d0530ae98fcf978d46f387d8484a636cef83254fd3434c96aa7ca71cb0ff6d7df8bd79b8eb8aa3c87e208307688e95c79d9e3cfc702d4eedc1c6
   languageName: node
-  linkType: soft
+  linkType: hard
 
 "@rolldown/pluginutils@npm:1.0.0-beta.27":
   version: 1.0.0-beta.27
@@ -2656,10 +2594,69 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@testing-library/dom@npm:^10.4.1":
+  version: 10.4.1
+  resolution: "@testing-library/dom@npm:10.4.1"
+  dependencies:
+    "@babel/code-frame": "npm:^7.10.4"
+    "@babel/runtime": "npm:^7.12.5"
+    "@types/aria-query": "npm:^5.0.1"
+    aria-query: "npm:5.3.0"
+    dom-accessibility-api: "npm:^0.5.9"
+    lz-string: "npm:^1.5.0"
+    picocolors: "npm:1.1.1"
+    pretty-format: "npm:^27.0.2"
+  checksum: 10c0/19ce048012d395ad0468b0dbcc4d0911f6f9e39464d7a8464a587b29707eed5482000dad728f5acc4ed314d2f4d54f34982999a114d2404f36d048278db815b1
+  languageName: node
+  linkType: hard
+
+"@testing-library/jest-dom@npm:^7.0.0":
+  version: 7.0.0
+  resolution: "@testing-library/jest-dom@npm:7.0.0"
+  dependencies:
+    "@adobe/css-tools": "npm:^4.4.0"
+    aria-query: "npm:^5.0.0"
+    css.escape: "npm:^1.5.1"
+    dom-accessibility-api: "npm:^0.6.3"
+    picocolors: "npm:^1.1.1"
+    redent: "npm:^3.0.0"
+  peerDependencies:
+    "@testing-library/dom": ">=10 <11"
+  checksum: 10c0/f5ecf821ed098438a5e9ce993d431505f0a1af43edb05e423c6ab7becf9d7dbe46385fc93e0e460a4c7996f4513cad72b8967dd8e98c75bc7ea6733ff7efcf4e
+  languageName: node
+  linkType: hard
+
+"@testing-library/react@npm:^16.3.2":
+  version: 16.3.2
+  resolution: "@testing-library/react@npm:16.3.2"
+  dependencies:
+    "@babel/runtime": "npm:^7.12.5"
+  peerDependencies:
+    "@testing-library/dom": ^10.0.0
+    "@types/react": ^18.0.0 || ^19.0.0
+    "@types/react-dom": ^18.0.0 || ^19.0.0
+    react: ^18.0.0 || ^19.0.0
+    react-dom: ^18.0.0 || ^19.0.0
+  peerDependenciesMeta:
+    "@types/react":
+      optional: true
+    "@types/react-dom":
+      optional: true
+  checksum: 10c0/f9c7f0915e1b5f7b750e6c7d8b51f091b8ae7ea99bacb761d7b8505ba25de9cfcb749a0f779f1650fb268b499dd79165dc7e1ee0b8b4cb63430d3ddc81ffe044
+  languageName: node
+  linkType: hard
+
 "@tootallnate/once@npm:1":
   version: 1.1.2
   resolution: "@tootallnate/once@npm:1.1.2"
   checksum: 10c0/8fe4d006e90422883a4fa9339dd05a83ff626806262e1710cee5758d493e8cbddf2db81c0e4690636dc840b02c9fda62877866ea774ebd07c1777ed5fafbdec6
+  languageName: node
+  linkType: hard
+
+"@types/aria-query@npm:^5.0.1":
+  version: 5.0.4
+  resolution: "@types/aria-query@npm:5.0.4"
+  checksum: 10c0/dc667bc6a3acc7bba2bccf8c23d56cb1f2f4defaa704cfef595437107efaa972d3b3db9ec1d66bc2711bfc35086821edd32c302bffab36f2e79b97f312069f08
   languageName: node
   linkType: hard
 
@@ -2773,7 +2770,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@types/node@npm:*, @types/node@npm:>=13.7.0":
+"@types/node@npm:*, @types/node@npm:>=13.7.0, @types/node@npm:>=20.0.0":
   version: 26.1.1
   resolution: "@types/node@npm:26.1.1"
   dependencies:
@@ -2840,6 +2837,22 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@types/whatwg-mimetype@npm:^3.0.2":
+  version: 3.0.2
+  resolution: "@types/whatwg-mimetype@npm:3.0.2"
+  checksum: 10c0/dad39d1e4abe760a0a963c84bbdbd26b1df0eb68aff83bdf6ecbb50ad781ead777f6906d19a87007790b750f7500a12e5624d31fc6a1529d14bd19b5c3a316d1
+  languageName: node
+  linkType: hard
+
+"@types/ws@npm:^8.18.1":
+  version: 8.18.1
+  resolution: "@types/ws@npm:8.18.1"
+  dependencies:
+    "@types/node": "npm:*"
+  checksum: 10c0/61aff1129143fcc4312f083bc9e9e168aa3026b7dd6e70796276dcfb2c8211c4292603f9c4864fae702f2ed86e4abd4d38aa421831c2fd7f856c931a481afbab
+  languageName: node
+  linkType: hard
+
 "@ungap/structured-clone@npm:^1.0.0":
   version: 1.3.3
   resolution: "@ungap/structured-clone@npm:1.3.3"
@@ -2860,6 +2873,32 @@ __metadata:
   peerDependencies:
     vite: ^4.2.0 || ^5.0.0 || ^6.0.0 || ^7.0.0
   checksum: 10c0/692f23960972879485d647713663ec299c478222c96567d60285acf7c7dc5c178e71abfe9d2eefddef1eeb01514dacbc2ed68aad84628debf9c7116134734253
+  languageName: node
+  linkType: hard
+
+"@vitest/coverage-v8@npm:^2.0.0":
+  version: 2.1.9
+  resolution: "@vitest/coverage-v8@npm:2.1.9"
+  dependencies:
+    "@ampproject/remapping": "npm:^2.3.0"
+    "@bcoe/v8-coverage": "npm:^0.2.3"
+    debug: "npm:^4.3.7"
+    istanbul-lib-coverage: "npm:^3.2.2"
+    istanbul-lib-report: "npm:^3.0.1"
+    istanbul-lib-source-maps: "npm:^5.0.6"
+    istanbul-reports: "npm:^3.1.7"
+    magic-string: "npm:^0.30.12"
+    magicast: "npm:^0.3.5"
+    std-env: "npm:^3.8.0"
+    test-exclude: "npm:^7.0.1"
+    tinyrainbow: "npm:^1.2.0"
+  peerDependencies:
+    "@vitest/browser": 2.1.9
+    vitest: 2.1.9
+  peerDependenciesMeta:
+    "@vitest/browser":
+      optional: true
+  checksum: 10c0/ccf5871954a630453af9393e84ff40a0f8a4515e988ea32c7ebac5db7c79f17535a12c1c2567cbb78ea01a1eb99abdde94e297f6b6ccd5f7f7fc9b8b01c5963c
   languageName: node
   linkType: hard
 
@@ -3034,7 +3073,14 @@ __metadata:
   languageName: node
   linkType: hard
 
-"ansi-styles@npm:^6.2.1":
+"ansi-styles@npm:^5.0.0":
+  version: 5.2.0
+  resolution: "ansi-styles@npm:5.2.0"
+  checksum: 10c0/9c4ca80eb3c2fb7b33841c210d2f20807f40865d27008d7c3f707b7f95cab7d67462a565e2388ac3285b71cb3d9bb2173de8da37c57692a362885ec34d6e27df
+  languageName: node
+  linkType: hard
+
+"ansi-styles@npm:^6.1.0, ansi-styles@npm:^6.2.1":
   version: 6.2.3
   resolution: "ansi-styles@npm:6.2.3"
   checksum: 10c0/23b8a4ce14e18fb854693b95351e286b771d23d8844057ed2e7d083cd3e708376c3323707ec6a24365f7d7eda3ca00327fe04092e29e551499ec4c8b7bfac868
@@ -3075,7 +3121,16 @@ __metadata:
   languageName: node
   linkType: hard
 
-"aria-query@npm:^5.3.2":
+"aria-query@npm:5.3.0":
+  version: 5.3.0
+  resolution: "aria-query@npm:5.3.0"
+  dependencies:
+    dequal: "npm:^2.0.3"
+  checksum: 10c0/2bff0d4eba5852a9dd578ecf47eaef0e82cc52569b48469b0aac2db5145db0b17b7a58d9e01237706d1e14b7a1b0ac9b78e9c97027ad97679dd8f91b85da1469
+  languageName: node
+  linkType: hard
+
+"aria-query@npm:^5.0.0, aria-query@npm:^5.3.2":
   version: 5.3.2
   resolution: "aria-query@npm:5.3.2"
   checksum: 10c0/003c7e3e2cff5540bf7a7893775fc614de82b0c5dde8ae823d47b7a28a9d4da1f7ed85f340bdb93d5649caa927755f0e31ecc7ab63edfdfc00c8ef07e505e03e
@@ -3194,6 +3249,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"balanced-match@npm:^4.0.2":
+  version: 4.0.4
+  resolution: "balanced-match@npm:4.0.4"
+  checksum: 10c0/07e86102a3eb2ee2a6a1a89164f29d0dbaebd28f2ca3f5ca786f36b8b23d9e417eb3be45a4acf754f837be5ac0a2317de90d3fcb7f4f4dc95720a1f36b26a17b
+  languageName: node
+  linkType: hard
+
 "base-64@npm:^1.0.0":
   version: 1.0.0
   resolution: "base-64@npm:1.0.0"
@@ -3214,13 +3276,6 @@ __metadata:
   bin:
     baseline-browser-mapping: dist/cli.cjs
   checksum: 10c0/08a9e585fe0b1672a0a41026579d41debbaff2c1ceffc9efe510b47713b9d78296846d7a86f0d74d8f64af0088fdebd715f5ea6cb88d6fe1d57f8fafa686b3b5
-  languageName: node
-  linkType: hard
-
-"before-after-hook@npm:^2.2.0":
-  version: 2.2.3
-  resolution: "before-after-hook@npm:2.2.3"
-  checksum: 10c0/0488c4ae12df758ca9d49b3bb27b47fd559677965c52cae7b335784724fb8bf96c42b6e5ba7d7afcbc31facb0e294c3ef717cc41c5bc2f7bd9e76f8b90acd31c
   languageName: node
   linkType: hard
 
@@ -3291,6 +3346,24 @@ __metadata:
   languageName: node
   linkType: hard
 
+"brace-expansion@npm:^2.0.2":
+  version: 2.1.2
+  resolution: "brace-expansion@npm:2.1.2"
+  dependencies:
+    balanced-match: "npm:^1.0.0"
+  checksum: 10c0/5442ecab84045d21826268bc56c81a6ef4215327ee1f5ee153f67928e93f7a915d130ecec9966623143277fa3cce036ebb50020024bcc4d78853cdd6af9a19f8
+  languageName: node
+  linkType: hard
+
+"brace-expansion@npm:^5.0.5":
+  version: 5.0.8
+  resolution: "brace-expansion@npm:5.0.8"
+  dependencies:
+    balanced-match: "npm:^4.0.2"
+  checksum: 10c0/73304caafd00fdc5b0168e693ac15bf25b6357dec76d1195fcd628fe2cf99c46f9c889a7ecfa3cfe236dbd2d5ce3e27a6ccc4370b46d475d0d19081e11f86019
+  languageName: node
+  linkType: hard
+
 "browserslist@npm:^4.24.0":
   version: 4.28.6
   resolution: "browserslist@npm:4.28.6"
@@ -3310,6 +3383,15 @@ __metadata:
   version: 1.0.1
   resolution: "buffer-equal-constant-time@npm:1.0.1"
   checksum: 10c0/fb2294e64d23c573d0dd1f1e7a466c3e978fe94a4e0f8183937912ca374619773bef8e2aceb854129d2efecbbc515bbd0cc78d2734a3e3031edb0888531bbc8e
+  languageName: node
+  linkType: hard
+
+"buffer-image-size@npm:^0.6.4":
+  version: 0.6.4
+  resolution: "buffer-image-size@npm:0.6.4"
+  dependencies:
+    "@types/node": "npm:*"
+  checksum: 10c0/7158205c8726caa521d3ae6ef7bc341eff211ff86f7278d122e45062e1720afef2f7ad8e845edc96c04f499b292c4ec8a74df9836a25074881260ba00b863448
   languageName: node
   linkType: hard
 
@@ -3642,6 +3724,17 @@ __metadata:
   languageName: node
   linkType: hard
 
+"cross-spawn@npm:^7.0.6":
+  version: 7.0.6
+  resolution: "cross-spawn@npm:7.0.6"
+  dependencies:
+    path-key: "npm:^3.1.0"
+    shebang-command: "npm:^2.0.0"
+    which: "npm:^2.0.1"
+  checksum: 10c0/053ea8b2135caff68a9e81470e845613e374e7309a47731e81639de3eaeb90c3d01af0e0b44d2ab9d50b43467223b88567dfeb3262db942dc063b9976718ffc1
+  languageName: node
+  linkType: hard
+
 "crossws@npm:^0.3.5":
   version: 0.3.5
   resolution: "crossws@npm:0.3.5"
@@ -3691,6 +3784,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"css.escape@npm:^1.5.1":
+  version: 1.5.1
+  resolution: "css.escape@npm:1.5.1"
+  checksum: 10c0/5e09035e5bf6c2c422b40c6df2eb1529657a17df37fda5d0433d722609527ab98090baf25b13970ca754079a0f3161dd3dfc0e743563ded8cfa0749d861c1525
+  languageName: node
+  linkType: hard
+
 "cssesc@npm:^3.0.0":
   version: 3.0.0
   resolution: "cssesc@npm:3.0.0"
@@ -3723,7 +3823,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"debug@npm:4, debug@npm:^4.0.0, debug@npm:^4.1.0, debug@npm:^4.3.1, debug@npm:^4.3.3, debug@npm:^4.3.7, debug@npm:^4.4.0, debug@npm:^4.4.3":
+"debug@npm:4, debug@npm:^4.0.0, debug@npm:^4.1.0, debug@npm:^4.1.1, debug@npm:^4.3.1, debug@npm:^4.3.3, debug@npm:^4.3.7, debug@npm:^4.4.0, debug@npm:^4.4.3":
   version: 4.4.3
   resolution: "debug@npm:4.4.3"
   dependencies:
@@ -3795,14 +3895,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"deprecation@npm:^2.0.0":
-  version: 2.3.1
-  resolution: "deprecation@npm:2.3.1"
-  checksum: 10c0/23d688ba66b74d09b908c40a76179418acbeeb0bfdf218c8075c58ad8d0c315130cb91aa3dffb623aa3a411a3569ce56c6460de6c8d69071c17fe6dd2442f032
-  languageName: node
-  linkType: hard
-
-"dequal@npm:^2.0.0":
+"dequal@npm:^2.0.0, dequal@npm:^2.0.3":
   version: 2.0.3
   resolution: "dequal@npm:2.0.3"
   checksum: 10c0/f98860cdf58b64991ae10205137c0e97d384c3a4edc7f807603887b7c4b850af1224a33d88012009f150861cbee4fa2d322c4cc04b9313bee312e47f6ecaa888
@@ -3883,6 +3976,20 @@ __metadata:
   languageName: node
   linkType: hard
 
+"dom-accessibility-api@npm:^0.5.9":
+  version: 0.5.16
+  resolution: "dom-accessibility-api@npm:0.5.16"
+  checksum: 10c0/b2c2eda4fae568977cdac27a9f0c001edf4f95a6a6191dfa611e3721db2478d1badc01db5bb4fa8a848aeee13e442a6c2a4386d65ec65a1436f24715a2f8d053
+  languageName: node
+  linkType: hard
+
+"dom-accessibility-api@npm:^0.6.3":
+  version: 0.6.3
+  resolution: "dom-accessibility-api@npm:0.6.3"
+  checksum: 10c0/10bee5aa514b2a9a37c87cd81268db607a2e933a050074abc2f6fa3da9080ebed206a320cbc123567f2c3087d22292853bdfdceaffdd4334ffe2af9510b29360
+  languageName: node
+  linkType: hard
+
 "dom-serializer@npm:^2.0.0":
   version: 2.0.0
   resolution: "dom-serializer@npm:2.0.0"
@@ -3935,6 +4042,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"eastasianwidth@npm:^0.2.0":
+  version: 0.2.0
+  resolution: "eastasianwidth@npm:0.2.0"
+  checksum: 10c0/26f364ebcdb6395f95124fda411f63137a4bfb5d3a06453f7f23dfe52502905bd84e0488172e0f9ec295fdc45f05c23d5d91baf16bd26f0fe9acd777a188dc39
+  languageName: node
+  linkType: hard
+
 "ecdsa-sig-formatter@npm:1.0.11, ecdsa-sig-formatter@npm:^1.0.11":
   version: 1.0.11
   resolution: "ecdsa-sig-formatter@npm:1.0.11"
@@ -3969,6 +4083,13 @@ __metadata:
   version: 8.0.0
   resolution: "emoji-regex@npm:8.0.0"
   checksum: 10c0/b6053ad39951c4cf338f9092d7bfba448cdfd46fe6a2a034700b149ac9ffbc137e361cbd3c442297f86bed2e5f7576c1b54cc0a6bf8ef5106cc62f496af35010
+  languageName: node
+  linkType: hard
+
+"emoji-regex@npm:^9.2.2":
+  version: 9.2.2
+  resolution: "emoji-regex@npm:9.2.2"
+  checksum: 10c0/af014e759a72064cf66e6e694a7fc6b0ed3d8db680427b021a89727689671cefe9d04151b2cad51dbaf85d5ba790d061cd167f1cf32eb7b281f6368b3c181639
   languageName: node
   linkType: hard
 
@@ -4008,6 +4129,13 @@ __metadata:
   version: 6.0.1
   resolution: "entities@npm:6.0.1"
   checksum: 10c0/ed836ddac5acb34341094eb495185d527bd70e8632b6c0d59548cbfa23defdbae70b96f9a405c82904efa421230b5b3fd2283752447d737beffd3f3e6ee74414
+  languageName: node
+  linkType: hard
+
+"entities@npm:^7.0.1":
+  version: 7.0.1
+  resolution: "entities@npm:7.0.1"
+  checksum: 10c0/b4fb9937bb47ecb00aaaceb9db9cdd1cc0b0fb649c0e843d05cf5dbbd2e9d2df8f98721d8b1b286445689c72af7b54a7242fc2d63ef7c9739037a8c73363e7ca
   languageName: node
   linkType: hard
 
@@ -4433,6 +4561,16 @@ __metadata:
   languageName: node
   linkType: hard
 
+"foreground-child@npm:^3.1.0":
+  version: 3.3.1
+  resolution: "foreground-child@npm:3.3.1"
+  dependencies:
+    cross-spawn: "npm:^7.0.6"
+    signal-exit: "npm:^4.0.1"
+  checksum: 10c0/8986e4af2430896e65bc2788d6679067294d6aee9545daefc84923a0a4b399ad9c7a3ea7bd8c0b2b80fdf4a92de4c69df3f628233ff3224260e9c1541a9e9ed3
+  languageName: node
+  linkType: hard
+
 "formdata-polyfill@npm:^4.0.10":
   version: 4.0.10
   resolution: "formdata-polyfill@npm:4.0.10"
@@ -4582,6 +4720,22 @@ __metadata:
   languageName: node
   linkType: hard
 
+"glob@npm:^10.4.1":
+  version: 10.5.0
+  resolution: "glob@npm:10.5.0"
+  dependencies:
+    foreground-child: "npm:^3.1.0"
+    jackspeak: "npm:^3.1.2"
+    minimatch: "npm:^9.0.4"
+    minipass: "npm:^7.1.2"
+    package-json-from-dist: "npm:^1.0.0"
+    path-scurry: "npm:^1.11.1"
+  bin:
+    glob: dist/esm/bin.mjs
+  checksum: 10c0/100705eddbde6323e7b35e1d1ac28bcb58322095bd8e63a7d0bef1a2cdafe0d0f7922a981b2b48369a4f8c1b077be5c171804534c3509dfe950dde15fbe6d828
+  languageName: node
+  linkType: hard
+
 "glob@npm:^7.1.3, glob@npm:^7.1.4":
   version: 7.2.3
   resolution: "glob@npm:7.2.3"
@@ -4645,6 +4799,21 @@ __metadata:
     ufo: "npm:^1.6.3"
     uncrypto: "npm:^0.1.3"
   checksum: 10c0/6ccb421b9f92e02e6330c2b6697b18ef18e9550e4a1708f224ca517c40ecd201cd00967d0feb26e718595e86e985edec1755933cf8792d34fb8504f1c7cc261d
+  languageName: node
+  linkType: hard
+
+"happy-dom@npm:^20.11.1":
+  version: 20.11.1
+  resolution: "happy-dom@npm:20.11.1"
+  dependencies:
+    "@types/node": "npm:>=20.0.0"
+    "@types/whatwg-mimetype": "npm:^3.0.2"
+    "@types/ws": "npm:^8.18.1"
+    buffer-image-size: "npm:^0.6.4"
+    entities: "npm:^7.0.1"
+    whatwg-mimetype: "npm:^3.0.0"
+    ws: "npm:^8.21.0"
+  checksum: 10c0/f2335e8b87f1917c3725051c22dd7dafef13229af0dde9412d146fbaa961713a81ca4dcc741ecef8bf5fb64ea4182e3886305ac93ecb822dec7be028a6f7c51e
   languageName: node
   linkType: hard
 
@@ -4803,6 +4972,13 @@ __metadata:
   version: 3.0.3
   resolution: "html-escaper@npm:3.0.3"
   checksum: 10c0/a042fa4139127ff7546513e90ea39cc9161a1938ce90122dbc4260d4b7252c9aa8452f4509c0c2889901b8ae9a8699179150f1f99d3f80bcf7317573c5f08f4e
+  languageName: node
+  linkType: hard
+
+"html-escaper@npm:^2.0.0":
+  version: 2.0.2
+  resolution: "html-escaper@npm:2.0.2"
+  checksum: 10c0/208e8a12de1a6569edbb14544f4567e6ce8ecc30b9394fcaa4e7bb1e60c12a7c9a1ed27e31290817157e8626f3a4f29e76c8747030822eb84a6abb15c255f0a0
   languageName: node
   linkType: hard
 
@@ -5033,6 +5209,58 @@ __metadata:
   languageName: node
   linkType: hard
 
+"istanbul-lib-coverage@npm:^3.0.0, istanbul-lib-coverage@npm:^3.2.2":
+  version: 3.2.2
+  resolution: "istanbul-lib-coverage@npm:3.2.2"
+  checksum: 10c0/6c7ff2106769e5f592ded1fb418f9f73b4411fd5a084387a5410538332b6567cd1763ff6b6cadca9b9eb2c443cce2f7ea7d7f1b8d315f9ce58539793b1e0922b
+  languageName: node
+  linkType: hard
+
+"istanbul-lib-report@npm:^3.0.0, istanbul-lib-report@npm:^3.0.1":
+  version: 3.0.1
+  resolution: "istanbul-lib-report@npm:3.0.1"
+  dependencies:
+    istanbul-lib-coverage: "npm:^3.0.0"
+    make-dir: "npm:^4.0.0"
+    supports-color: "npm:^7.1.0"
+  checksum: 10c0/84323afb14392de8b6a5714bd7e9af845cfbd56cfe71ed276cda2f5f1201aea673c7111901227ee33e68e4364e288d73861eb2ed48f6679d1e69a43b6d9b3ba7
+  languageName: node
+  linkType: hard
+
+"istanbul-lib-source-maps@npm:^5.0.6":
+  version: 5.0.6
+  resolution: "istanbul-lib-source-maps@npm:5.0.6"
+  dependencies:
+    "@jridgewell/trace-mapping": "npm:^0.3.23"
+    debug: "npm:^4.1.1"
+    istanbul-lib-coverage: "npm:^3.0.0"
+  checksum: 10c0/ffe75d70b303a3621ee4671554f306e0831b16f39ab7f4ab52e54d356a5d33e534d97563e318f1333a6aae1d42f91ec49c76b6cd3f3fb378addcb5c81da0255f
+  languageName: node
+  linkType: hard
+
+"istanbul-reports@npm:^3.1.7":
+  version: 3.2.0
+  resolution: "istanbul-reports@npm:3.2.0"
+  dependencies:
+    html-escaper: "npm:^2.0.0"
+    istanbul-lib-report: "npm:^3.0.0"
+  checksum: 10c0/d596317cfd9c22e1394f22a8d8ba0303d2074fe2e971887b32d870e4b33f8464b10f8ccbe6847808f7db485f084eba09e6c2ed706b3a978e4b52f07085b8f9bc
+  languageName: node
+  linkType: hard
+
+"jackspeak@npm:^3.1.2":
+  version: 3.4.3
+  resolution: "jackspeak@npm:3.4.3"
+  dependencies:
+    "@isaacs/cliui": "npm:^8.0.2"
+    "@pkgjs/parseargs": "npm:^0.11.0"
+  dependenciesMeta:
+    "@pkgjs/parseargs":
+      optional: true
+  checksum: 10c0/6acc10d139eaefdbe04d2f679e6191b3abf073f111edf10b1de5302c97ec93fffeb2fdd8681ed17f16268aa9dd4f8c588ed9d1d3bffbbfa6e8bf897cbb3149b9
+  languageName: node
+  linkType: hard
+
 "js-tokens@npm:^3.0.0 || ^4.0.0, js-tokens@npm:^4.0.0":
   version: 4.0.0
   resolution: "js-tokens@npm:4.0.0"
@@ -5174,6 +5402,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"lru-cache@npm:^10.2.0":
+  version: 10.4.3
+  resolution: "lru-cache@npm:10.4.3"
+  checksum: 10c0/ebd04fbca961e6c1d6c0af3799adcc966a1babe798f685bb84e6599266599cd95d94630b10262f5424539bc4640107e8a33aa28585374abf561d30d16f4b39fb
+  languageName: node
+  linkType: hard
+
 "lru-cache@npm:^11.2.7":
   version: 11.5.2
   resolution: "lru-cache@npm:11.5.2"
@@ -5199,12 +5434,32 @@ __metadata:
   languageName: node
   linkType: hard
 
+"lz-string@npm:^1.5.0":
+  version: 1.5.0
+  resolution: "lz-string@npm:1.5.0"
+  bin:
+    lz-string: bin/bin.js
+  checksum: 10c0/36128e4de34791838abe979b19927c26e67201ca5acf00880377af7d765b38d1c60847e01c5ec61b1a260c48029084ab3893a3925fd6e48a04011364b089991b
+  languageName: node
+  linkType: hard
+
 "magic-string@npm:^0.30.12, magic-string@npm:^0.30.21":
   version: 0.30.21
   resolution: "magic-string@npm:0.30.21"
   dependencies:
     "@jridgewell/sourcemap-codec": "npm:^1.5.5"
   checksum: 10c0/299378e38f9a270069fc62358522ddfb44e94244baa0d6a8980ab2a9b2490a1d03b236b447eee309e17eb3bddfa482c61259d47960eb018a904f0ded52780c4a
+  languageName: node
+  linkType: hard
+
+"magicast@npm:^0.3.5":
+  version: 0.3.5
+  resolution: "magicast@npm:0.3.5"
+  dependencies:
+    "@babel/parser": "npm:^7.25.4"
+    "@babel/types": "npm:^7.25.4"
+    source-map-js: "npm:^1.2.0"
+  checksum: 10c0/a6cacc0a848af84f03e3f5bda7b0de75e4d0aa9ddce5517fd23ed0f31b5ddd51b2d0ff0b7e09b51f7de0f4053c7a1107117edda6b0732dca3e9e39e6c5a68c64
   languageName: node
   linkType: hard
 
@@ -5216,6 +5471,15 @@ __metadata:
     "@babel/types": "npm:^7.29.0"
     source-map-js: "npm:^1.2.1"
   checksum: 10c0/e288c027ae5f2a794a59148cb114f4b60f1d5c03090de6c60b4d187f12d1de9158779cd7c39cea391609f4f10cd7ea737929f25f7ce44f7a96ba96ec1a477e39
+  languageName: node
+  linkType: hard
+
+"make-dir@npm:^4.0.0":
+  version: 4.0.0
+  resolution: "make-dir@npm:4.0.0"
+  dependencies:
+    semver: "npm:^7.5.3"
+  checksum: 10c0/69b98a6c0b8e5c4fe9acb61608a9fbcfca1756d910f51e5dbe7a9e5cfb74fca9b8a0c8a0ffdf1294a740826c1ab4871d5bf3f62f72a3049e5eac6541ddffed68
   languageName: node
   linkType: hard
 
@@ -5789,12 +6053,37 @@ __metadata:
   languageName: node
   linkType: hard
 
+"min-indent@npm:^1.0.0":
+  version: 1.0.1
+  resolution: "min-indent@npm:1.0.1"
+  checksum: 10c0/7e207bd5c20401b292de291f02913230cb1163abca162044f7db1d951fa245b174dc00869d40dd9a9f32a885ad6a5f3e767ee104cf278f399cb4e92d3f582d5c
+  languageName: node
+  linkType: hard
+
+"minimatch@npm:^10.2.2":
+  version: 10.2.5
+  resolution: "minimatch@npm:10.2.5"
+  dependencies:
+    brace-expansion: "npm:^5.0.5"
+  checksum: 10c0/6bb058bd6324104b9ec2f763476a35386d05079c1f5fe4fbf1f324a25237cd4534d6813ecd71f48208f4e635c1221899bef94c3c89f7df55698fe373aaae20fd
+  languageName: node
+  linkType: hard
+
 "minimatch@npm:^3.1.1":
   version: 3.1.5
   resolution: "minimatch@npm:3.1.5"
   dependencies:
     brace-expansion: "npm:^1.1.7"
   checksum: 10c0/2ecbdc0d33f07bddb0315a8b5afbcb761307a8778b48f0b312418ccbced99f104a2d17d8aca7573433c70e8ccd1c56823a441897a45e384ea76ef401a26ace70
+  languageName: node
+  linkType: hard
+
+"minimatch@npm:^9.0.4":
+  version: 9.0.9
+  resolution: "minimatch@npm:9.0.9"
+  dependencies:
+    brace-expansion: "npm:^2.0.2"
+  checksum: 10c0/0b6a58530dbb00361745aa6c8cffaba4c90f551afe7c734830bd95fd88ebf469dd7355a027824ea1d09e37181cfeb0a797fb17df60c15ac174303ac110eb7e86
   languageName: node
   linkType: hard
 
@@ -5872,7 +6161,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"minipass@npm:^7.0.4, minipass@npm:^7.1.2":
+"minipass@npm:^5.0.0 || ^6.0.2 || ^7.0.0, minipass@npm:^7.0.4, minipass@npm:^7.1.2":
   version: 7.1.3
   resolution: "minipass@npm:7.1.3"
   checksum: 10c0/539da88daca16533211ea5a9ee98dc62ff5742f531f54640dd34429e621955e91cc280a91a776026264b7f9f6735947629f920944e9c1558369e8bf22eb33fbb
@@ -6284,6 +6573,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"package-json-from-dist@npm:^1.0.0":
+  version: 1.0.1
+  resolution: "package-json-from-dist@npm:1.0.1"
+  checksum: 10c0/62ba2785eb655fec084a257af34dbe24292ab74516d6aecef97ef72d4897310bc6898f6c85b5cd22770eaa1ce60d55a0230e150fb6a966e3ecd6c511e23d164b
+  languageName: node
+  linkType: hard
+
 "package-manager-detector@npm:^1.6.0":
   version: 1.7.0
   resolution: "package-manager-detector@npm:1.7.0"
@@ -6328,6 +6624,23 @@ __metadata:
   languageName: node
   linkType: hard
 
+"path-key@npm:^3.1.0":
+  version: 3.1.1
+  resolution: "path-key@npm:3.1.1"
+  checksum: 10c0/748c43efd5a569c039d7a00a03b58eecd1d75f3999f5a28303d75f521288df4823bc057d8784eb72358b2895a05f29a070bc9f1f17d28226cc4e62494cc58c4c
+  languageName: node
+  linkType: hard
+
+"path-scurry@npm:^1.11.1":
+  version: 1.11.1
+  resolution: "path-scurry@npm:1.11.1"
+  dependencies:
+    lru-cache: "npm:^10.2.0"
+    minipass: "npm:^5.0.0 || ^6.0.2 || ^7.0.0"
+  checksum: 10c0/32a13711a2a505616ae1cc1b5076801e453e7aae6ac40ab55b388bb91b9d0547a52f5aaceff710ea400205f18691120d4431e520afbe4266b836fadede15872d
+  languageName: node
+  linkType: hard
+
 "pathe@npm:^1.1.2":
   version: 1.1.2
   resolution: "pathe@npm:1.1.2"
@@ -6358,7 +6671,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"picocolors@npm:^1.1.1":
+"picocolors@npm:1.1.1, picocolors@npm:^1.1.1":
   version: 1.1.1
   resolution: "picocolors@npm:1.1.1"
   checksum: 10c0/e2e3e8170ab9d7c7421969adaa7e1b31434f789afb9b3f115f6b96d91945041ac3ceb02e9ec6fe6510ff036bcc0bf91e69a1772edc0b707e12b19c0f2d6bcf58
@@ -6483,6 +6796,17 @@ __metadata:
   bin:
     prebuild-install: bin.js
   checksum: 10c0/25919a42b52734606a4036ab492d37cfe8b601273d8dfb1fa3c84e141a0a475e7bad3ab848c741d2f810cef892fcf6059b8c7fe5b29f98d30e0c29ad009bedff
+  languageName: node
+  linkType: hard
+
+"pretty-format@npm:^27.0.2":
+  version: 27.5.1
+  resolution: "pretty-format@npm:27.5.1"
+  dependencies:
+    ansi-regex: "npm:^5.0.1"
+    ansi-styles: "npm:^5.0.0"
+    react-is: "npm:^17.0.1"
+  checksum: 10c0/0cbda1031aa30c659e10921fa94e0dd3f903ecbbbe7184a729ad66f2b6e7f17891e8c7d7654c458fa4ccb1a411ffb695b4f17bbcd3fe075fabe181027c4040ed
   languageName: node
   linkType: hard
 
@@ -6630,6 +6954,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"react-is@npm:^17.0.1":
+  version: 17.0.2
+  resolution: "react-is@npm:17.0.2"
+  checksum: 10c0/2bdb6b93fbb1820b024b496042cce405c57e2f85e777c9aabd55f9b26d145408f9f74f5934676ffdc46f3dcff656d78413a6e43968e7b3f92eea35b3052e9053
+  languageName: node
+  linkType: hard
+
 "react-number-format@npm:^5.4.3":
   version: 5.4.5
   resolution: "react-number-format@npm:5.4.5"
@@ -6735,6 +7066,16 @@ __metadata:
   version: 5.0.0
   resolution: "readdirp@npm:5.0.0"
   checksum: 10c0/faf1ec57cff2020f473128da3f8d2a57813cc3a08a36c38cae1c9af32c1579906cc50ba75578043b35bade77e945c098233665797cf9730ba3613a62d6e79219
+  languageName: node
+  linkType: hard
+
+"redent@npm:^3.0.0":
+  version: 3.0.0
+  resolution: "redent@npm:3.0.0"
+  dependencies:
+    indent-string: "npm:^4.0.0"
+    strip-indent: "npm:^3.0.0"
+  checksum: 10c0/d64a6b5c0b50eb3ddce3ab770f866658a2b9998c678f797919ceb1b586bab9259b311407280bd80b804e2a7c7539b19238ae6a2a20c843f1a7fcff21d48c2eae
   languageName: node
   linkType: hard
 
@@ -7083,7 +7424,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"semver@npm:^7.3.5, semver@npm:^7.6.3, semver@npm:^7.7.3":
+"semver@npm:^7.3.5, semver@npm:^7.5.3, semver@npm:^7.6.3, semver@npm:^7.7.3":
   version: 7.8.5
   resolution: "semver@npm:7.8.5"
   bin:
@@ -7285,6 +7626,22 @@ __metadata:
   languageName: node
   linkType: hard
 
+"shebang-command@npm:^2.0.0":
+  version: 2.0.0
+  resolution: "shebang-command@npm:2.0.0"
+  dependencies:
+    shebang-regex: "npm:^3.0.0"
+  checksum: 10c0/a41692e7d89a553ef21d324a5cceb5f686d1f3c040759c50aab69688634688c5c327f26f3ecf7001ebfd78c01f3c7c0a11a7c8bfd0a8bc9f6240d4f40b224e4e
+  languageName: node
+  linkType: hard
+
+"shebang-regex@npm:^3.0.0":
+  version: 3.0.0
+  resolution: "shebang-regex@npm:3.0.0"
+  checksum: 10c0/1dbed0726dd0e1152a92696c76c7f06084eb32a90f0528d11acd764043aacf76994b2fb30aa1291a21bd019d6699164d048286309a278855ee7bec06cf6fb690
+  languageName: node
+  linkType: hard
+
 "shiki@npm:^3.21.0":
   version: 3.23.0
   resolution: "shiki@npm:3.23.0"
@@ -7312,6 +7669,13 @@ __metadata:
   version: 3.0.7
   resolution: "signal-exit@npm:3.0.7"
   checksum: 10c0/25d272fa73e146048565e08f3309d5b942c1979a6f4a58a8c59d5fa299728e9c2fcd1a759ec870863b1fd38653670240cd420dad2ad9330c71f36608a6a1c912
+  languageName: node
+  linkType: hard
+
+"signal-exit@npm:^4.0.1":
+  version: 4.1.0
+  resolution: "signal-exit@npm:4.1.0"
+  checksum: 10c0/41602dce540e46d599edba9d9860193398d135f7ff72cab629db5171516cfae628d21e7bfccde1bbfdf11c48726bc2a6d1a8fb8701125852fbfda7cf19c6aa83
   languageName: node
   linkType: hard
 
@@ -7384,7 +7748,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"source-map-js@npm:^1.0.1, source-map-js@npm:^1.2.1":
+"source-map-js@npm:^1.0.1, source-map-js@npm:^1.2.0, source-map-js@npm:^1.2.1":
   version: 1.2.1
   resolution: "source-map-js@npm:1.2.1"
   checksum: 10c0/7bda1fc4c197e3c6ff17de1b8b2c20e60af81b63a52cb32ec5a5d67a20a7d42651e2cb34ebe93833c5a2a084377e17455854fee3e21e7925c64a51b6a52b0faf
@@ -7456,7 +7820,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"string-width@npm:^1.0.2 || 2 || 3 || 4, string-width@npm:^4.1.0, string-width@npm:^4.2.0, string-width@npm:^4.2.3":
+"string-width-cjs@npm:string-width@^4.2.0, string-width@npm:^1.0.2 || 2 || 3 || 4, string-width@npm:^4.1.0, string-width@npm:^4.2.0, string-width@npm:^4.2.3":
   version: 4.2.3
   resolution: "string-width@npm:4.2.3"
   dependencies:
@@ -7464,6 +7828,17 @@ __metadata:
     is-fullwidth-code-point: "npm:^3.0.0"
     strip-ansi: "npm:^6.0.1"
   checksum: 10c0/1e525e92e5eae0afd7454086eed9c818ee84374bb80328fc41217ae72ff5f065ef1c9d7f72da41de40c75fa8bb3dee63d92373fd492c84260a552c636392a47b
+  languageName: node
+  linkType: hard
+
+"string-width@npm:^5.0.1, string-width@npm:^5.1.2":
+  version: 5.1.2
+  resolution: "string-width@npm:5.1.2"
+  dependencies:
+    eastasianwidth: "npm:^0.2.0"
+    emoji-regex: "npm:^9.2.2"
+    strip-ansi: "npm:^7.0.1"
+  checksum: 10c0/ab9c4264443d35b8b923cbdd513a089a60de339216d3b0ed3be3ba57d6880e1a192b70ae17225f764d7adbf5994e9bb8df253a944736c15a0240eff553c678ca
   languageName: node
   linkType: hard
 
@@ -7497,7 +7872,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"strip-ansi@npm:^6.0.0, strip-ansi@npm:^6.0.1":
+"strip-ansi-cjs@npm:strip-ansi@^6.0.1, strip-ansi@npm:^6.0.0, strip-ansi@npm:^6.0.1":
   version: 6.0.1
   resolution: "strip-ansi@npm:6.0.1"
   dependencies:
@@ -7506,12 +7881,21 @@ __metadata:
   languageName: node
   linkType: hard
 
-"strip-ansi@npm:^7.1.0":
+"strip-ansi@npm:^7.0.1, strip-ansi@npm:^7.1.0":
   version: 7.2.0
   resolution: "strip-ansi@npm:7.2.0"
   dependencies:
     ansi-regex: "npm:^6.2.2"
   checksum: 10c0/544d13b7582f8254811ea97db202f519e189e59d35740c46095897e254e4f1aa9fe1524a83ad6bc5ad67d4dd6c0281d2e0219ed62b880a6238a16a17d375f221
+  languageName: node
+  linkType: hard
+
+"strip-indent@npm:^3.0.0":
+  version: 3.0.0
+  resolution: "strip-indent@npm:3.0.0"
+  dependencies:
+    min-indent: "npm:^1.0.0"
+  checksum: 10c0/ae0deaf41c8d1001c5d4fbe16cb553865c1863da4fae036683b474fa926af9fc121e155cb3fc57a68262b2ae7d5b8420aa752c97a6428c315d00efe2a3875679
   languageName: node
   linkType: hard
 
@@ -7613,6 +7997,17 @@ __metadata:
     minizlib: "npm:^3.1.0"
     yallist: "npm:^5.0.0"
   checksum: 10c0/4df4335c6d958b76adf1eaced55889dec3ca1c51f450658a074af80694bb0d9c154a8e93fdf4da617372d1575b121295379993961bbe4cd4b0867c0e5689846a
+  languageName: node
+  linkType: hard
+
+"test-exclude@npm:^7.0.1":
+  version: 7.0.2
+  resolution: "test-exclude@npm:7.0.2"
+  dependencies:
+    "@istanbuljs/schema": "npm:^0.1.2"
+    glob: "npm:^10.4.1"
+    minimatch: "npm:^10.2.2"
+  checksum: 10c0/b79b855af9168c6a362146015ccf40f5e3a25e307304ba9bea930818507f6319d230380d5d7b5baa659c981ccc11f1bd21b6f012f85606353dec07e02dee67c9
   languageName: node
   linkType: hard
 
@@ -7923,13 +8318,6 @@ __metadata:
     unist-util-is: "npm:^6.0.0"
     unist-util-visit-parents: "npm:^6.0.0"
   checksum: 10c0/a56e1bbbf63fcb55abe379e660b9a3367787e8be1e2473bdb7e86cfa6f32b6c1fa0092432d7040b8a30b2fc674bbbe024ffe6d03c3d6bf4839b064f584463a4e
-  languageName: node
-  linkType: hard
-
-"universal-user-agent@npm:^6.0.0":
-  version: 6.0.1
-  resolution: "universal-user-agent@npm:6.0.1"
-  checksum: 10c0/5c9c46ffe19a975e11e6443640ed4c9e0ce48fcc7203325757a8414ac49940ebb0f4667f2b1fa561489d1eb22cb2d05a0f7c82ec20c5cba42e58e188fb19b187
   languageName: node
   linkType: hard
 
@@ -8331,6 +8719,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"whatwg-mimetype@npm:^3.0.0":
+  version: 3.0.0
+  resolution: "whatwg-mimetype@npm:3.0.0"
+  checksum: 10c0/323895a1cda29a5fb0b9ca82831d2c316309fede0365047c4c323073e3239067a304a09a1f4b123b9532641ab604203f33a1403b5ca6a62ef405bcd7a204080f
+  languageName: node
+  linkType: hard
+
 "which-module@npm:^2.0.0":
   version: 2.0.1
   resolution: "which-module@npm:2.0.1"
@@ -8345,7 +8740,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"which@npm:^2.0.2":
+"which@npm:^2.0.1, which@npm:^2.0.2":
   version: 2.0.2
   resolution: "which@npm:2.0.2"
   dependencies:
@@ -8408,6 +8803,17 @@ __metadata:
   languageName: node
   linkType: hard
 
+"wrap-ansi-cjs@npm:wrap-ansi@^7.0.0":
+  version: 7.0.0
+  resolution: "wrap-ansi@npm:7.0.0"
+  dependencies:
+    ansi-styles: "npm:^4.0.0"
+    string-width: "npm:^4.1.0"
+    strip-ansi: "npm:^6.0.0"
+  checksum: 10c0/d15fc12c11e4cbc4044a552129ebc75ee3f57aa9c1958373a4db0292d72282f54373b536103987a4a7594db1ef6a4f10acf92978f79b98c49306a4b58c77d4da
+  languageName: node
+  linkType: hard
+
 "wrap-ansi@npm:^6.2.0":
   version: 6.2.0
   resolution: "wrap-ansi@npm:6.2.0"
@@ -8416,6 +8822,17 @@ __metadata:
     string-width: "npm:^4.1.0"
     strip-ansi: "npm:^6.0.0"
   checksum: 10c0/baad244e6e33335ea24e86e51868fe6823626e3a3c88d9a6674642afff1d34d9a154c917e74af8d845fd25d170c4ea9cf69a47133c3f3656e1252b3d462d9f6c
+  languageName: node
+  linkType: hard
+
+"wrap-ansi@npm:^8.1.0":
+  version: 8.1.0
+  resolution: "wrap-ansi@npm:8.1.0"
+  dependencies:
+    ansi-styles: "npm:^6.1.0"
+    string-width: "npm:^5.0.1"
+    strip-ansi: "npm:^7.0.1"
+  checksum: 10c0/138ff58a41d2f877eae87e3282c0630fc2789012fc1af4d6bd626eeb9a2f9a65ca92005e6e69a75c7b85a68479fe7443c7dbe1eb8fbaa681a4491364b7c55c60
   languageName: node
   linkType: hard
 

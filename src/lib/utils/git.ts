@@ -1,9 +1,17 @@
 import * as path from 'node:path';
 import { exec } from 'node:child_process';
-import { promisify } from 'node:util';
 import { Queue } from '@quatrain/queue';
 
-const execPromise = promisify(exec);
+export const execGitRunner = {
+   run: async (command: string, cwd: string): Promise<{ stdout: string; stderr: string }> => {
+      return new Promise((resolve, reject) => {
+         exec(command, { cwd }, (err, stdout, stderr) => {
+            if (err) reject(err);
+            else resolve({ stdout: String(stdout || ''), stderr: String(stderr || '') });
+         });
+      });
+   }
+};
 
 /**
  * Conditionally runs `git add` on a file if it is located inside an active Git repository.
@@ -14,12 +22,13 @@ const execPromise = promisify(exec);
 export async function gitAddIfRepo(filePath: string): Promise<void> {
    const dir = path.dirname(filePath);
    try {
-      const { stdout } = await execPromise('git rev-parse --is-inside-work-tree', { cwd: dir });
+      const { stdout } = await execGitRunner.run('git rev-parse --is-inside-work-tree', dir);
       if (stdout.trim() === 'true') {
-         await execPromise(`git add "${path.basename(filePath)}"`, { cwd: dir });
+         await execGitRunner.run(`git add "${path.basename(filePath)}"`, dir);
          Queue.info(`[Git] Added file to index: ${filePath}`);
       }
    } catch (e) {
       // not a git repo or git not found, ignore silently
    }
 }
+

@@ -1,61 +1,35 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { gitAddIfRepo } from './git';
-import { exec } from 'node:child_process';
-
-vi.mock('node:child_process', () => {
-   return {
-      exec: vi.fn(),
-   };
-});
+import { gitAddIfRepo, execGitRunner } from './git';
 
 describe('gitAddIfRepo', () => {
    beforeEach(() => {
-      vi.resetAllMocks();
+      vi.restoreAllMocks();
    });
 
    it('should run git add if inside git repository', async () => {
-      const mockExec = exec as any;
-      mockExec.mockImplementation((cmd: string, options: any, callback: Function) => {
+      const spy = vi.spyOn(execGitRunner, 'run').mockImplementation(async (cmd: string) => {
          if (cmd.includes('rev-parse')) {
-            callback(null, { stdout: 'true\n' });
-         } else {
-            callback(null, { stdout: '' });
+            return { stdout: 'true\n', stderr: '' };
          }
+         return { stdout: '', stderr: '' };
       });
 
       await gitAddIfRepo('/fake/path/file.txt');
-      expect(mockExec).toHaveBeenCalledWith(
-         'git rev-parse --is-inside-work-tree',
-         { cwd: '/fake/path' },
-         expect.any(Function)
-      );
-      expect(mockExec).toHaveBeenCalledWith(
-         'git add "file.txt"',
-         { cwd: '/fake/path' },
-         expect.any(Function)
-      );
+      expect(spy).toHaveBeenCalledWith('git rev-parse --is-inside-work-tree', '/fake/path');
+      expect(spy).toHaveBeenCalledWith('git add "file.txt"', '/fake/path');
    });
 
    it('should skip git add if not inside git repository', async () => {
-      const mockExec = exec as any;
-      mockExec.mockImplementation((cmd: string, options: any, callback: Function) => {
+      const spy = vi.spyOn(execGitRunner, 'run').mockImplementation(async (cmd: string) => {
          if (cmd.includes('rev-parse')) {
-            callback(null, { stdout: 'false\n' });
-         } else {
-            callback(null, { stdout: '' });
+            return { stdout: 'false\n', stderr: '' };
          }
+         return { stdout: '', stderr: '' };
       });
 
       await gitAddIfRepo('/fake/path/file.txt');
-      expect(mockExec).toHaveBeenCalledWith(
-         'git rev-parse --is-inside-work-tree',
-         { cwd: '/fake/path' },
-         expect.any(Function)
-      );
-      expect(mockExec).not.toHaveBeenCalledWith(
-         'git add "file.txt"',
-         expect.any(Object),
-         expect.any(Function)
-      );
+      expect(spy).toHaveBeenCalledWith('git rev-parse --is-inside-work-tree', '/fake/path');
+      expect(spy).not.toHaveBeenCalledWith('git add "file.txt"', '/fake/path');
    });
 });
+
