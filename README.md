@@ -1,78 +1,141 @@
-# Second Brain Copilot
+# Modaka - Second Brain Copilot
 
-Un second cerveau numérique **local-first** et orienté **mobile/tablette**, propulsé par Astro, Quatrain et Gemini. Il gère vos notes, images, photos et documents au format standardisé **OKF** (Open Knowledge Format), sauvegardé sur Git.
-
----
-
-## 🧭 Principes Fondamentaux
-
-### 1. Local-First par Défaut
-* Le **système de fichiers local** est l'unique source de vérité en lecture et en recherche. 
-* L'application interroge directement le disque (bypassant le cache d'indexation Git) pour assurer que les modifications, ajouts manuels ou renommages sont visibles en temps réel par l'application et par le LLM.
-
-### 2. Standardisation OKF (Open Knowledge Format)
-Chaque note ou document importé est stocké sous forme de fichier Markdown propre contenant :
-* **Un en-tête YAML plat :** Des métadonnées claires (titre, résumé, catégorie hiérarchique, tags, date de création). Aucun champ vide ou nul (`null` / `""`) n'est écrit.
-* **Un type de concept sémantique :** Le champ `type` qualifie la nature fonctionnelle du document (ex: `specification`, `guide`, `screenshot`, `invoice`, `recipe`, `note`), pas son architecture de données.
-* **Le corps du document :** Le contenu complet textuel ou transcrit.
-* **Le nommage sémantique :** Les fichiers et dossiers sont nommés selon leur titre (slugifié) plutôt que par des UUIDs obscurs (ex: `/content/technology/ai/okf-spec.md`).
-
-### 3. Divulgation Progressive (Progressive Disclosure)
-* Chaque dossier thématique contient un fichier `index.md` auto-généré listant ses sous-catégories et ses concepts associés.
-* Les agents d'IA peuvent ainsi explorer la base de connaissances pas à pas en suivant les liens Markdown, sans saturer leur fenêtre de contexte.
-
-### 4. Git as a Transport Layer
-* Git est utilisé de manière asynchrone uniquement pour la persistance, l'historisation des versions et la synchronisation avec des dépôts distants (GitHub/GitLab).
+**Modaka** is a local-first, touch-optimized digital knowledge base and personal assistant built on **Astro**, **React**, **Quatrain Core**, and **Google Gemini AI**. It organizes your notes, voice recordings, PDFs, images, and web bookmarks using the standardized **OKF (Open Knowledge Format v0.1)** structure backed by local Git storage.
 
 ---
 
-## 🏗️ Architecture Technique
+## 🧭 Core Engineering Principles
+
+### 1. Local-First Architecture
+- **Single Source of Truth**: The local disk (`.second-brain-data`) is the primary reading and search target.
+- **Instant Synchronization**: Modaka bypasses indexing caches on read operations, ensuring that manual filesystem edits, file renames, or external note additions are visible immediately in the UI and to the LLM.
+
+### 2. OKF (Open Knowledge Format v0.1) Compliance
+Every document imported or generated is stored as clean, human-and-AI-readable Markdown:
+- **Flat YAML Frontmatter**: Bounded by `---`. Null, empty string (`""`), or undefined fields are omitted.
+- **Semantic Concept Kinds**: The `type` field specifies the functional nature of the knowledge item (e.g., `specification`, `guide`, `screenshot`, `invoice`, `recipe`, `note`, `concept`).
+- **Human-Readable Slugs**: File and directory names use lowercase slugified titles instead of obscure UUIDs (e.g., `/content/technology/ai/okf-spec.md`).
+
+### 3. Progressive Disclosure Navigation
+- **Recursive Indices**: Every category directory contains an auto-generated `index.md` file listing child subcategories and concept documents.
+- **Token Efficiency**: AI agents and LLM tools navigate the knowledge graph step-by-step using Markdown links without overwhelming their context window.
+
+### 4. Hybrid Search Engine Integration (`@quatrain/searchengine-qmd`)
+- Integrates **QMD (Query Markup Documents)** hybrid search combining **BM25 term matching**, **vector semantic search**, and category filtering.
+- Exposed natively via the `/api/search` API endpoint and consumable by external agents.
+
+### 5. Resilient Background Processing
+- Asynchronous task processing powered by **SQLite Queue** (`@quatrain/queue-sqlite`).
+- Ingestion tasks (PDF OCR, Audio Transcription, Web Scraping, Wikipedia Auto-Linking) run safely in the background with progress reporting and automatic retries.
+
+---
+
+## 🏗️ System Architecture
 
 ```mermaid
 graph TD
-    UI[Dashboard Tactile Astro / React] -->|Upload Photo / PDF| API[endpoints API Astro / API-Server]
-    API -->|Analyse vision & text| GEMINI[Gemini Pro Adapter]
-    API -->|Sauvegarde MD & Raw| Adapter[OKFBackendAdapter]
-    Adapter -->|Ecriture brute disk| Disk[(Dossier Local second-brain-data)]
-    Adapter -->|Staging & Commit| Git[(Local Git Repo)]
-    Git <-->|Push / Pull Rebase asynchrone| Remote[(Remote Git Repository)]
+    UI[Astro / React PWA Dashboard] -->|Upload PDF / Image / Audio / Web| UploadAPI[API Server Endpoints]
+    UI -->|Hybrid Query| SearchAPI[/api/search Endpoint]
+    UI -->|Chat & Contextual AI| ChatAPI[/api/chat Endpoint]
     
-    UI -->|Question Chat| ChatAPI[chat.ts API]
-    ChatAPI -->|Scan direct fs| Disk
-    ChatAPI -->|Filtre mots-clés titre & tags| Match[Vérification de pertinence]
-    Match -->|Injection contexte complet| GEMINI
+    UploadAPI -->|Enqueue Task| Queue[SQLite Queue Manager]
+    Queue -->|Background Worker| Ingestion[Quatrain Ingestion Adapters]
+    Ingestion -->|OCR / Audio / Web| GEMINI[Gemini Flash 2.5]
+    
+    SearchAPI -->|Search Query| QMD[@quatrain/searchengine-qmd Adapter]
+    QMD -->|Hybrid Rank| Disk[(Local OKF Filesystem)]
+    
+    Ingestion -->|Persist OKF Markdown| OKFAdapter[OKFBackendAdapter]
+    OKFAdapter -->|Save & Auto-Index| Disk
+    OKFAdapter -->|Git Stage & Commit| GitStorage[GitStorageAdapter]
+    GitStorage <-->|Async Push/Pull| RemoteGit[Remote Git Repository]
 ```
-
-### Dossiers Clés
-* `/src/pages/api/upload.ts` : Endpoint gérant l'upload de PDF/images, l'appel Gemini structuré, la génération de slug sémantique et la persistance.
-* `/src/pages/api/chat.ts` : Endpoint de discussion contextuelle avec filtrage intelligent par mots-clés de titres et tags.
-* `/src/pages/api/initialize.ts` : Initialiseur d'onboarding utilisateur créant les répertoires et les documents de bienvenue.
-* `packages/okf/src/OKFBackendAdapter.ts` (dans le monorepo Quatrain/Core) : L'adaptateur de base de données OKF assurant la sérialisation plate sans champs vides et la génération récursive automatique des fichiers `index.md`.
 
 ---
 
-## 🚀 Démarrage Rapide
+## 🌟 Key Application Features
 
-### Prérequis
-* [Bun](https://bun.sh) ou [Yarn](https://yarnpkg.com) installé.
-* Une clé d'API Google AI Studio (Gemini).
+### 📊 Multi-Mode Analytics & Knowledge Graph
+The **Stats** module offers three distinct visualization perspectives:
+1. **Synthetic Metrics Table**: Live counters of documents, media files, hyperlinks, and category distribution.
+2. **Interactive Link Network Graph**: Dynamic SVG visualization mapping cross-document relationships with hover tooltips and category color-coding.
+3. **AI Metrics & Conversation Log**: History of past chat sessions with token consumption estimations, average response latency, and instant one-click export to OKF Markdown documents.
 
-### Configuration (`.env`)
-Créez un fichier `.env` à la racine :
-```env
-GEMINI_API_KEY=votre_cle_gemini
-GEMINI_MODEL=gemini-2.5-flash
-GIT_MODE=local
-GIT_LOCAL_PATH=/chemin/absolu/vers/second-brain-data
-DOCUMENT_STORAGE_PATH=/chemin/absolu/vers/second-brain-documents
+### 🔍 QMD Hybrid Search API
+Run multi-modal queries across your knowledge base:
+```http
+GET /api/search?q=ISO+27001&category=certification&mode=hybrid&limit=10
 ```
 
-### Installation et Lancement
+### 🎙️ Multi-Format Ingestion Pipelines
+- **Audio Notes**: Transcribes live or uploaded audio recordings (`.wav`, `.m4a`, `.mp3`) and derives structured summaries.
+- **Multimodal OCR**: Extracts text from scanned PDFs and images with complete layout fidelity using Gemini Vision.
+- **Web Crawling**: Scrapes web pages, strips boilerplate navigation, extracts Markdown body text, and recursively processes sub-links.
+- **Wikipedia Concept Auto-Linking**: Identifies proper nouns in documents and automatically pulls Wikipedia summaries to build concept pages under `content/concepts/`.
+
+---
+
+## 🛠️ Monorepo & Core Package Dependencies
+
+Modaka relies directly on the **Quatrain Core** modular ecosystem (`/Users/crapougnax/CODE/QUATRAIN/Core`):
+
+| Package | Role & Responsibility |
+|---------|------------------------|
+| `@quatrain/core` | Core runtime container and singleton registry. |
+| `@quatrain/backend` | Abstract backend persistence layer and query builders. |
+| `@quatrain/okf` | Open Knowledge Format adapter and recursive `index.md` generator. |
+| `@quatrain/searchengine` | Abstract search engine contract and registry manager. |
+| `@quatrain/searchengine-qmd` | QMD (Query Markup Documents) hybrid BM25/Vector search adapter. |
+| `@quatrain/ai-gemini` | Gemini Pro and Flash LLM integration provider. |
+| `@quatrain/ingestion-ocr` | Multimodal document OCR processing pipeline. |
+| `@quatrain/ingestion-audio` | Audio transcription and metadata extraction. |
+| `@quatrain/queue-sqlite` | SQLite-backed background task queue. |
+| `@quatrain/storage-git` | Git repository transport layer for version control. |
+
+---
+
+## 🚀 Quick Start Guide
+
+### Prerequisites
+- **Node.js**: `>= 22.0.0`
+- **Package Manager**: [Yarn Berry](https://yarnpkg.com) or [Bun](https://bun.sh)
+- **API Key**: [Google AI Studio](https://aistudio.google.com/) Gemini API Key
+
+### Environment Configuration (`.env`)
+Create a `.env` file in the root directory:
+
+```env
+GEMINI_API_KEY=your_google_gemini_api_key_here
+GEMINI_MODEL=gemini-2.5-flash
+
+GIT_MODE=local
+GIT_LOCAL_PATH=/absolute/path/to/second-brain-data
+DOCUMENT_STORAGE_PATH=/absolute/path/to/second-brain-documents
+
+OKF_STORAGE_PATH=/absolute/path/to/second-brain-data/content
+S3_BUCKET=documents
+```
+
+### Installation & Local Server
+
 ```bash
-# Installer les dépendances
+# Install dependencies
 yarn install
 
-# Lancer en mode développement
-yarn run dev
+# Run development server
+yarn dev
 ```
-L'application est accessible à l'adresse `http://localhost:4321`.
+
+The application will be accessible at `http://localhost:4321`.
+
+### Running Tests
+Execute the Vitest suite (35+ unit tests):
+```bash
+yarn test
+```
+
+---
+
+## 📄 License
+
+This project is licensed under the **AGPL-3.0-only** license. See the [LICENSE](file:///Users/crapougnax/CODE/CRAPOUGNAX/modaka/package.json#L7) file for details.
