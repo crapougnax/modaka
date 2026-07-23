@@ -446,6 +446,8 @@ class QueueManagerClass {
                });
             } else {
                result = await ocrAdapter.process(rawText, {
+                  isText: true,
+                  mimeType: 'text/plain',
                   contextNote: task.contextNote,
                   model
                });
