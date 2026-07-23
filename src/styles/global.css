@@ -130,6 +130,26 @@ h1, h2, h3, h4, .font-heading {
   box-shadow: 0 0 15px rgba(34, 197, 94, 0.2);
 }
 
+.action-input-sm {
+  width: 100%;
+  height: 44px;
+  padding: 0 14px;
+  background-color: var(--color-card-grey);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 10px;
+  color: var(--color-text-white);
+  font-family: var(--font-body);
+  font-size: 14px;
+  font-weight: 500;
+  outline: none;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.action-input-sm:focus {
+  border-color: var(--color-vivid-green);
+  box-shadow: 0 0 10px rgba(34, 197, 94, 0.2);
+}
+
 .action-button {
   width: 100%;
   height: var(--height-action);

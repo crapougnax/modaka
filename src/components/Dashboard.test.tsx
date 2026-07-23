@@ -5,12 +5,15 @@ import Dashboard from './Dashboard';
 
 describe('Dashboard Component', () => {
    beforeEach(() => {
+      vi.unstubAllGlobals();
+      localStorage.setItem('sb_app_configured', 'true');
       vi.stubGlobal('fetch', vi.fn((url: string) => {
          if (url.includes('/api/config')) {
             return Promise.resolve({
                ok: true,
                json: () => Promise.resolve({
                   initialized: true,
+                  name: 'Modaka',
                   llm: { apiKey: 'test-key', model: 'gemini-2.5-flash' },
                   okfStorage: { type: 'local', gitLocalPath: '/fake/path' }
                })
@@ -84,7 +87,27 @@ describe('Dashboard Component', () => {
       });
    });
 
+   it('renders stats tab and switches between modes', async () => {
+      render(<Dashboard initialDevMode={false} />);
+      const statsTabButton = await screen.findByText((content) => content.includes('Stats & Export'));
+      fireEvent.click(statsTabButton);
+
+      await waitFor(() => {
+         expect(screen.getByText(/Statistiques de la base/i)).toBeTruthy();
+      });
+
+      expect(screen.getAllByText(/Mode 1 : Tableau Synthétique/i).length).toBeGreaterThan(0);
+
+      const catModeButton = screen.getByText(/Mode 2 : Graphe de Liens/i);
+      fireEvent.click(catModeButton);
+
+      await waitFor(() => {
+         expect(screen.getByText(/Graphe des Liens Inter-Documents/i)).toBeTruthy();
+      });
+   });
+
    it('renders onboarding screen when system is uninitialized', async () => {
+      localStorage.removeItem('sb_app_configured');
       vi.stubGlobal('fetch', vi.fn((url: string) => {
          if (url.includes('/api/config')) {
             return Promise.resolve({
@@ -116,7 +139,8 @@ describe('Dashboard Component', () => {
 
       render(<Dashboard initialDevMode={false} />);
       await waitFor(() => {
-         expect(screen.getByText(/Modaka/i)).toBeTruthy();
+         expect(screen.getByText(/Bienvenue dans Modaka/i)).toBeTruthy();
+         expect(screen.getByText(/Lancer mon Second Brain/i)).toBeTruthy();
       });
    });
 });

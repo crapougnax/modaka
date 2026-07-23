@@ -1,25 +1,27 @@
 {
-  "name": "",
+  "lang": "fr_FR",
+  "name": "Olivier",
   "email": "",
-  "lang": "Français",
   "llm": {
-    "apiKey": "",
-    "model": "gemini-2.5-flash"
+    "provider": "gemini",
+    "model": "gemini-2.5-flash",
+    "apiKey": "AQ.Ab8RN6KXL1du38pCr13FrzUVxkSqd6_HG5r0Ia7k8d4UZp5sbw",
+    "llamaEndpoint": "http://10.0.2.2:8080/v1"
   },
   "okfStorage": {
     "type": "local",
-    "gitUrl": "",
     "githubToken": "",
-    "repoOwner": "",
-    "repoName": "",
+    "repoOwner": "crapougnax",
+    "repoName": "modaka-data",
+    "gitUrl": "https://github.com/crapougnax/modaka-data.git",
     "branch": "main"
   },
   "blobStorage": {
     "type": "local",
-    "endpoint": "",
     "accessKey": "",
     "secretKey": "",
-    "bucket": "second-brain",
-    "region": "us-east-1"
+    "region": "us-east-1",
+    "endpoint": "",
+    "bucket": "second-brain"
   }
 }

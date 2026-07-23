@@ -25,6 +25,7 @@ export const modakaComposition: AppCompositionInterface<PWAContentInterface> = {
       },
       backend: { package: '@quatrain/backend', adapter: 'OKFBackendAdapter' },
       storage: { package: '@quatrain/storage-local', adapter: 'LocalStorageAdapter' },
+      searchengine: { package: '@quatrain/searchengine-qmd', adapter: 'QmdSearchEngineAdapter' },
       auth: { package: '@quatrain/auth-github', adapter: 'GitHubAuthAdapter' },
       queue: { package: '@quatrain/queue-sqlite', adapter: 'SQLiteQueueAdapter' }
    },

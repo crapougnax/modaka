@@ -27,6 +27,8 @@ import { AudioIngestionAdapter } from '@quatrain/ingestion-audio';
 import { WebIngestionAdapter } from '@quatrain/ingestion-web';
 import { Queue } from '@quatrain/queue';
 import { SQLiteQueueAdapter } from '@quatrain/queue-sqlite';
+import { SearchEngine } from '@quatrain/searchengine';
+import { QmdSearchEngineAdapter } from '@quatrain/searchengine-qmd';
 import { Auth } from '@quatrain/auth';
 import { GithubAuthAdapter } from '@quatrain/auth-github';
 
@@ -475,6 +477,18 @@ export async function initBackend() {
    Queue.addQueue(new SQLiteQueueAdapter({
       config: { database: queueDbPath }
    }), 'default', true);
+
+   // 7. Initialize SearchEngine Adapter (QMD)
+   const qmdStorageDir = process.env.OKF_STORAGE_PATH || (gitMode === 'local' && gitLocalPath ? gitLocalPath : path.resolve(process.cwd(), '.second-brain-data/content'));
+   const searchAdapter = new QmdSearchEngineAdapter({
+      alias: 'default',
+      config: {
+         collectionName: 'modaka-second-brain',
+         storageDir: qmdStorageDir
+      }
+   });
+   await searchAdapter.initialize();
+   SearchEngine.addEngine(searchAdapter, 'default', true);
 
    // Start background synchronization in local mode
    if (gitMode === 'local' && gitLocalPath) {

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import QRCode from 'qrcode';
 import jsQR from 'jsqr';
 import { AppConfig } from '../config/AppConfig';
@@ -99,6 +99,7 @@ export default function Dashboard({
    defaultElevenLabsVoiceId = 'bVsJfghVbJypxgwVISO3'
 }: DashboardProps) {
    const [activeTab, setActiveTab] = useState<'chat' | 'docs' | 'stats'>('chat');
+   const [statsMode, setStatsMode] = useState<'table' | 'categories' | 'performance'>('table');
    const [documents, setDocuments] = useState<ContentItemData[]>([]);
    const [uploading, setUploading] = useState(false);
    const [uploadSuccess, setUploadSuccess] = useState(false);
@@ -106,6 +107,107 @@ export default function Dashboard({
    const [categoryFilter, setCategoryFilter] = useState<string>('all');
    const [showUploadModal, setShowUploadModal] = useState(false);
    const [showQueueModal, setShowQueueModal] = useState(false);    
+
+   const statsData = useMemo(() => {
+      let totalLinks = 0;
+      let totalWords = 0;
+      let mediaCount = 0;
+      const catCount: Record<string, number> = {};
+
+      documents.forEach(doc => {
+         const cat = doc.category || 'inbox';
+         catCount[cat] = (catCount[cat] || 0) + 1;
+
+         if (doc.body) {
+            const links = doc.body.match(/\[.*?\]\(.*?\)/g);
+            if (links) totalLinks += links.length;
+
+            const words = doc.body.trim().split(/\s+/).filter(Boolean);
+            totalWords += words.length;
+         }
+
+         if (doc.originalFileUri || doc.type === 'pdf' || doc.type === 'image' || doc.type === 'audio') {
+            mediaCount++;
+         }
+      });
+
+      const sortedCats = Object.entries(catCount).sort((a, b) => b[1] - a[1]);
+      const topCategory = sortedCats.length > 0 ? `${sortedCats[0][0]} (${sortedCats[0][1]} doc${sortedCats[0][1] > 1 ? 's' : ''})` : 'Aucune';
+
+      return {
+         totalDocs: documents.length,
+         totalLinks,
+         totalWords,
+         mediaCount,
+         catCount,
+         topCategory
+      };
+   }, [documents]);
+
+   const [hoveredNode, setHoveredNode] = useState<any>(null);
+
+   const graphData = useMemo(() => {
+      if (documents.length === 0) return { nodes: [], edges: [] };
+
+      const width = 600;
+      const height = 340;
+      const centerX = width / 2;
+      const centerY = height / 2;
+      const radius = Math.min(width, height) / 2 - 50;
+
+      const categoryColors: Record<string, string> = {
+         'technology/ai': '#38bdf8',
+         'literature/general': '#c084fc',
+         'health/general': '#22c55e',
+         'inbox': '#fbbf24',
+         'work': '#f97316',
+         'personal': '#ec4899'
+      };
+
+      const nodes = documents.map((doc, idx) => {
+         const angle = (idx / documents.length) * 2 * Math.PI - Math.PI / 2;
+         const x = centerX + radius * Math.cos(angle);
+         const y = centerY + radius * Math.sin(angle);
+         const color = categoryColors[doc.category || 'inbox'] || 'var(--color-vivid-green)';
+         return {
+            id: doc.id,
+            title: doc.title || doc.id,
+            category: doc.category || 'inbox',
+            summary: doc.summary || (doc.body ? doc.body.substring(0, 120) + '...' : 'Aucune description'),
+            date: doc.documentDate || doc.createdAt,
+            color,
+            x,
+            y,
+            doc
+         };
+      });
+
+      const edges: { sourceId: string; targetId: string; x1: number; y1: number; x2: number; y2: number; isDirect: boolean }[] = [];
+
+      nodes.forEach((node, i) => {
+         const body = node.doc.body || '';
+         nodes.forEach((otherNode, j) => {
+            if (i < j) {
+               const isDirectLink = body.includes(otherNode.id) || (otherNode.doc.body && otherNode.doc.body.includes(node.id));
+               const isSameCategory = node.category === otherNode.category;
+
+               if (isDirectLink || isSameCategory) {
+                  edges.push({
+                     sourceId: node.id,
+                     targetId: otherNode.id,
+                     x1: node.x,
+                     y1: node.y,
+                     x2: otherNode.x,
+                     y2: otherNode.y,
+                     isDirect: isDirectLink
+                  });
+               }
+            }
+         });
+      });
+
+      return { nodes, edges };
+   }, [documents]);
    const [isDictating, setIsDictating] = useState(false);
    const recognitionRef = useRef<any>(null);
    const mediaRecorderChatRef = useRef<MediaRecorder | null>(null);
@@ -316,9 +418,9 @@ export default function Dashboard({
             name: config.name || '',
             email: config.email || '',
             language: config.lang || 'fr_FR',
-            ttsProvider: 'Browser',
-            elevenLabsApiKey: defaultElevenLabsApiKey,
-            elevenLabsVoiceId: defaultElevenLabsVoiceId
+            ttsProvider: config.ttsProvider || userProfile.ttsProvider || 'Browser',
+            elevenLabsApiKey: config.elevenLabsApiKey || userProfile.elevenLabsApiKey || defaultElevenLabsApiKey,
+            elevenLabsVoiceId: config.elevenLabsVoiceId || userProfile.elevenLabsVoiceId || defaultElevenLabsVoiceId
          };
          setUserProfile(newProfile);
          localStorage.setItem('sb_user_profile', JSON.stringify(newProfile));
@@ -370,7 +472,7 @@ export default function Dashboard({
    }, []);
 
       useEffect(() => {
-         if (AppConfig.apiMode === 'native-bridge') {
+         if (AppConfig.apiMode === 'native-bridge' && typeof window !== 'undefined' && (window as any).ReactNativeWebView) {
             console.log('[WebView Bridge] Activating local fetch interceptor...');
             const originalFetch = window.fetch;
             const pendingRequests: Record<string, {
@@ -459,7 +561,6 @@ export default function Dashboard({
                            body: bodyStr
                         }));
                      } else {
-                        console.warn('[WebView Bridge] ReactNativeWebView is missing! Falling back to original fetch.');
                         originalFetch(input, init).then(resolve).catch(reject);
                      }
                   });
@@ -616,86 +717,7 @@ export default function Dashboard({
     const [showClassifyModal, setShowClassifyModal] = useState<boolean>(false);
     const [customCategoryInput, setCustomCategoryInput] = useState<string>('');
 
-    useEffect(() => {
-       if (AppConfig.apiMode === 'native-bridge') {
-          console.log('[WebView Bridge] Activating local fetch interceptor...');
-          const originalFetch = window.fetch;
-          const pendingRequests: Record<string, { resolve: (res: Response) => void; reject: (err: Error) => void }> = {};
-          (window as any).__pendingRequests = pendingRequests;
-          
-          window.fetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
-             const url = typeof input === 'string' ? input : (input as any).url || '';
-             
-             const isNativeRoute = 
-                url.startsWith('/api/config') ||
-                url.startsWith('/api/initialize') ||
-                url.startsWith('/api/content') ||
-                url.startsWith('/api/queue') ||
-                url.startsWith('/api/upload') ||
-                url.startsWith('/api/chat') ||
-                url.startsWith('/api/git-sync') ||
-                url.startsWith('/api/reindex');
-             
-             if (isNativeRoute) {
-                return new Promise<Response>((resolve, reject) => {
-                   const requestId = Math.random().toString(36).substring(7);
-                   pendingRequests[requestId] = { resolve, reject };
-                   
-                   let bodyStr = '';
-                   if (init?.body) {
-                      if (typeof init.body === 'string') {
-                         bodyStr = init.body;
-                      } else {
-                         // Serialise other types if required
-                         try {
-                            bodyStr = JSON.stringify(init.body);
-                         } catch (e) {
-                            bodyStr = String(init.body);
-                         }
-                      }
-                   }
-                   
-                   if ((window as any).ReactNativeWebView) {
-                      (window as any).ReactNativeWebView.postMessage(JSON.stringify({
-                         type: 'API_REQUEST',
-                         requestId,
-                         url,
-                         method: init?.method || 'GET',
-                         body: bodyStr
-                      }));
-                   } else {
-                      console.warn('[WebView Bridge] ReactNativeWebView is missing! Falling back to original fetch.');
-                      originalFetch(input, init).then(resolve).catch(reject);
-                   }
-                });
-             }
-             return originalFetch(input, init);
-          };
 
-          (window as any).__handleApiResponse = (requestId: string, status: number, dataStr: string) => {
-             const req = pendingRequests[requestId];
-             if (req) {
-                delete pendingRequests[requestId];
-                let responseData = {};
-                try {
-                   responseData = JSON.parse(dataStr);
-                } catch (e) {
-                   responseData = { raw: dataStr };
-                }
-                
-                const response = new Response(JSON.stringify(responseData), {
-                   status,
-                   headers: { 'Content-Type': 'application/json' }
-                });
-                req.resolve(response);
-             }
-          };
-
-          return () => {
-             window.fetch = originalFetch;
-          };
-       }
-    }, []);
 
     useEffect(() => {
        if (showProfileModal) {
@@ -1730,9 +1752,9 @@ export default function Dashboard({
                name: nameInput,
                email: emailInput,
                language: langInput,
-               ttsProvider: 'Browser',
-               elevenLabsApiKey: defaultElevenLabsApiKey,
-               elevenLabsVoiceId: defaultElevenLabsVoiceId
+               ttsProvider: userProfile.ttsProvider || 'Browser',
+               elevenLabsApiKey: userProfile.elevenLabsApiKey || defaultElevenLabsApiKey,
+               elevenLabsVoiceId: userProfile.elevenLabsVoiceId || defaultElevenLabsVoiceId
             };
             setUserProfile(newProfile);
             localStorage.setItem('sb_user_profile', JSON.stringify(newProfile));
@@ -1746,6 +1768,63 @@ export default function Dashboard({
          alert('Erreur réseau lors de la configuration.');
       } finally {
          setInitializing(false);
+      }
+   };
+
+   const saveConversationAsMarkdown = async (msgs: Message[]) => {
+      const validMsgs = msgs.filter(m => m.content && m.content.trim() !== '');
+      if (validMsgs.length < 2) return;
+
+      let lastDevStats: any = null;
+      let totalInputTokens = 0;
+      let totalOutputTokens = 0;
+      let totalResponseTimeMs = 0;
+      let turnsWithStats = 0;
+
+      validMsgs.forEach(m => {
+         if (m.devStats) {
+            lastDevStats = m.devStats;
+            totalInputTokens += m.devStats.inputTokensEstimate || 0;
+            totalOutputTokens += m.devStats.outputTokensEstimate || 0;
+            totalResponseTimeMs += m.devStats.responseTimeMs || 0;
+            turnsWithStats++;
+         }
+      });
+
+      const dateStr = new Date().toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+      const title = `Conversation du ${dateStr}`;
+      
+      let markdown = `# ${title}\n\n`;
+      markdown += `## Statistiques de la conversation\n`;
+      markdown += `- **Messages** : ${validMsgs.length}\n`;
+      if (turnsWithStats > 0) {
+         markdown += `- **Temps de réponse moyen** : ${Math.round(totalResponseTimeMs / turnsWithStats)} ms\n`;
+         markdown += `- **Jetons consommés (Est.)** : ${totalInputTokens} entrée / ${totalOutputTokens} sortie (${totalInputTokens + totalOutputTokens} total)\n`;
+         if (lastDevStats) {
+            markdown += `- **Documents explorés** : ${lastDevStats.fullDocsCount || 0} pertinents / ${lastDevStats.metadataDocsCount || 0} indexés\n`;
+         }
+      }
+      markdown += `\n---\n\n## Échanges\n\n`;
+
+      validMsgs.forEach(m => {
+         const speaker = m.role === 'user' ? '👤 Utilisateur' : '🧠 Assistant (Modaka)';
+         markdown += `### ${speaker}\n${m.content}\n\n`;
+      });
+
+      const formData = new FormData();
+      formData.append('textContent', markdown);
+      formData.append('category', 'conversations');
+      formData.append('contextNote', `Conversation auto-enregistrée - ${validMsgs.length} messages`);
+      formData.append('source', 'Chat Modaka');
+
+      try {
+         await fetch('/api/upload', {
+            method: 'POST',
+            body: formData
+         });
+         fetchDocuments();
+      } catch (e) {
+         console.error('Failed to save conversation markdown', e);
       }
    };
 
@@ -1810,6 +1889,9 @@ export default function Dashboard({
                                  content: accumulatedText,
                                  devStats: parsed.devStats
                               };
+                              setTimeout(() => {
+                                 saveConversationAsMarkdown(next);
+                              }, 500);
                               return next;
                            });
                            if (shouldSpeakNextRef.current) {
@@ -2275,22 +2357,32 @@ canvas.width = width;
       }
    };
 
-    const filteredDocs = documents.filter(doc => {
-       const matchesCategory = categoryFilter === 'all' || 
-          doc.category === categoryFilter ||
-          (doc.category && doc.category.startsWith(categoryFilter + '/'));
-       
-       if (!matchesCategory) return false;
-       if (!searchQuery.trim()) return true;
-       
-       const q = searchQuery.toLowerCase();
-       return (
-          doc.title?.toLowerCase().includes(q) ||
-          doc.summary?.toLowerCase().includes(q) ||
-          doc.body?.toLowerCase().includes(q) ||
-          doc.tags?.some(tag => tag.toLowerCase().includes(q))
-       );
-    });
+   const conversationDocs = documents.filter(doc => 
+      doc.category === 'conversations' || 
+      doc.type === 'conversation' || 
+      doc.tags?.includes('conversation')
+   );
+
+   const filteredDocs = documents.filter(doc => {
+      if (doc.category === 'conversations' || doc.type === 'conversation' || doc.tags?.includes('conversation')) {
+         return false;
+      }
+
+      const matchesCategory = categoryFilter === 'all' || 
+         doc.category === categoryFilter ||
+         (doc.category && doc.category.startsWith(categoryFilter + '/'));
+      
+      if (!matchesCategory) return false;
+      if (!searchQuery.trim()) return true;
+      
+      const q = searchQuery.toLowerCase();
+      return (
+         doc.title?.toLowerCase().includes(q) ||
+         doc.summary?.toLowerCase().includes(q) ||
+         doc.body?.toLowerCase().includes(q) ||
+         doc.tags?.some(tag => tag.toLowerCase().includes(q))
+      );
+   });
 
     const resetRecording = () => {};
 
@@ -2472,51 +2564,87 @@ canvas.width = width;
                 {/* Header */}
                 <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', gap: '12px', width: '100%' }}>
                    <div style={{ width: '64px', height: '64px', borderRadius: '16px', background: 'linear-gradient(135deg, var(--color-vivid-green), #06b6d4)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto', fontSize: '28px', fontWeight: 900 }}>{AppConfig.logoEmoji}</div>
-                   <h2 style={{ fontSize: '24px', color: 'var(--color-vivid-green)', letterSpacing: '-0.5px', marginTop: '12px' }}>Configuration de {AppConfig.name}</h2>
-                      <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: '13px', margin: 0 }}>
-                         {onboardingMode === 'simple' 
-                            ? `Étape ${wizardStep === 1 ? 1 : 2} sur 2` 
-                            : `Étape ${wizardStep} sur 5`}
-                      </p>
-                      {/* Step indicator pills */}
-                      <div style={{ display: 'flex', gap: '6px', justifyContent: 'center', marginTop: '4px' }}>
-                         {(onboardingMode === 'simple' ? [1, 5] : [1, 2, 3, 4, 5]).map(step => (
-                            <div 
-                               key={step} 
-                               style={{ 
-                                  width: '24px', 
-                                  height: '4px', 
-                                  borderRadius: '2px', 
-                                  backgroundColor: step === wizardStep ? 'var(--color-vivid-green)' : (wizardStep === 5 || step < wizardStep) ? 'rgba(0, 229, 153, 0.3)' : 'rgba(255,255,255,0.1)' 
-                               }} 
-                            />
-                         ))}
-                      </div>
+                   <h2 style={{ fontSize: '24px', color: 'var(--color-vivid-green)', letterSpacing: '-0.5px', marginTop: '8px', margin: 0 }}>Bienvenue dans {AppConfig.name}</h2>
+                   <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: '14px', margin: 0 }}>
+                      Votre second cerveau numérique local-first. Initialisez votre espace en un clic.
+                   </p>
+                </div>
+
+                <div style={{ width: '100%', backgroundColor: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '20px', padding: '24px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+
+                   {/* Quick Profile Inputs */}
+                   <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                      <label style={{ fontSize: '13px', fontWeight: '600', color: 'rgba(255,255,255,0.9)' }}>Prénom / Nom</label>
+                      <input 
+                         type="text" 
+                         placeholder="ex: Mon Modaka" 
+                         value={nameInput} 
+                         onChange={(e) => setNameInput(e.target.value)}
+                         autoCapitalize="none"
+                         autoCorrect="off"
+                         autoComplete="off"
+                         style={{ width: '100%', height: '46px', borderRadius: '10px', backgroundColor: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'white', padding: '0 14px', fontSize: '15px', boxSizing: 'border-box' }}
+                      />
                    </div>
 
-                   <div style={{ width: '100%', backgroundColor: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '16px', padding: '24px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                   <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                      <label style={{ fontSize: '13px', fontWeight: '600', color: 'rgba(255,255,255,0.9)' }}>Clé API Google Gemini (Google AI Studio)</label>
+                      <input 
+                         type="password" 
+                         placeholder="Clé API AIzaSy... (facultative en local)" 
+                         value={llmApiKey} 
+                         onChange={(e) => setLlmApiKey(e.target.value)}
+                         autoCapitalize="none"
+                         autoCorrect="off"
+                         autoComplete="off"
+                         style={{ width: '100%', height: '46px', borderRadius: '10px', backgroundColor: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'white', padding: '0 14px', fontSize: '15px', boxSizing: 'border-box' }}
+                      />
+                      <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.5)', margin: 0, lineHeight: '1.4' }}>
+                         Nécessaire pour le chat contextuel et la synthèse d'images par IA. Conservée exclusivement sur votre appareil.
+                      </p>
+                   </div>
 
-                      {/* STEP 1: Profile, Language & LLM */}
-                      {wizardStep === 1 && (
-                         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                   {/* Quick Start Button */}
+                   <button
+                      type="button"
+                      onClick={handleSubmitWizard}
+                      disabled={initializing}
+                      className="action-button"
+                      style={{ width: '100%', height: '52px', fontSize: '16px', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', cursor: 'pointer', marginTop: '8px' }}
+                   >
+                      {initializing ? (
+                         <IconLoader2 style={{ animation: 'spin 1s linear infinite' }} size={20} />
+                      ) : (
+                         <>🚀 Lancer mon Second Brain</>
+                      )}
+                   </button>
+
+                   {/* Collapsible Advanced Settings */}
+                   <details style={{ marginTop: '12px', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '16px' }}>
+                      <summary style={{ cursor: 'pointer', fontSize: '13px', color: 'var(--color-vivid-green)', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '6px', userSelect: 'none' }}>
+                         ⚙️ Configuration avancée & Sauvegarde (Git / QR / S3)
+                      </summary>
+                      
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '16px' }}>
+                         <div style={{ display: 'flex', gap: '10px' }}>
                             <button 
                                type="button"
                                onClick={startScanner}
                                className="action-button btn-secondary"
-                               style={{ width: '100%', height: '48px', fontSize: '14px', gap: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+                               style={{ flex: 1, height: '42px', fontSize: '12px', gap: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
                             >
-                               <IconUser size={18} />
-                               Scanner un QR Code de configuration
+                               <IconUser size={16} />
+                               Scanner QR Code
                             </button>
 
                             <button 
                                type="button"
                                onClick={triggerQrFilePicker}
                                className="action-button btn-secondary"
-                               style={{ width: '100%', height: '48px', fontSize: '14px', gap: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', margin: 0 }}
+                               style={{ flex: 1, height: '42px', fontSize: '12px', gap: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
                             >
-                               <IconUser size={18} />
-                               Importer l'image d'un QR Code
+                               <IconUser size={16} />
+                               Importer QR Image
                             </button>
                             <input 
                                type="file" 
@@ -2525,711 +2653,23 @@ canvas.width = width;
                                onChange={handleQrFileSelect} 
                                style={{ display: 'none' }} 
                             />
-
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                               <label style={{ fontSize: '13px', fontWeight: '500', color: 'rgba(255,255,255,0.7)' }}>Mode de configuration</label>
-                               <div style={{ display: 'flex', gap: '10px' }}>
-                                  <button
-                                     type="button"
-                                     onClick={() => setOnboardingMode('simple')}
-                                     style={{
-                                        flex: 1,
-                                        padding: '12px 8px',
-                                        borderRadius: '10px',
-                                        backgroundColor: onboardingMode === 'simple' ? 'rgba(0, 229, 153, 0.05)' : 'rgba(255,255,255,0.02)',
-                                        border: `1px solid ${onboardingMode === 'simple' ? 'var(--color-vivid-green)' : 'rgba(255,255,255,0.06)'}`,
-                                        color: onboardingMode === 'simple' ? 'var(--color-vivid-green)' : 'white',
-                                        cursor: 'pointer',
-                                        transition: 'all 0.2s ease',
-                                        display: 'flex',
-                                        flexDirection: 'column',
-                                        alignItems: 'center',
-                                        gap: '4px'
-                                     }}
-                                  >
-                                     <span style={{ fontSize: '13px', fontWeight: 'bold' }}>⚡ Simple</span>
-                                     <span style={{ fontSize: '10px', opacity: 0.6 }}>Profil & IA uniquement</span>
-                                  </button>
-
-                                  <button
-                                     type="button"
-                                     onClick={() => setOnboardingMode('expert')}
-                                     style={{
-                                        flex: 1,
-                                        padding: '12px 8px',
-                                        borderRadius: '10px',
-                                        backgroundColor: onboardingMode === 'expert' ? 'rgba(0, 229, 153, 0.05)' : 'rgba(255,255,255,0.02)',
-                                        border: `1px solid ${onboardingMode === 'expert' ? 'var(--color-vivid-green)' : 'rgba(255,255,255,0.06)'}`,
-                                        color: onboardingMode === 'expert' ? 'var(--color-vivid-green)' : 'white',
-                                        cursor: 'pointer',
-                                        transition: 'all 0.2s ease',
-                                        display: 'flex',
-                                        flexDirection: 'column',
-                                        alignItems: 'center',
-                                        gap: '4px'
-                                     }}
-                                  >
-                                     <span style={{ fontSize: '13px', fontWeight: 'bold' }}>⚙️ Expert</span>
-                                     <span style={{ fontSize: '10px', opacity: 0.6 }}>Stockage & thèmes</span>
-                                  </button>
-                               </div>
-                            </div>
-
-                            <div style={{ borderBottom: '1px solid rgba(255,255,255,0.06)', paddingBottom: '8px', textAlign: 'center', color: 'rgba(255,255,255,0.4)', fontSize: '12px' }}>
-                               OU CONFIGURER MANUELLEMENT :
-                            </div>
-
-                         <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                            <label style={{ fontSize: '13px', fontWeight: '500', color: 'rgba(255,255,255,0.7)' }}>Langue de communication</label>
-                            <div style={{ display: 'flex', gap: '10px' }}>
-                               {[
-                                  { key: 'fr_FR', flag: '🇫🇷', label: 'Français' },
-                                  { key: 'en_US', flag: '🇬🇧', label: 'English' },
-                                  { key: 'es_ES', flag: '🇪🇸', label: 'Español' }
-                               ].map(lang => (
-                                  <button
-                                     key={lang.key}
-                                     type="button"
-                                     onClick={() => setLangInput(lang.key)}
-                                     style={{
-                                        flex: 1,
-                                        height: '56px',
-                                        borderRadius: '10px',
-                                        backgroundColor: langInput === lang.key ? 'rgba(0, 229, 153, 0.05)' : 'rgba(255,255,255,0.02)',
-                                        border: `1px solid ${langInput === lang.key ? 'var(--color-vivid-green)' : 'rgba(255,255,255,0.06)'}`,
-                                        color: langInput === lang.key ? 'var(--color-vivid-green)' : 'white',
-                                        display: 'flex',
-                                        flexDirection: 'column',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        gap: '4px',
-                                        cursor: 'pointer',
-                                        transition: 'all 0.2s ease'
-                                     }}
-                                  >
-                                     <span style={{ fontSize: '18px' }}>{lang.flag}</span>
-                                     <span style={{ fontSize: '11px', fontWeight: '600' }}>{lang.label}</span>
-                                  </button>
-                               ))}
-                            </div>
                          </div>
 
                          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                            <label style={{ fontSize: '13px', fontWeight: '500', color: 'rgba(255,255,255,0.7)' }}>Prénom [Nom]</label>
+                            <label style={{ fontSize: '12px', fontWeight: '500', color: 'rgba(255,255,255,0.7)' }}>URL du Dépôt Git (Optionnel)</label>
                             <input 
                                type="text" 
-                               placeholder="Votre prénom et nom" 
-                               value={nameInput} 
-                               onChange={(e) => setNameInput(e.target.value)}
+                               placeholder="https://github.com/votre-nom/votre-depot" 
+                               value={gitUrl} 
+                               onChange={(e) => setGitUrl(e.target.value)}
                                autoCapitalize="none"
                                autoCorrect="off"
                                autoComplete="off"
-                               style={{ width: '100%', height: '42px', borderRadius: '8px', backgroundColor: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'white', padding: '0 12px', fontSize: '14px', boxSizing: 'border-box' }}
+                               style={{ width: '100%', height: '38px', borderRadius: '8px', backgroundColor: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'white', padding: '0 12px', fontSize: '13px', boxSizing: 'border-box' }}
                             />
                          </div>
-
-                         <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                            <label style={{ fontSize: '13px', fontWeight: '500', color: 'rgba(255,255,255,0.7)' }}>Adresse Email (facultatif)</label>
-                            <input 
-                               type="email" 
-                               placeholder="Votre adresse email" 
-                               value={emailInput} 
-                               onChange={(e) => setEmailInput(e.target.value)}
-                               autoCapitalize="none"
-                               autoCorrect="off"
-                               autoComplete="off"
-                               style={{ width: '100%', height: '42px', borderRadius: '8px', backgroundColor: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'white', padding: '0 12px', fontSize: '14px', boxSizing: 'border-box' }}
-                            />
-                         </div>
-
-                         <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                            <label style={{ fontSize: '13px', fontWeight: '500', color: 'rgba(255,255,255,0.7)' }}>Fournisseur & Modèle de LLM</label>
-                            <select 
-                               value={llmModel} 
-                               onChange={(e) => {
-                                  const val = e.target.value;
-                                  setLlmModel(val);
-                                  if (val === 'gemma-4-embedded' || val === 'gemma-4') {
-                                     setLlmProvider('embedded-llama');
-                                  } else if (val === 'gemma-4-server') {
-                                     setLlmProvider('llama');
-                                  } else {
-                                     setLlmProvider('gemini');
-                                  }
-                               }}
-                               style={{ width: '100%', height: '42px', borderRadius: '8px', backgroundColor: '#182030', border: '1px solid rgba(255,255,255,0.1)', color: 'white', padding: '0 12px', fontSize: '14px' }}
-                            >
-                               <option value="gemini-2.5-flash">Gemini 2.5 Flash (Google Cloud API)</option>
-                               <option value="gemini-2.5-pro">Gemini 2.5 Pro (Google Cloud API)</option>
-                               <option value="gemma-4-embedded">Gemma 4 (Embarqué 100% Offline / Native llama.cpp) 📱</option>
-                               <option value="gemma-4-server">Gemma 4 (Serveur Llama.cpp / Ollama Distant) 🦙</option>
-                            </select>
-                         </div>
-
-                         {(llmProvider === 'embedded-llama' || llmModel === 'gemma-4-embedded' || llmModel === 'gemma-4') && (
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                               <label style={{ fontSize: '13px', fontWeight: '500', color: 'rgba(255,255,255,0.7)' }}>Fichier du Modèle Embarqué (.gguf)</label>
-                               <input 
-                                  type="text" 
-                                  placeholder="models/gemma-4.gguf" 
-                                  value={llamaEndpoint.startsWith('http') ? 'models/gemma-4.gguf' : llamaEndpoint} 
-                                  onChange={(e) => setLlamaEndpoint(e.target.value)}
-                                  autoCapitalize="none"
-                                  autoCorrect="off"
-                                  autoComplete="off"
-                                  style={{ width: '100%', height: '42px', borderRadius: '8px', backgroundColor: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'white', padding: '0 12px', fontSize: '14px', boxSizing: 'border-box' }}
-                               />
-                               <p style={{ fontSize: '11px', color: 'var(--color-vivid-green)', margin: 0 }}>
-                                  ⚡ Mode 100% local embarqué. Le modèle Gemma 4 est exécuté directement par le processeur/NPU de votre appareil via llama.cpp natif.
-                               </p>
-                            </div>
-                         )}
-
-                         {llmProvider === 'llama' || llmModel === 'gemma-4-server' ? (
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                               <label style={{ fontSize: '13px', fontWeight: '500', color: 'rgba(255,255,255,0.7)' }}>URL du Serveur Llama Distant (Endpoint API)</label>
-                               <input 
-                                  type="text" 
-                                  placeholder="http://10.0.2.2:8080/v1" 
-                                  value={llamaEndpoint} 
-                                  onChange={(e) => setLlamaEndpoint(e.target.value)}
-                                  autoCapitalize="none"
-                                  autoCorrect="off"
-                                  autoComplete="off"
-                                  style={{ width: '100%', height: '42px', borderRadius: '8px', backgroundColor: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'white', padding: '0 12px', fontSize: '14px', boxSizing: 'border-box' }}
-                               />
-                               <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)', margin: 0 }}>
-                                  Endpoint Llama API (ex: http://10.0.2.2:8080/v1 pour Android, http://localhost:8080/v1 pour Web/iOS).
-                               </p>
-                            </div>
-                         ) : null}
-
-                         {llmProvider === 'gemini' && (
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                               <label style={{ fontSize: '13px', fontWeight: '500', color: 'rgba(255,255,255,0.7)' }}>Clé API Google AI Studio</label>
-                               <input 
-                                  type="password" 
-                                  placeholder="Clé API AIzaSy..." 
-                                  value={llmApiKey} 
-                                  onChange={(e) => setLlmApiKey(e.target.value)}
-                                  autoCapitalize="none"
-                                  autoCorrect="off"
-                                  autoComplete="off"
-                                  style={{ width: '100%', height: '42px', borderRadius: '8px', backgroundColor: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'white', padding: '0 12px', fontSize: '14px', boxSizing: 'border-box' }}
-                               />
-                               <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)', margin: 0 }}>
-                                  Clé API Gemini requise pour faire fonctionner l'IA Google Cloud. Elle reste stockée localement sur votre téléphone.
-                               </p>
-                            </div>
-                         )}
                       </div>
-                   )}
-
-                   {/* STEP 2: OKF Metadata Storage */}
-                   {wizardStep === 2 && (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                         <div style={{ fontSize: '13px', color: 'rgba(255,255,255,0.8)', marginBottom: '8px', lineHeight: '1.5' }}>
-                            Choisissez comment vos fiches de connaissances et métadonnées OKF (Open Knowledge Format) sont conservées et synchronisées.
-                         </div>
-
-                         <div style={{ display: 'flex', gap: '12px' }}>
-                            <button
-                               type="button"
-                               onClick={() => setOkfType('local')}
-                               style={{
-                                  flex: 1,
-                                  padding: '16px',
-                                  borderRadius: '12px',
-                                  backgroundColor: okfType === 'local' ? 'rgba(0, 229, 153, 0.05)' : 'rgba(255,255,255,0.02)',
-                                  border: `1px solid ${okfType === 'local' ? 'var(--color-vivid-green)' : 'rgba(255,255,255,0.06)'}`,
-                                  color: okfType === 'local' ? 'var(--color-vivid-green)' : 'white',
-                                  cursor: 'pointer',
-                                  textAlign: 'center',
-                                  transition: 'all 0.2s ease'
-                               }}
-                            >
-                               <div style={{ fontWeight: 'bold', fontSize: '14px', marginBottom: '4px' }}>Local Pur</div>
-                               <div style={{ fontSize: '10px', opacity: 0.6 }}>Sur cet appareil uniquement</div>
-                            </button>
-
-                            <button
-                               type="button"
-                               onClick={() => setOkfType('github')}
-                               style={{
-                                  flex: 1,
-                                  padding: '16px',
-                                  borderRadius: '12px',
-                                  backgroundColor: okfType === 'github' ? 'rgba(0, 229, 153, 0.05)' : 'rgba(255,255,255,0.02)',
-                                  border: `1px solid ${okfType === 'github' ? 'var(--color-vivid-green)' : 'rgba(255,255,255,0.06)'}`,
-                                  color: okfType === 'github' ? 'var(--color-vivid-green)' : 'white',
-                                  cursor: 'pointer',
-                                  textAlign: 'center',
-                                  transition: 'all 0.2s ease'
-                               }}
-                            >
-                               <div style={{ fontWeight: 'bold', fontSize: '14px', marginBottom: '4px' }}>Dépôt GitHub</div>
-                               <div style={{ fontSize: '10px', opacity: 0.6 }}>Sauvegarde et versioning cloud</div>
-                            </button>
-                         </div>
-
-                         {okfType === 'github' && (
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '8px', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '16px' }}>
-                               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginBottom: '4px' }}>
-                                  <label style={{ fontSize: '12px', fontWeight: '500', color: 'rgba(255,255,255,0.6)' }}>Client ID OAuth GitHub (facultatif si configuré sur serveur)</label>
-                                  <input 
-                                     type="text" 
-                                     placeholder="ex: Ov23az..." 
-                                     value={githubClientId} 
-                                     onChange={(e) => setGithubClientId(e.target.value)}
-                                     autoCapitalize="none"
-                                     autoCorrect="off"
-                                     autoComplete="off"
-                                     style={{ width: '100%', height: '36px', borderRadius: '6px', backgroundColor: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: 'white', padding: '0 10px', fontSize: '13px', boxSizing: 'border-box' }}
-                                  />
-                               </div>
-
-                               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                                  <button
-                                     type="button"
-                                     onClick={() => {
-                                        const callbackUrl = window.location.origin + '/api/auth/github/callback';
-                                        
-                                        let targetUrl = `/api/auth/github/login?redirect_uri=${encodeURIComponent(callbackUrl)}&app_scheme=modaka`;
-                                        
-                                        if (githubClientId && githubClientId.trim().length > 0) {
-                                           targetUrl = `https://github.com/login/oauth/authorize?client_id=${encodeURIComponent(githubClientId.trim())}&redirect_uri=${encodeURIComponent(callbackUrl)}&scope=repo`;
-                                        }
-                                        
-                                        console.log('[OAuth Navigation] Navigating to:', targetUrl);
-                                        if ((window as any).ReactNativeWebView) {
-                                           (window as any).ReactNativeWebView.postMessage(JSON.stringify({
-                                              type: 'OPEN_URL',
-                                              url: targetUrl
-                                           }));
-                                        }
-                                        window.location.href = targetUrl;
-                                     }}
-                                     style={{
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        gap: '8px',
-                                        width: '100%',
-                                        height: '42px',
-                                        borderRadius: '8px',
-                                        backgroundColor: '#24292e',
-                                        border: '1px solid rgba(255,255,255,0.15)',
-                                        color: 'white',
-                                        fontSize: '14px',
-                                        fontWeight: '600',
-                                        cursor: 'pointer',
-                                        transition: 'background-color 0.2s ease',
-                                     }}
-                                     onMouseOver={(e) => (e.currentTarget.style.backgroundColor = '#2f363d')}
-                                     onMouseOut={(e) => (e.currentTarget.style.backgroundColor = '#24292e')}
-                                  >
-                                     <svg viewBox="0 0 16 16" width="16" height="16" fill="currentColor">
-                                        <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"></path>
-                                     </svg>
-                                     Associer mon compte GitHub via OAuth
-                                  </button>
-                                  <div style={{ textAlign: 'center', fontSize: '11px', opacity: 0.5, margin: '2px 0 6px 0' }}>ou saisir un token d'accès personnel manuellement ci-dessous :</div>
-                               </div>
-
-                               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                                  <label style={{ fontSize: '13px', fontWeight: '500', color: 'rgba(255,255,255,0.7)' }}>URL du dépôt Git (HTTPS ou SSH)</label>
-                                  <input 
-                                     type="text" 
-                                     placeholder="https://github.com/votre-nom/votre-depot" 
-                                     value={gitUrl} 
-                                     onChange={(e) => setGitUrl(e.target.value)}
-                                     autoCapitalize="none"
-                                     autoCorrect="off"
-                                     autoComplete="off"
-                                     style={{ width: '100%', height: '42px', borderRadius: '8px', backgroundColor: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'white', padding: '0 12px', fontSize: '14px', boxSizing: 'border-box' }}
-                                  />
-                               </div>
-
-                               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                                  <label style={{ fontSize: '13px', fontWeight: '500', color: 'rgba(255,255,255,0.7)' }}>Personal Access Token (PAT GitHub)</label>
-                                  <input 
-                                     type="password" 
-                                     placeholder="ghp_... (facultatif si public ou SSH)" 
-                                     value={githubToken} 
-                                     onChange={(e) => setGithubToken(e.target.value)}
-                                     autoCapitalize="none"
-                                     autoCorrect="off"
-                                     autoComplete="off"
-                                     style={{ width: '100%', height: '42px', borderRadius: '8px', backgroundColor: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'white', padding: '0 12px', fontSize: '14px', boxSizing: 'border-box' }}
-                                  />
-                               </div>
-
-                               {githubToken && (
-                                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '6px' }}>
-                                     <button
-                                        type="button"
-                                        onClick={handleVerifyOrCreateRepo}
-                                        disabled={repoStatus === 'checking' || repoStatus === 'creating'}
-                                        style={{
-                                           width: '100%',
-                                           height: '38px',
-                                           borderRadius: '8px',
-                                           backgroundColor: 'rgba(0, 229, 153, 0.1)',
-                                           border: '1px solid var(--color-vivid-green)',
-                                           color: 'var(--color-vivid-green)',
-                                           fontSize: '13px',
-                                           fontWeight: '600',
-                                           cursor: 'pointer',
-                                           display: 'flex',
-                                           alignItems: 'center',
-                                           justifyContent: 'center',
-                                           gap: '8px'
-                                        }}
-                                     >
-                                        {(repoStatus === 'checking' || repoStatus === 'creating') && (
-                                           <IconLoader2 style={{ animation: 'spin 1s linear infinite' }} size={14} />
-                                        )}
-                                        {repoStatus === 'checking' ? 'Vérification...' : 
-                                         repoStatus === 'creating' ? 'Création...' : 
-                                         '🛠️ Vérifier ou créer le dépôt sur GitHub'}
-                                     </button>
-                                  </div>
-                               )}
-                            </div>
-                         )}
-                      </div>
-                   )}
-
-                   {/* STEP 3: Blob File Storage */}
-                   {wizardStep === 3 && (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                         <div style={{ fontSize: '13px', color: 'rgba(255,255,255,0.8)', marginBottom: '8px', lineHeight: '1.5' }}>
-                            Choisissez l'emplacement de stockage pour vos fichiers volumineux (documents PDF importés, enregistrements audio, images).
-                         </div>
-
-                         <div style={{ display: 'flex', gap: '12px' }}>
-                            <button
-                               type="button"
-                               onClick={() => setBlobType('local')}
-                               style={{
-                                  flex: 1,
-                                  padding: '16px',
-                                  borderRadius: '12px',
-                                  backgroundColor: blobType === 'local' ? 'rgba(0, 229, 153, 0.05)' : 'rgba(255,255,255,0.02)',
-                                  border: `1px solid ${blobType === 'local' ? 'var(--color-vivid-green)' : 'rgba(255,255,255,0.06)'}`,
-                                  color: blobType === 'local' ? 'var(--color-vivid-green)' : 'white',
-                                  cursor: 'pointer',
-                                  textAlign: 'center',
-                                  transition: 'all 0.2s ease'
-                               }}
-                            >
-                               <div style={{ fontWeight: 'bold', fontSize: '14px', marginBottom: '4px' }}>Local Pur</div>
-                               <div style={{ fontSize: '10px', opacity: 0.6 }}>Dans le dossier local de l'app</div>
-                            </button>
-
-                            <button
-                               type="button"
-                               onClick={() => setBlobType('s3')}
-                               style={{
-                                  flex: 1,
-                                  padding: '16px',
-                                  borderRadius: '12px',
-                                  backgroundColor: blobType === 's3' ? 'rgba(0, 229, 153, 0.05)' : 'rgba(255,255,255,0.02)',
-                                  border: `1px solid ${blobType === 's3' ? 'var(--color-vivid-green)' : 'rgba(255,255,255,0.06)'}`,
-                                  color: blobType === 's3' ? 'var(--color-vivid-green)' : 'white',
-                                  cursor: 'pointer',
-                                  textAlign: 'center',
-                                  transition: 'all 0.2s ease'
-                               }}
-                            >
-                               <div style={{ fontWeight: 'bold', fontSize: '14px', marginBottom: '4px' }}>Cloud S3</div>
-                               <div style={{ fontSize: '10px', opacity: 0.6 }}>Scaleway, AWS S3, MinIO, etc.</div>
-                            </button>
-                         </div>
-
-                         {blobType === 's3' && (
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '8px', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '16px' }}>
-                               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                                  <label style={{ fontSize: '13px', fontWeight: '500', color: 'rgba(255,255,255,0.7)' }}>Clé d'accès (Access Key ID)</label>
-                                  <input 
-                                     type="text" 
-                                     placeholder="Access Key ID..." 
-                                     value={s3AccessKey} 
-                                     onChange={(e) => setS3AccessKey(e.target.value)}
-                                     autoCapitalize="none"
-                                     autoCorrect="off"
-                                     autoComplete="off"
-                                     style={{ width: '100%', height: '42px', borderRadius: '8px', backgroundColor: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'white', padding: '0 12px', fontSize: '14px', boxSizing: 'border-box' }}
-                                  />
-                               </div>
-
-                               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                                  <label style={{ fontSize: '13px', fontWeight: '500', color: 'rgba(255,255,255,0.7)' }}>Clé secrète (Secret Access Key)</label>
-                                  <input 
-                                     type="password" 
-                                     placeholder="Secret Access Key..." 
-                                     value={s3SecretKey} 
-                                     onChange={(e) => setS3SecretKey(e.target.value)}
-                                     autoCapitalize="none"
-                                     autoCorrect="off"
-                                     autoComplete="off"
-                                     style={{ width: '100%', height: '42px', borderRadius: '8px', backgroundColor: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'white', padding: '0 12px', fontSize: '14px', boxSizing: 'border-box' }}
-                                  />
-                               </div>
-
-                               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                                  <label style={{ fontSize: '13px', fontWeight: '500', color: 'rgba(255,255,255,0.7)' }}>Région</label>
-                                  <input 
-                                     type="text" 
-                                     placeholder="Région S3" 
-                                     value={s3Region} 
-                                     onChange={(e) => setS3Region(e.target.value)}
-                                     autoCapitalize="none"
-                                     autoCorrect="off"
-                                     autoComplete="off"
-                                     style={{ width: '100%', height: '42px', borderRadius: '8px', backgroundColor: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'white', padding: '0 12px', fontSize: '14px', boxSizing: 'border-box' }}
-                                  />
-                               </div>
-
-                               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                                  <label style={{ fontSize: '13px', fontWeight: '500', color: 'rgba(255,255,255,0.7)' }}>Point de terminaison (Endpoint URL)</label>
-                                  <input 
-                                     type="text" 
-                                     placeholder="Endpoint URL (ex: https://...)" 
-                                     value={s3Endpoint} 
-                                     onChange={(e) => setS3Endpoint(e.target.value)}
-                                     autoCapitalize="none"
-                                     autoCorrect="off"
-                                     autoComplete="off"
-                                     style={{ width: '100%', height: '42px', borderRadius: '8px', backgroundColor: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'white', padding: '0 12px', fontSize: '14px', boxSizing: 'border-box' }}
-                                  />
-                               </div>
-
-                               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                                  <label style={{ fontSize: '13px', fontWeight: '500', color: 'rgba(255,255,255,0.7)' }}>Nom du Bucket</label>
-                                  <input 
-                                     type="text" 
-                                     value={s3Bucket} 
-                                     onChange={(e) => setS3Bucket(e.target.value)}
-                                     autoCapitalize="none"
-                                     autoCorrect="off"
-                                     autoComplete="off"
-                                     style={{ width: '100%', height: '42px', borderRadius: '8px', backgroundColor: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'white', padding: '0 12px', fontSize: '14px', boxSizing: 'border-box' }}
-                                  />
-                               </div>
-                            </div>
-                         )}
-                      </div>
-                   )}
-
-                   {/* STEP 4: Interests / Preferred Themes */}
-                   {wizardStep === 4 && (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                         <div style={{ fontSize: '13px', color: 'rgba(255,255,255,0.8)', marginBottom: '8px', lineHeight: '1.5' }}>
-                            Sélectionnez vos thèmes et passions pour pré-initialiser vos dossiers et guides d'accueil.
-                         </div>
-
-                         <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', maxHeight: '300px', overflowY: 'auto', paddingRight: '4px' }}>
-                            {onboardingOptions.map(opt => {
-                               const isExpanded = expandedInterests.includes(opt.key);
-                               const selectedCount = (opt.subthemes || []).filter((sub: any) => selectedInterests.includes(sub.key)).length;
-                               return (
-                                  <div 
-                                     key={opt.key}
-                                     style={{
-                                        padding: '12px',
-                                        borderRadius: '12px',
-                                        border: `1px solid ${selectedCount > 0 ? 'var(--color-vivid-green)' : 'rgba(255,255,255,0.06)'}`,
-                                        backgroundColor: 'rgba(255,255,255,0.01)',
-                                        display: 'flex',
-                                        flexDirection: 'column',
-                                        gap: '8px'
-                                     }}
-                                  >
-                                     <div 
-                                        onClick={() => {
-                                           setExpandedInterests(prev => isExpanded ? prev.filter(k => k !== opt.key) : [...prev, opt.key]);
-                                        }}
-                                        style={{
-                                           cursor: 'pointer',
-                                           display: 'flex',
-                                           justifyContent: 'space-between',
-                                           alignItems: 'center'
-                                        }}
-                                     >
-                                        <div style={{ display: 'flex', flexDirection: 'column' }}>
-                                           <span style={{ fontWeight: '600', fontSize: '14px', color: selectedCount > 0 ? 'var(--color-vivid-green)' : 'white', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                              {opt.label}
-                                              {selectedCount > 0 && (
-                                                 <span style={{ fontSize: '10px', backgroundColor: 'rgba(0, 229, 153, 0.15)', color: 'var(--color-vivid-green)', padding: '1px 6px', borderRadius: '8px' }}>
-                                                    {selectedCount}
-                                                 </span>
-                                              )}
-                                           </span>
-                                           <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)' }}>{opt.desc}</span>
-                                        </div>
-                                        <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: '12px' }}>
-                                           {isExpanded ? '▼' : '▶'}
-                                        </span>
-                                     </div>
-
-                                     {isExpanded && opt.subthemes && (
-                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '8px' }}>
-                                           {opt.subthemes.map((sub: any) => {
-                                              const isSelected = selectedInterests.includes(sub.key);
-                                              return (
-                                                 <div 
-                                                    key={sub.key}
-                                                    onClick={() => {
-                                                       setSelectedInterests(prev => isSelected ? prev.filter(k => k !== sub.key) : [...prev, sub.key]);
-                                                    }}
-                                                    style={{
-                                                       padding: '8px 10px',
-                                                       borderRadius: '8px',
-                                                       backgroundColor: isSelected ? 'rgba(0, 229, 153, 0.03)' : 'transparent',
-                                                       border: `1px solid ${isSelected ? 'var(--color-vivid-green)' : 'rgba(255,255,255,0.02)'}`,
-                                                       cursor: 'pointer',
-                                                       display: 'flex',
-                                                       alignItems: 'center',
-                                                       justifyContent: 'space-between',
-                                                    }}
-                                                 >
-                                                    <div style={{ display: 'flex', flexDirection: 'column' }}>
-                                                       <span style={{ fontSize: '12px', fontWeight: '500', color: isSelected ? 'var(--color-vivid-green)' : 'white' }}>{sub.label}</span>
-                                                       <span style={{ fontSize: '10px', color: 'rgba(255,255,255,0.4)' }}>{sub.desc}</span>
-                                                    </div>
-                                                    <div style={{
-                                                       width: '16px',
-                                                       height: '16px',
-                                                       borderRadius: '4px',
-                                                       border: `1px solid ${isSelected ? 'var(--color-vivid-green)' : 'rgba(255,255,255,0.2)'}`,
-                                                       display: 'flex',
-                                                       alignItems: 'center',
-                                                       justifyContent: 'center',
-                                                       backgroundColor: isSelected ? 'var(--color-vivid-green)' : 'transparent'
-                                                    }}>
-                                                       {isSelected && <span style={{ color: '#090d16', fontSize: '10px', fontWeight: 'bold' }}>✓</span>}
-                                                    </div>
-                                                 </div>
-                                              );
-                                           })}
-                                        </div>
-                                     )}
-                                  </div>
-                               );
-                            })}
-                         </div>
-                      </div>
-                   )}
-
-                   {/* STEP 5: Review & QR Code Backup */}
-                   {wizardStep === 5 && (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', alignItems: 'center' }}>
-                         <div style={{ fontSize: '13px', color: 'rgba(255,255,255,0.8)', textAlign: 'center', lineHeight: '1.5' }}>
-                            Votre configuration est prête ! Flashez le code QR ci-dessous pour copier vos paramètres sur un autre téléphone.
-                         </div>
-
-                         {qrCodeDataUrl && (
-                            <div 
-                               onClick={() => {
-                                  setQrModalZoomed(false);
-                                  setShowQrModal(true);
-                               }}
-                               style={{ backgroundColor: 'white', padding: '12px', borderRadius: '12px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', marginTop: '8px', cursor: 'zoom-in' }}
-                               title="Cliquez pour agrandir"
-                            >
-                               <img src={qrCodeDataUrl} alt="Config QR Code" style={{ width: '180px', height: '180px' }} />
-                               <span style={{ fontSize: '10px', color: '#666', marginTop: '4px', fontWeight: '500' }}>
-                                  🔍 Cliquez pour agrandir
-                               </span>
-                            </div>
-                         )}
-
-                         <div style={{ width: '100%', marginTop: '8px', display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '12px', color: 'rgba(255,255,255,0.6)' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.04)', paddingBottom: '4px' }}>
-                               <span>Utilisateur :</span>
-                               <span style={{ color: 'white', fontWeight: '500' }}>{nameInput || 'Non configuré'}</span>
-                            </div>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.04)', paddingBottom: '4px' }}>
-                               <span>Langue :</span>
-                               <span style={{ color: 'white', fontWeight: '500' }}>{langInput}</span>
-                            </div>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.04)', paddingBottom: '4px' }}>
-                               <span>IA Model :</span>
-                               <span style={{ color: 'white', fontWeight: '500' }}>{llmModel}</span>
-                            </div>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.04)', paddingBottom: '4px' }}>
-                               <span>Stockage OKF :</span>
-                               <span style={{ color: 'white', fontWeight: '500' }}>{okfType === 'local' ? 'Local Pur' : 'GitHub'}</span>
-                            </div>
-                            {okfType === 'github' && gitUrl && (
-                               <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.04)', paddingBottom: '4px' }}>
-                                  <span>URL Dépôt :</span>
-                                  <span style={{ color: 'white', fontWeight: '500', maxWidth: '180px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={gitUrl}>{gitUrl}</span>
-                               </div>
-                            )}
-                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                               <span>Stockage Fichiers :</span>
-                               <span style={{ color: 'white', fontWeight: '500' }}>{blobType === 'local' ? 'Local Pur' : 'Cloud S3'}</span>
-                            </div>
-                         </div>
-                      </div>
-                   )}
-
-                   {/* Step Navigation Controls */}
-                   <div style={{ display: 'flex', gap: '12px', marginTop: '8px', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '16px' }}>
-                      {wizardStep > 1 && (
-                         <button
-                            type="button"
-                            onClick={() => {
-                               if (onboardingMode === 'simple' && wizardStep === 5) {
-                                  setWizardStep(1);
-                               } else {
-                                  setWizardStep(prev => prev - 1);
-                               }
-                            }}
-                            className="action-button btn-secondary"
-                            style={{ flex: 1, height: '44px', fontSize: '14px', cursor: 'pointer' }}
-                         >
-                            Retour
-                         </button>
-                      )}
-
-                      {wizardStep < 5 ? (
-                         <button
-                            type="button"
-                            onClick={() => {
-                               if (wizardStep === 1 && !nameInput.trim()) {
-                                  alert('Veuillez saisir votre prénom et nom.');
-                                  return;
-                               }
-                               if (wizardStep === 2 && okfType === 'github' && !gitUrl.trim()) {
-                                  alert('Veuillez saisir l\'URL de votre dépôt Git.');
-                                  return;
-                               }
-                               if (wizardStep === 1 && onboardingMode === 'simple') {
-                                  setWizardStep(5);
-                               } else {
-                                  setWizardStep(prev => prev + 1);
-                               }
-                            }}
-                            className="action-button"
-                            style={{ flex: 2, height: '44px', fontSize: '14px', fontWeight: 'bold', cursor: 'pointer' }}
-                         >
-                            Continuer
-                         </button>
-                      ) : (
-                         <button
-                            type="button"
-                            onClick={handleSubmitWizard}
-                            disabled={initializing}
-                            className="action-button"
-                            style={{ flex: 2, height: '44px', fontSize: '14px', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', cursor: 'pointer' }}
-                         >
-                            {initializing ? <IconLoader2 style={{ animation: 'spin 1s linear infinite' }} size={18} /> : 'Finaliser la Configuration'}
-                         </button>
-                      )}
-                   </div>
+                   </details>
 
                 </div>
              </main>
@@ -3237,8 +2677,43 @@ canvas.width = width;
              <main style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minHeight: 0 }}>
             
             {activeTab === 'chat' && (
-               <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minHeight: 0, padding: '20px 20px 0 20px' }}>
-                  <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '16px', paddingRight: '4px' }}>
+                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minHeight: 0, padding: '20px 20px 0 20px' }}>
+                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', paddingBottom: '8px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                         <span style={{ fontSize: '13px', fontWeight: 'bold', color: 'rgba(255,255,255,0.7)' }}>Session de Chat</span>
+                         {messages.length > 1 && (
+                            <span className="status-badge status-optimal" style={{ fontSize: '11px', padding: '2px 8px' }}>
+                               {messages.length} messages
+                            </span>
+                         )}
+                      </div>
+                      <div style={{ display: 'flex', gap: '8px' }}>
+                         {messages.length > 1 && (
+                            <button
+                               type="button"
+                               onClick={() => saveConversationAsMarkdown(messages)}
+                               className="status-badge status-nominal"
+                               style={{ border: 'none', cursor: 'pointer', padding: '4px 10px', fontSize: '11px', background: 'rgba(56, 189, 248, 0.1)', color: '#38bdf8' }}
+                               title="Enregistrer la conversation sous forme de document MD"
+                            >
+                               💾 Sauvegarder en MD
+                            </button>
+                         )}
+                         <button
+                            type="button"
+                            onClick={() => {
+                               setMessages([{ role: 'assistant', content: "Bonjour ! Je suis Modaka. Vous pouvez uploader des PDFs dans l'onglet \"Documents\" pour que je puisse les synthétiser et y accéder, ou simplement me poser des questions." }]);
+                            }}
+                            className="status-badge"
+                            style={{ border: 'none', cursor: 'pointer', padding: '4px 10px', fontSize: '11px', background: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.6)' }}
+                            title="Nouvelle conversation"
+                         >
+                            🔄 Nouvelle discussion
+                         </button>
+                      </div>
+                   </div>
+
+                   <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '16px', paddingRight: '4px' }}>
                      {messages.map((msg, i) => (
                         <div 
                            key={i} 
@@ -3854,10 +3329,10 @@ canvas.width = width;
                                            {buildRawOKF(selectedDoc)}
                                         </pre>
                                      </div>
-                                     )}
-                                     </>
-                                     )}
-                                  </div>
+                                  )}
+                               </>
+                            )}
+                         </div>
                       </div>
                    )}
 
@@ -3980,6 +3455,366 @@ canvas.width = width;
                         'Réindexer les dossiers (Regénérer les index.md)'
                      )}
                   </button>
+               </div>
+            )}
+
+            {activeTab === 'stats' && (
+               <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '20px', padding: '20px 20px 30px 20px' }}>
+                  {/* Header & Mode Switcher Pills */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <h2 style={{ fontSize: '20px', fontWeight: '700', letterSpacing: '-0.5px', margin: 0 }}>Statistiques de la base</h2>
+                        <span style={{ fontSize: '12px', color: 'var(--color-vivid-green)', fontWeight: '600', backgroundColor: 'rgba(34, 197, 94, 0.1)', padding: '4px 10px', borderRadius: '8px' }}>
+                           {documents.length} document{documents.length > 1 ? 's' : ''} indexé{documents.length > 1 ? 's' : ''}
+                        </span>
+                     </div>
+
+                     {/* Mode Selector Tabs */}
+                     <div style={{ display: 'flex', gap: '8px', backgroundColor: 'rgba(255,255,255,0.02)', padding: '4px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.06)' }}>
+                        <button
+                           type="button"
+                           onClick={() => setStatsMode('table')}
+                           style={{
+                              flex: 1,
+                              padding: '8px 12px',
+                              borderRadius: '8px',
+                              border: 'none',
+                              backgroundColor: statsMode === 'table' ? 'var(--color-card-teal)' : 'transparent',
+                              color: statsMode === 'table' ? 'var(--color-vivid-green)' : 'rgba(255,255,255,0.6)',
+                              fontSize: '12px',
+                              fontWeight: '600',
+                              cursor: 'pointer',
+                              transition: 'all 0.2s ease'
+                           }}
+                        >
+                           📊 Mode 1 : Tableau Synthétique
+                        </button>
+
+                        <button
+                           type="button"
+                           onClick={() => setStatsMode('categories')}
+                           style={{
+                              flex: 1,
+                              padding: '8px 12px',
+                              borderRadius: '8px',
+                              border: 'none',
+                              backgroundColor: statsMode === 'categories' ? 'var(--color-card-teal)' : 'transparent',
+                              color: statsMode === 'categories' ? 'var(--color-vivid-green)' : 'rgba(255,255,255,0.6)',
+                              fontSize: '12px',
+                                     fontWeight: '600',
+                              cursor: 'pointer',
+                              transition: 'all 0.2s ease'
+                           }}
+                        >
+                           🕸️ Mode 2 : Graphe de Liens
+                        </button>
+
+                        <button
+                           type="button"
+                           onClick={() => setStatsMode('performance')}
+                           style={{
+                              flex: 1,
+                              padding: '8px 12px',
+                              borderRadius: '8px',
+                              border: 'none',
+                              backgroundColor: statsMode === 'performance' ? 'var(--color-card-teal)' : 'transparent',
+                              color: statsMode === 'performance' ? 'var(--color-vivid-green)' : 'rgba(255,255,255,0.6)',
+                              fontSize: '12px',
+                              fontWeight: '600',
+                              cursor: 'pointer',
+                              transition: 'all 0.2s ease'
+                           }}
+                        >
+                           ⚡ Mode 3 : Métriques I/O & IA
+                        </button>
+                     </div>
+                  </div>
+
+                  {/* Key Metrics Grid */}
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px' }}>
+                     <div className="card-teal" style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                        <span style={{ fontSize: '11px', opacity: 0.7, fontWeight: '600' }}>DOCUMENTS</span>
+                        <span style={{ fontSize: '24px', fontWeight: '900', color: 'var(--color-vivid-green)' }}>{statsData.totalDocs}</span>
+                     </div>
+                     <div className="card-teal" style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                        <span style={{ fontSize: '11px', opacity: 0.7, fontWeight: '600' }}>LIENS INTER-DOCS</span>
+                        <span style={{ fontSize: '24px', fontWeight: '900', color: '#38bdf8' }}>{statsData.totalLinks}</span>
+                     </div>
+                     <div className="card-teal" style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                        <span style={{ fontSize: '11px', opacity: 0.7, fontWeight: '600' }}>MÉDIAS & FICHIERS</span>
+                        <span style={{ fontSize: '24px', fontWeight: '900', color: '#c084fc' }}>{statsData.mediaCount}</span>
+                     </div>
+                     <div className="card-teal" style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                        <span style={{ fontSize: '11px', opacity: 0.7, fontWeight: '600' }}>MOTS INDEXÉS</span>
+                        <span style={{ fontSize: '24px', fontWeight: '900', color: 'var(--color-vivid-yellow)' }}>{statsData.totalWords.toLocaleString()}</span>
+                     </div>
+                  </div>
+
+                  {/* Mode 1: Tableau récapitulatif avec nombre de docs, liens, médias */}
+                  {statsMode === 'table' && (
+                     <div style={{ backgroundColor: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '16px', padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                        <h3 style={{ fontSize: '16px', fontWeight: 'bold', color: 'var(--color-vivid-green)', margin: 0 }}>
+                           📊 Mode 1 : Tableau Synthétique des Ressources
+                        </h3>
+
+                        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px', textAlign: 'left' }}>
+                           <thead>
+                              <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.6)' }}>
+                                 <th style={{ padding: '10px 12px' }}>Ressource / Métrique</th>
+                                 <th style={{ padding: '10px 12px' }}>Total</th>
+                                 <th style={{ padding: '10px 12px' }}>Description / Détails</th>
+                              </tr>
+                           </thead>
+                           <tbody>
+                              <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                                 <td style={{ padding: '12px', fontWeight: 'bold', color: 'white' }}>📄 Nombre de Documents</td>
+                                 <td style={{ padding: '12px', color: 'var(--color-vivid-green)', fontWeight: 'bold' }}>{statsData.totalDocs}</td>
+                                 <td style={{ padding: '12px', opacity: 0.7 }}>Total des fiches OKF conservées localement</td>
+                              </tr>
+                              <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                                 <td style={{ padding: '12px', fontWeight: 'bold', color: 'white' }}>🔗 Liens entre Documents</td>
+                                 <td style={{ padding: '12px', color: '#38bdf8', fontWeight: 'bold' }}>{statsData.totalLinks}</td>
+                                 <td style={{ padding: '12px', opacity: 0.7 }}>Hyperliens de référence et maillage croisé</td>
+                              </tr>
+                              <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                                 <td style={{ padding: '12px', fontWeight: 'bold', color: 'white' }}>🖼️ Fichiers Médias</td>
+                                 <td style={{ padding: '12px', color: '#c084fc', fontWeight: 'bold' }}>{statsData.mediaCount}</td>
+                                 <td style={{ padding: '12px', opacity: 0.7 }}>Documents PDF, images et fichiers audio stockés</td>
+                              </tr>
+                              <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                                 <td style={{ padding: '12px', fontWeight: 'bold', color: 'white' }}>✍️ Nombre de Mots</td>
+                                 <td style={{ padding: '12px', color: 'var(--color-vivid-yellow)', fontWeight: 'bold' }}>{statsData.totalWords.toLocaleString()}</td>
+                                 <td style={{ padding: '12px', opacity: 0.7 }}>Volume global de texte dans la base de connaissances</td>
+                              </tr>
+                              <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                                 <td style={{ padding: '12px', fontWeight: 'bold', color: 'white' }}>💬 Conversations Archivées</td>
+                                 <td style={{ padding: '12px', color: '#2dd4bf', fontWeight: 'bold' }}>{conversationDocs.length}</td>
+                                 <td style={{ padding: '12px', opacity: 0.7 }}>Sessions de chat sauvegardées sous forme de documents MD</td>
+                              </tr>
+                              <tr>
+                                 <td style={{ padding: '12px', fontWeight: 'bold', color: 'white' }}>📁 Catégorie Dominante</td>
+                                 <td style={{ padding: '12px', color: 'white', fontWeight: 'bold' }}>{statsData.topCategory}</td>
+                                 <td style={{ padding: '12px', opacity: 0.7 }}>Thématique la plus active</td>
+                              </tr>
+                           </tbody>
+                        </table>
+                     </div>
+                  )}
+
+                  {/* Mode 2: Graphe des liens inter-documents */}
+                  {statsMode === 'categories' && (
+                     <div style={{ backgroundColor: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '16px', padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px', position: 'relative' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                           <h3 style={{ fontSize: '16px', fontWeight: 'bold', color: 'var(--color-vivid-green)', margin: 0 }}>
+                              🕸️ Mode 2 : Graphe des Liens Inter-Documents
+                           </h3>
+                           <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.5)' }}>
+                              Survolez un nœud pour afficher les détails
+                           </span>
+                        </div>
+
+                        {graphData.nodes.length === 0 ? (
+                           <p style={{ opacity: 0.6, fontSize: '13px' }}>Aucun document indexé pour le moment.</p>
+                        ) : (
+                           <div style={{ position: 'relative', width: '100%', height: '360px', backgroundColor: '#0e1118', borderRadius: '14px', border: '1px solid rgba(255,255,255,0.05)', overflow: 'hidden' }}>
+                              <svg viewBox="0 0 600 340" style={{ width: '100%', height: '100%', display: 'block' }}>
+                                 <defs>
+                                    <filter id="nodeGlow" x="-30%" y="-30%" width="160%" height="160%">
+                                       <feGaussianBlur stdDeviation="4" result="blur" />
+                                       <feComposite in="SourceGraphic" in2="blur" operator="over" />
+                                    </filter>
+                                 </defs>
+
+                                 {/* Render Edges */}
+                                 {graphData.edges.map((edge, idx) => {
+                                    const isHighlighted = hoveredNode && (hoveredNode.id === edge.sourceId || hoveredNode.id === edge.targetId);
+                                    return (
+                                       <line
+                                          key={idx}
+                                          x1={edge.x1}
+                                          y1={edge.y1}
+                                          x2={edge.x2}
+                                          y2={edge.y2}
+                                          stroke={isHighlighted ? 'var(--color-vivid-green)' : edge.isDirect ? '#38bdf8' : 'rgba(255, 255, 255, 0.12)'}
+                                          strokeWidth={isHighlighted ? 2.5 : edge.isDirect ? 1.5 : 1}
+                                          strokeDasharray={edge.isDirect ? 'none' : '4 4'}
+                                          style={{ transition: 'all 0.2s ease' }}
+                                       />
+                                    );
+                                 })}
+
+                                 {/* Render Nodes */}
+                                 {graphData.nodes.map((node) => {
+                                    const isHovered = hoveredNode?.id === node.id;
+                                    return (
+                                       <g 
+                                          key={node.id} 
+                                          style={{ cursor: 'pointer', transition: 'all 0.2s ease' }}
+                                          onMouseEnter={() => setHoveredNode(node)}
+                                          onMouseLeave={() => setHoveredNode(null)}
+                                          onClick={() => {
+                                             setSelectedDoc(node.doc);
+                                             setActiveTab('docs');
+                                          }}
+                                       >
+                                          {/* Outer halo */}
+                                          <circle
+                                             cx={node.x}
+                                             cy={node.y}
+                                             r={isHovered ? 24 : 16}
+                                             fill={node.color}
+                                             fillOpacity={isHovered ? 0.35 : 0.15}
+                                             stroke={node.color}
+                                             strokeWidth={isHovered ? 2 : 1}
+                                             style={{ transition: 'all 0.2s ease' }}
+                                          />
+
+                                          {/* Center core */}
+                                          <circle
+                                             cx={node.x}
+                                             cy={node.y}
+                                             r={isHovered ? 10 : 7}
+                                             fill={node.color}
+                                             filter={isHovered ? 'url(#nodeGlow)' : undefined}
+                                             style={{ transition: 'all 0.2s ease' }}
+                                          />
+
+                                          {/* Text Label */}
+                                          <text
+                                             x={node.x}
+                                             y={node.y + 24}
+                                             textAnchor="middle"
+                                             fill={isHovered ? '#fff' : 'rgba(255,255,255,0.7)'}
+                                             fontSize={isHovered ? '11px' : '10px'}
+                                             fontWeight={isHovered ? '700' : '500'}
+                                             style={{ transition: 'all 0.2s ease', pointerEvents: 'none' }}
+                                          >
+                                             {node.title.length > 16 ? node.title.substring(0, 14) + '...' : node.title}
+                                          </text>
+                                       </g>
+                                    );
+                                 })}
+                              </svg>
+
+                              {/* Floating Hover Details Card */}
+                              {hoveredNode && (
+                                 <div 
+                                    style={{
+                                       position: 'absolute',
+                                       bottom: '14px',
+                                       left: '14px',
+                                       right: '14px',
+                                       backgroundColor: 'rgba(18, 24, 38, 0.95)',
+                                       backdropFilter: 'blur(12px)',
+                                       border: `1px solid ${hoveredNode.color}`,
+                                       borderRadius: '12px',
+                                       padding: '12px 14px',
+                                       display: 'flex',
+                                       flexDirection: 'column',
+                                       gap: '6px',
+                                       boxShadow: '0 10px 25px rgba(0,0,0,0.6)',
+                                       pointerEvents: 'none',
+                                       zIndex: 10
+                                    }}
+                                 >
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                       <span style={{ fontWeight: 'bold', fontSize: '13px', color: '#fff' }}>
+                                          📄 {hoveredNode.title}
+                                       </span>
+                                       <span className="status-badge status-nominal" style={{ fontSize: '10px', padding: '2px 8px' }}>
+                                          {hoveredNode.category}
+                                       </span>
+                                    </div>
+                                    <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.7)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
+                                       {hoveredNode.summary}
+                                    </p>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: 'rgba(255,255,255,0.5)', marginTop: '2px' }}>
+                                       <span>📅 {formatRelativeDate(hoveredNode.date)}</span>
+                                       <span>👉 Clic pour ouvrir la fiche</span>
+                                    </div>
+                                 </div>
+                              )}
+                           </div>
+                        )}
+                     </div>
+                  )}
+
+                  {/* Mode 3: Historique des Conversations & Métriques IA */}
+                  {statsMode === 'performance' && (
+                     <div style={{ backgroundColor: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '16px', padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                           <h3 style={{ fontSize: '16px', fontWeight: 'bold', color: 'var(--color-vivid-green)', margin: 0 }}>
+                              ⚡ Mode 3 : Historique des Conversations & Métriques IA
+                           </h3>
+                           <span className="status-badge status-optimal" style={{ fontSize: '11px', padding: '4px 10px' }}>
+                              {conversationDocs.length} conversation(s) archivée(s)
+                           </span>
+                        </div>
+
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px', fontSize: '13px' }}>
+                           <div style={{ backgroundColor: 'rgba(255,255,255,0.02)', padding: '14px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.04)' }}>
+                              <span style={{ opacity: 0.6, fontSize: '12px' }}>Modèle LLM Actif</span>
+                              <div style={{ fontWeight: 'bold', color: 'white', marginTop: '4px', fontSize: '14px' }}>Google Gemini 2.5 Flash</div>
+                           </div>
+                           <div style={{ backgroundColor: 'rgba(255,255,255,0.02)', padding: '14px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.04)' }}>
+                              <span style={{ opacity: 0.6, fontSize: '12px' }}>Stockage des Conversations</span>
+                              <div style={{ fontWeight: 'bold', color: 'white', marginTop: '4px', fontSize: '14px' }}>`content/conversations/` (MD OKF)</div>
+                           </div>
+                        </div>
+
+                        <div style={{ borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                           <h4 style={{ fontSize: '14px', fontWeight: 'bold', color: 'rgba(255,255,255,0.8)', margin: 0 }}>
+                              Fichiers Markdown de Conversations Registrées
+                           </h4>
+
+                           {conversationDocs.length === 0 ? (
+                              <p style={{ opacity: 0.6, fontSize: '13px', margin: 0 }}>Aucune conversation archivée pour l'instant. Les sessions du Chat seront conservées sous forme de documents Markdown réutilisables par le LLM.</p>
+                           ) : (
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                                 {conversationDocs.map(cDoc => (
+                                    <div 
+                                       key={cDoc.id}
+                                       style={{
+                                          backgroundColor: 'rgba(255,255,255,0.03)',
+                                          border: '1px solid rgba(255,255,255,0.06)',
+                                          borderRadius: '12px',
+                                          padding: '14px',
+                                          display: 'flex',
+                                          justifyContent: 'space-between',
+                                          alignItems: 'center',
+                                          gap: '12px'
+                                       }}
+                                    >
+                                       <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', flex: 1 }}>
+                                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                             <span style={{ fontWeight: 'bold', fontSize: '14px', color: '#fff' }}>💬 {cDoc.title}</span>
+                                             <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.5)' }}>📅 {formatRelativeDate(cDoc.createdAt)}</span>
+                                          </div>
+                                          <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.6)', margin: 0 }}>
+                                             {cDoc.summary || cDoc.contextNote || 'Document Markdown de conversation.'}
+                                          </p>
+                                       </div>
+
+                                       <div style={{ display: 'flex', gap: '8px' }}>
+                                          <button
+                                             onClick={() => {
+                                                setSelectedDoc(cDoc);
+                                                setActiveTab('docs');
+                                             }}
+                                             className="status-badge"
+                                             style={{ border: 'none', cursor: 'pointer', padding: '6px 12px', fontSize: '11px', background: 'rgba(255,255,255,0.08)', color: '#fff' }}
+                                             title="Consulter le fichier MD brut de la conversation"
+                                          >
+                                             📄 Voir la note MD
+                                          </button>
+                                       </div>
+                                    </div>
+                                 ))}
+                              </div>
+                           )}
+                        </div>
+                     </div>
+                  )}
                </div>
             )}
 
@@ -4558,7 +4393,7 @@ canvas.width = width;
                         <input 
                            type="text" 
                            name="name"
-                           className="action-input"
+                           className="action-input-sm"
                            value={modalName}
                            onChange={(e) => setModalName(e.target.value)}
                            required
@@ -4571,7 +4406,7 @@ canvas.width = width;
                         <input 
                            type="email" 
                            name="email"
-                           className="action-input"
+                           className="action-input-sm"
                            value={modalEmail}
                            onChange={(e) => setModalEmail(e.target.value)}
                            style={{ width: '100%', boxSizing: 'border-box' }}
@@ -4582,7 +4417,7 @@ canvas.width = width;
                         <label style={{ fontSize: '13px', color: 'rgba(255,255,255,0.6)' }}>Langue de communication :</label>
                         <select 
                            name="language"
-                           className="action-input"
+                           className="action-input-sm"
                            value={modalLanguage}
                            onChange={(e) => setModalLanguage(e.target.value)}
                            style={{ width: '100%', boxSizing: 'border-box', backgroundColor: '#182030', color: '#fff', border: '1px solid rgba(255,255,255,0.08)' }}
@@ -4599,7 +4434,7 @@ canvas.width = width;
                         <label style={{ fontSize: '13px', color: 'rgba(255,255,255,0.6)' }}>Moteur de synthèse vocale (TTS) :</label>
                         <select 
                            name="ttsProvider"
-                           className="action-input"
+                           className="action-input-sm"
                            value={modalTtsProvider}
                            onChange={(e) => setModalTtsProvider(e.target.value)}
                            style={{ width: '100%', boxSizing: 'border-box', backgroundColor: '#182030', color: '#fff', border: '1px solid rgba(255,255,255,0.08)' }}
@@ -4616,7 +4451,7 @@ canvas.width = width;
                               <input 
                                  type="password" 
                                  name="elevenLabsApiKey"
-                                 className="action-input"
+                                 className="action-input-sm"
                                  value={modalElevenLabsApiKey}
                                  onChange={(e) => setModalElevenLabsApiKey(e.target.value)}
                                  placeholder="Saisissez votre xi-api-key..."
@@ -4629,7 +4464,7 @@ canvas.width = width;
                               <input 
                                  type="text" 
                                  name="elevenLabsVoiceId"
-                                 className="action-input"
+                                 className="action-input-sm"
                                  value={modalElevenLabsVoiceId}
                                  onChange={(e) => setModalElevenLabsVoiceId(e.target.value)}
                                  placeholder="Saisissez l'ID de votre voix (ex: bVsJfghVbJypxgwVISO3)..."
@@ -4737,10 +4572,9 @@ canvas.width = width;
             </div>
          )}
           </main>
-      )}
-
-          {documents.length > 0 && (
-             <nav className="bottom-nav">
+           )}
+           {configured && (
+              <nav className="bottom-nav">
                 <button 
                    className={`nav-item ${activeTab === 'chat' ? 'active' : ''}`}
                    onClick={() => setActiveTab('chat')}
@@ -4983,7 +4817,7 @@ canvas.width = width;
                    </div>
 
                    <span style={{ fontSize: '11px', color: 'var(--color-vivid-green)', fontWeight: '500' }}>
-                      {qrModalZoomed ? '🔍 Cliquez pour réduire' : '🔍 Cliquez sur le QR Code pour l\'agrandir'}
+                      {qrModalZoomed ? "🔍 Cliquez pour réduire" : "🔍 Cliquez sur le QR Code pour l'agrandir"}
                    </span>
 
                    <button 
@@ -4996,9 +4830,9 @@ canvas.width = width;
                    </button>
                 </div>
              </div>
-          )}
-          </>
-          )}
-       </div>
+           )}
+           </>
+           )}
+        </div>
     );
  }
