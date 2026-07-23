@@ -1,11 +1,9 @@
 import { initBackend, astroAdapter } from '../../lib/backend';
-
-await initBackend();
-
 import { Storage } from '@quatrain/storage';
 import { ContentItem } from '../../lib/models/ContentItem';
 
 export const ALL = async (context: any) => {
+   await initBackend();
    const req = context.request;
    if (req.method === 'DELETE') {
       try {
