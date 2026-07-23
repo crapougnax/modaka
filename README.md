@@ -1,4 +1,4 @@
-# Modaka - Second Brain Copilot
+# Modaka - Digital Knowledge Copilot
 
 **Modaka** is a local-first, touch-optimized digital knowledge base and personal assistant built on **Astro**, **React**, **Quatrain Core**, and **Google Gemini AI**. It organizes your notes, voice recordings, PDFs, images, and web bookmarks using the standardized **OKF (Open Knowledge Format v0.1)** structure backed by local Git storage.
 
@@ -7,7 +7,7 @@
 ## 🧭 Core Engineering Principles
 
 ### 1. Local-First Architecture
-- **Single Source of Truth**: The local disk (`.second-brain-data`) is the primary reading and search target.
+- **Single Source of Truth**: The local disk (`.modaka-data`) is the primary reading and search target.
 - **Instant Synchronization**: Modaka bypasses indexing caches on read operations, ensuring that manual filesystem edits, file renames, or external note additions are visible immediately in the UI and to the LLM.
 
 ### 2. OKF (Open Knowledge Format v0.1) Compliance
@@ -34,21 +34,21 @@ Every document imported or generated is stored as clean, human-and-AI-readable M
 
 ```mermaid
 graph TD
-    UI[Astro / React PWA Dashboard] -->|Upload PDF / Image / Audio / Web| UploadAPI[API Server Endpoints]
-    UI -->|Hybrid Query| SearchAPI[/api/search Endpoint]
-    UI -->|Chat & Contextual AI| ChatAPI[/api/chat Endpoint]
+    UI["Astro / React PWA Dashboard"] -->|Upload PDF / Image / Audio / Web| UploadAPI["API Server Endpoints"]
+    UI -->|Hybrid Query| SearchAPI["/api/search Endpoint"]
+    UI -->|Chat & Contextual AI| ChatAPI["/api/chat Endpoint"]
     
-    UploadAPI -->|Enqueue Task| Queue[SQLite Queue Manager]
-    Queue -->|Background Worker| Ingestion[Quatrain Ingestion Adapters]
-    Ingestion -->|OCR / Audio / Web| GEMINI[Gemini Flash 2.5]
+    UploadAPI -->|Enqueue Task| Queue["SQLite Queue Manager"]
+    Queue -->|Background Worker| Ingestion["Quatrain Ingestion Adapters"]
+    Ingestion -->|OCR / Audio / Web| GEMINI["Gemini Flash 2.5"]
     
-    SearchAPI -->|Search Query| QMD[@quatrain/searchengine-qmd Adapter]
-    QMD -->|Hybrid Rank| Disk[(Local OKF Filesystem)]
+    SearchAPI -->|Search Query| QMD["@quatrain/searchengine-qmd Adapter"]
+    QMD -->|Hybrid Rank| Disk[("Local OKF Filesystem")]
     
-    Ingestion -->|Persist OKF Markdown| OKFAdapter[OKFBackendAdapter]
+    Ingestion -->|Persist OKF Markdown| OKFAdapter["OKFBackendAdapter"]
     OKFAdapter -->|Save & Auto-Index| Disk
-    OKFAdapter -->|Git Stage & Commit| GitStorage[GitStorageAdapter]
-    GitStorage <-->|Async Push/Pull| RemoteGit[Remote Git Repository]
+    OKFAdapter -->|Git Stage & Commit| GitStorage["GitStorageAdapter"]
+    GitStorage <-->|Async Push/Pull| RemoteGit[("Remote Git Repository")]
 ```
 
 ---
@@ -109,10 +109,10 @@ GEMINI_API_KEY=your_google_gemini_api_key_here
 GEMINI_MODEL=gemini-2.5-flash
 
 GIT_MODE=local
-GIT_LOCAL_PATH=/absolute/path/to/second-brain-data
-DOCUMENT_STORAGE_PATH=/absolute/path/to/second-brain-documents
+GIT_LOCAL_PATH=/absolute/path/to/modaka-data
+DOCUMENT_STORAGE_PATH=/absolute/path/to/modaka-documents
 
-OKF_STORAGE_PATH=/absolute/path/to/second-brain-data/content
+OKF_STORAGE_PATH=/absolute/path/to/modaka-data/content
 S3_BUCKET=documents
 ```
 
