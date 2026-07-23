@@ -35,6 +35,7 @@ export const POST: APIRoute = async ({ request }) => {
 
       // Fetch all metadata documents to construct high-level context
       const query = ContentItem.query();
+      query.setLimits({ offset: 0, batch: 1000 });
       const itemsResult = await ContentItem.repository().query(query);
       const items = itemsResult.items || [];
       Backend.info(`Queried metadata documents from database: found ${items.length} items`);
