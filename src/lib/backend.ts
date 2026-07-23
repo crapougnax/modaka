@@ -20,15 +20,12 @@ import { AstroAdapter } from '@quatrain/api-server-astro';
 import { CrudEndpoint, ValuesEndpoint, ListEndpoint } from '@quatrain/api-server';
 import { ContentItem } from './models/ContentItem';
 import { Ai } from '@quatrain/ai';
-import { GeminiAdapter } from '@quatrain/ai-gemini';
 import { Ingestion } from '@quatrain/ingestion';
 import { OcrIngestionAdapter } from '@quatrain/ingestion-ocr';
 import { AudioIngestionAdapter } from '@quatrain/ingestion-audio';
 import { WebIngestionAdapter } from '@quatrain/ingestion-web';
 import { Queue } from '@quatrain/queue';
 import { SQLiteQueueAdapter } from '@quatrain/queue-sqlite';
-import { SearchEngine } from '@quatrain/searchengine';
-import { QmdSearchEngineAdapter } from '@quatrain/searchengine-qmd';
 import { Auth } from '@quatrain/auth';
 import { GithubAuthAdapter } from '@quatrain/auth-github';
 
@@ -389,6 +386,7 @@ export async function initBackend() {
 
    const geminiApiKey = process.env.GEMINI_API_KEY;
    if (geminiApiKey) {
+      const { GeminiAdapter } = await import('@quatrain/ai-gemini');
       Ai.setAdapter(new GeminiAdapter(geminiApiKey));
       Log.info('AI adapter registered successfully');
    } else {
@@ -480,6 +478,8 @@ export async function initBackend() {
 
    // 7. Initialize SearchEngine Adapter (QMD)
    const qmdStorageDir = process.env.OKF_STORAGE_PATH || (gitMode === 'local' && gitLocalPath ? gitLocalPath : path.resolve(process.cwd(), '.second-brain-data/content'));
+   const { QmdSearchEngineAdapter } = await import('@quatrain/searchengine-qmd');
+   const { SearchEngine } = await import('@quatrain/searchengine');
    const searchAdapter = new QmdSearchEngineAdapter({
       alias: 'default',
       config: {
