@@ -53,11 +53,17 @@ jobs:
       - name: Install dependencies from public NPM registry
         run: yarn install
 
-      - name: Run unit tests
-        run: yarn test
+      - name: Run unit tests with coverage
+        run: yarn test --coverage.enabled=true
 
       - name: Run build
         run: yarn build
+
+      - name: SonarCloud Scan
+        uses: SonarSource/sonarqube-scan-action@master
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
 
       - name: Update package version for dev release (TypeScript-style SemVer)
         run: npm version 0.1.0-dev.${{ steps.vars.outputs.today }}.${{ github.run_number }} --no-git-tag-version
