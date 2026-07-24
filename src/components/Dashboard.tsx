@@ -2408,7 +2408,7 @@ canvas.width = width;
           {/* Top Header */}
           <header style={{ padding: '24px', borderBottom: '1px solid rgba(255,255,255,0.08)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <div style={{ width: '42px', height: '42px', borderRadius: '10px', background: 'linear-gradient(135deg, var(--color-vivid-green), #06b6d4)', display: 'flex', alignItems: 'center', justifySelf: 'center', justifyContent: 'center', fontWeight: 900 }}>{AppConfig.logoText}</div>
+                <img src={AppConfig.logoUrl} alt={AppConfig.name} style={{ width: '42px', height: '42px', objectFit: 'contain' }} />
                 <h1 style={{ fontSize: '24px', letterSpacing: '-0.5px' }}>{AppConfig.name}</h1>
              </div>
              <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
@@ -2563,7 +2563,7 @@ canvas.width = width;
 
                 {/* Header */}
                 <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', gap: '12px', width: '100%' }}>
-                   <div style={{ width: '64px', height: '64px', borderRadius: '16px', background: 'linear-gradient(135deg, var(--color-vivid-green), #06b6d4)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto', fontSize: '28px', fontWeight: 900 }}>{AppConfig.logoEmoji}</div>
+                   <img src={AppConfig.logoUrl} alt={AppConfig.name} style={{ width: '80px', height: '80px', objectFit: 'contain', margin: '0 auto' }} />
                    <h2 style={{ fontSize: '24px', color: 'var(--color-vivid-green)', letterSpacing: '-0.5px', marginTop: '8px', margin: 0 }}>Bienvenue dans {AppConfig.name}</h2>
                    <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: '14px', margin: 0 }}>
                       Votre second cerveau numérique local-first. Initialisez votre espace en un clic.

@@ -1,8 +1,8 @@
 export class AppConfig {
   static readonly name = 'Modaka';
-  static readonly logoText = 'SB';
-  static readonly logoEmoji = '🧠';
-  static readonly tagline = 'Votre base de connaissances locale-first';
+  static readonly logoText = 'M';
+  static readonly logoUrl = '/logo.png';
+  static readonly tagline = 'Votre second cerveau numérique local-first';
   static readonly apiMode: 'native-bridge' | 'hosted-api' = 'hosted-api';
   
   // Theme styling tokens (matching the CSS properties)
