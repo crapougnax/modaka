@@ -1,7 +1,7 @@
 {
   "name": "@quatrain/modaka",
   "type": "module",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Modaka local-first knowledge base engine",
   "author": "Olivier Lépine <olivier@lepine.fr>",
   "license": "AGPL-3.0-only",
