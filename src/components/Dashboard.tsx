@@ -107,7 +107,37 @@ export default function Dashboard({
    const [categoryFilter, setCategoryFilter] = useState<string>('all');
    const [showUploadModal, setShowUploadModal] = useState(false);
    const [showQueueModal, setShowQueueModal] = useState(false);    
-   const [isReprocessing, setIsReprocessing] = useState(false);
+   const [isTestingKey, setIsTestingKey] = useState(false);
+
+   const handleTestApiKey = async () => {
+      setIsTestingKey(true);
+      try {
+         const res = await fetch('/api/test-key', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ apiKey: llmApiKey })
+         });
+         const data = await res.json();
+         if (res.ok && data.success) {
+            setNotification({
+               message: `🟢 ${data.message}`,
+               type: 'success'
+            });
+         } else {
+            setNotification({
+               message: `🔴 ${data.error || 'Clé API invalide.'}`,
+               type: 'error'
+            });
+         }
+      } catch (err: any) {
+         setNotification({
+            message: `Erreur de connexion : ${err.message}`,
+            type: 'error'
+         });
+      } finally {
+         setIsTestingKey(false);
+      }
+   };
 
    const handleReprocessDocument = async (doc: ContentItemData) => {
       if (!doc || !doc.id) return;
@@ -2674,18 +2704,44 @@ canvas.width = width;
 
                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                       <label style={{ fontSize: '13px', fontWeight: '600', color: 'rgba(255,255,255,0.9)' }}>Clé API Google Gemini (Google AI Studio)</label>
-                      <input 
-                         type="password" 
-                         placeholder="Clé API AIzaSy... (facultative en local)" 
-                         value={llmApiKey} 
-                         onChange={(e) => setLlmApiKey(e.target.value)}
-                         autoCapitalize="none"
-                         autoCorrect="off"
-                         autoComplete="off"
-                         style={{ width: '100%', height: '46px', borderRadius: '10px', backgroundColor: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'white', padding: '0 14px', fontSize: '15px', boxSizing: 'border-box' }}
-                      />
+                      <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                         <input 
+                            type="password" 
+                            placeholder="Clé API AIzaSy... ou AQ... (facultative en local)" 
+                            value={llmApiKey} 
+                            onChange={(e) => setLlmApiKey(e.target.value)}
+                            autoCapitalize="none"
+                            autoCorrect="off"
+                            autoComplete="off"
+                            style={{ flex: 1, height: '46px', borderRadius: '10px', backgroundColor: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'white', padding: '0 14px', fontSize: '15px', boxSizing: 'border-box' }}
+                         />
+                         <button
+                            type="button"
+                            onClick={handleTestApiKey}
+                            disabled={isTestingKey}
+                            style={{
+                               height: '46px',
+                               padding: '0 16px',
+                               fontSize: '13px',
+                               fontWeight: '600',
+                               whiteSpace: 'nowrap',
+                               display: 'flex',
+                               alignItems: 'center',
+                               gap: '6px',
+                               borderRadius: '10px',
+                               backgroundColor: 'rgba(59, 130, 246, 0.15)',
+                               border: '1px solid rgba(59, 130, 246, 0.3)',
+                               color: '#3b82f6',
+                               cursor: 'pointer'
+                            }}
+                            title="Tester immédiatement la clé API auprès de Google"
+                         >
+                            <IconRefresh size={16} style={{ animation: isTestingKey ? 'spin 1.5s linear infinite' : 'none' }} />
+                            {isTestingKey ? 'Vérification...' : 'Tester la clé'}
+                         </button>
+                      </div>
                       <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.5)', margin: 0, lineHeight: '1.4' }}>
-                         Nécessaire pour le chat contextuel et la synthèse d'images par IA. Conservée exclusivement sur votre appareil.
+                         Nécessaire pour le chat contextuel et l'analyse IA. Conservée en sécurité sur votre appareil.
                       </p>
                    </div>
 
