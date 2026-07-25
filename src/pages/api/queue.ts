@@ -1,8 +1,10 @@
 import type { APIRoute } from 'astro';
 import { QueueManager } from '../../lib/queue';
+import { initBackend } from '../../lib/backend';
 
 export const GET: APIRoute = async () => {
    try {
+      await initBackend();
       const tasks = await QueueManager.getTasks();
       return new Response(JSON.stringify({ success: true, tasks }), {
          status: 200,
@@ -18,6 +20,7 @@ export const GET: APIRoute = async () => {
 
 export const POST: APIRoute = async ({ request }) => {
    try {
+      await initBackend();
       const { taskId } = await request.json();
       if (!taskId) {
          return new Response(JSON.stringify({ error: 'Missing taskId parameter' }), {
@@ -55,7 +58,7 @@ export const DELETE: APIRoute = async ({ request }) => {
             headers: { 'Content-Type': 'application/json' }
          });
       }
-      const success = QueueManager.deleteTask(taskId);
+      const success = await QueueManager.deleteTask(taskId);
       if (success) {
          return new Response(JSON.stringify({ success: true }), {
             status: 200,
