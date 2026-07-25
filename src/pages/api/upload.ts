@@ -60,6 +60,7 @@ export const POST: APIRoute = async ({ request }) => {
             const cleanFileName = decodeFilename(file.name);
             const isImage = file.type.startsWith('image/') || /\.(jpg|jpeg|png|webp|gif)$/i.test(cleanFileName);
             const isAudio = file.type.startsWith('audio/') || /\.(mp3|wav|m4a|ogg|webm|caf)$/i.test(cleanFileName);
+            const isText = file.type.startsWith('text/') || /\.(md|markdown|txt|okf|yaml|yml)$/i.test(cleanFileName);
 
             // Calculate unique file hash (SHA-256)
             const fileHash = crypto.createHash('sha256').update(buffer).digest('hex');
@@ -69,7 +70,7 @@ export const POST: APIRoute = async ({ request }) => {
 
             // Add document processing task to background queue
             const task = await QueueManager.addTask({
-               type: isImage ? 'image' : isAudio ? 'audio' : 'pdf',
+               type: isImage ? 'image' : isAudio ? 'audio' : isText ? 'text' : 'pdf',
                name: cleanFileName,
                tempFilePath,
                category: formCategory,

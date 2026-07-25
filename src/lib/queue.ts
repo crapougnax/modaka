@@ -2,6 +2,7 @@ import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import * as crypto from 'node:crypto';
 import { Readable } from 'node:stream';
+import { parse as parseYaml } from 'yaml';
 import { Storage } from '@quatrain/storage';
 import { Ingestion } from '@quatrain/ingestion';
 import { Queue } from '@quatrain/queue';
@@ -43,6 +44,48 @@ export interface Task {
    longitude?: number;
    fileHash?: string;
    source?: string;
+}
+
+export function parseOKFContent(text: string): { isOKF: boolean; result?: any } {
+   if (!text || typeof text !== 'string') return { isOKF: false };
+   const trimmed = text.trim();
+   if (!trimmed.startsWith('---')) return { isOKF: false };
+
+   const parts = trimmed.split('---');
+   if (parts.length >= 3) {
+      try {
+         const yamlPart = parts[1].trim();
+         const bodyPart = parts.slice(2).join('---').trim();
+         const parsed = parseYaml(yamlPart);
+
+         if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+            const title = parsed.title || undefined;
+            const type = parsed.type || undefined;
+            const summary = parsed.description || parsed.summary || undefined;
+            const category = parsed.category || undefined;
+            const tags = Array.isArray(parsed.tags) ? parsed.tags : [];
+            const properNouns = Array.isArray(parsed.properNouns) ? parsed.properNouns : [];
+            const deductedDate = parsed.documentDate || parsed.timestamp || parsed.createdAt || undefined;
+
+            return {
+               isOKF: true,
+               result: {
+                  title,
+                  type: type || 'note',
+                  summary,
+                  category,
+                  tags,
+                  properNouns,
+                  markdown: bodyPart || text,
+                  deductedDate
+               }
+            };
+         }
+      } catch {
+         return { isOKF: false };
+      }
+   }
+   return { isOKF: false };
 }
 
 
@@ -400,12 +443,16 @@ class QueueManagerClass {
          return;
       }
 
-      if (task.type === 'text') {
-         isText = true;
-         rawText = task.textContent || '';
-      } else if (task.tempFilePath) {
+      if (task.tempFilePath) {
          buffer = await fs.readFile(task.tempFilePath);
          isImage = task.type === 'image';
+         if (task.type === 'text') {
+            isText = true;
+            rawText = buffer.toString('utf-8');
+         }
+      } else if (task.type === 'text') {
+         isText = true;
+         rawText = task.textContent || '';
       }
 
       await updateProgress(40);
@@ -445,12 +492,20 @@ class QueueManagerClass {
                   model
                });
             } else {
-               result = await ocrAdapter.process(rawText, {
-                  isText: true,
-                  mimeType: 'text/plain',
-                  contextNote: task.contextNote,
-                  model
-               });
+               const okfParsed = parseOKFContent(rawText);
+               if (okfParsed.isOKF && okfParsed.result) {
+                  result = okfParsed.result;
+                  if (!result.title) {
+                     result.title = task.name ? task.name.replace(/\.[^/.]+$/, '') : 'Document OKF';
+                  }
+               } else {
+                  result = await ocrAdapter.process(rawText, {
+                     isText: true,
+                     mimeType: 'text/plain',
+                     contextNote: task.contextNote,
+                     model
+                  });
+               }
             }
          }
       }
