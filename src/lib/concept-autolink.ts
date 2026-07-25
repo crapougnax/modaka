@@ -75,7 +75,32 @@ export async function searchAndCreateConcept(properNoun: string): Promise<void> 
             Log.info(`[Concept Auto-Link] Successfully created concept document for "${data.title}"`);
          }
       } else {
-         Log.info(`[Concept Auto-Link] No Wikipedia page found for "${properNoun}".`);
+         Log.info(`[Concept Auto-Link] No Wikipedia page found for "${properNoun}". Creating default concept document.`);
+         const summary = `Fiche concept pour ${properNoun}`;
+         const body = `# ${properNoun}\n\nFiche de référence pour ${properNoun}.\n`;
+         const conceptItem = await ContentItem.factory({
+            id: slug,
+            title: properNoun,
+            type: 'concept',
+            category: 'concepts',
+            tags: ['noms-propres', slug],
+            summary,
+            body,
+            createdAt: new Date().toISOString()
+         });
+         const mdRef = `concepts/${slug}.md`;
+         conceptItem.set('markdownFileUri', mdRef);
+         const docStorage = Storage.getStorage('document-storage');
+         if (docStorage) {
+            const getDocFile = (ref: string) => ({
+               bucket: process.env.S3_BUCKET || 'documents',
+               ref,
+               name: ref.split('/').pop() || ''
+            });
+            await docStorage.create(getDocFile(mdRef) as any, Readable.from([body]));
+         }
+         await conceptItem.save({ skipAiReprocess: true });
+         Log.info(`[Concept Auto-Link] Successfully created default concept document for "${properNoun}"`);
       }
    } catch (err: any) {
       Log.warn(`[Concept Auto-Link] Error searching/creating concept for "${properNoun}": ${err.message}`);

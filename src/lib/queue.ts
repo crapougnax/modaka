@@ -493,7 +493,7 @@ class QueueManagerClass {
                });
             } else {
                const okfParsed = parseOKFContent(rawText);
-               if (okfParsed.isOKF && okfParsed.result) {
+               if (okfParsed.isOKF && okfParsed.result && !task.contextNote?.trim()) {
                   result = okfParsed.result;
                   if (!result.title) {
                      result.title = task.name ? task.name.replace(/\.[^/.]+$/, '') : 'Document OKF';
