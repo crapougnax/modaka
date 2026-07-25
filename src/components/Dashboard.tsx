@@ -107,6 +107,42 @@ export default function Dashboard({
    const [categoryFilter, setCategoryFilter] = useState<string>('all');
    const [showUploadModal, setShowUploadModal] = useState(false);
    const [showQueueModal, setShowQueueModal] = useState(false);    
+   const [isReprocessing, setIsReprocessing] = useState(false);
+
+   const handleReprocessDocument = async (doc: ContentItemData) => {
+      if (!doc || !doc.id) return;
+      setIsReprocessing(true);
+      try {
+         const res = await fetch('/api/reprocess', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id: doc.id, contextNote: doc.contextNote })
+         });
+         const data = await res.json();
+         if (res.ok && data.success) {
+            setNotification({
+               message: `Analyse IA réussie ! ${data.properNouns?.length || 0} entité(s) / artiste(s) extrait(s).`,
+               type: 'success'
+            });
+            if (data.item) {
+               setSelectedDoc(data.item);
+            }
+            await fetchDocuments();
+         } else {
+            setNotification({
+               message: data.error || 'Erreur lors du traitement du document.',
+               type: 'error'
+            });
+         }
+      } catch (err: any) {
+         setNotification({
+            message: err.message || 'Erreur de connexion.',
+            type: 'error'
+         });
+      } finally {
+         setIsReprocessing(false);
+      }
+   };
 
    const statsData = useMemo(() => {
       let totalLinks = 0;
@@ -3313,6 +3349,16 @@ canvas.width = width;
                                   <IconMessage size={18} />
                                   Poser une question
                                </button>
+                               <button 
+                                   onClick={() => handleReprocessDocument(selectedDoc)}
+                                   disabled={isReprocessing}
+                                   className="action-button btn-secondary"
+                                   style={{ height: '56px', padding: '0 16px', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '8px' }}
+                                   title="Re-exécuter l'analyse IA et l'extraction d'artistes/concepts"
+                                >
+                                   <IconRefresh size={18} className={isReprocessing ? 'animate-spin' : ''} />
+                                   {isReprocessing ? 'Analyse...' : 'Rejouer l\'analyse IA'}
+                                </button>
                                <button 
                                   onClick={() => setDocToDelete(selectedDoc)}
                                   className="action-button btn-secondary"
