@@ -198,8 +198,12 @@ async function syncGitRepository(localPath: string, throwOnError = false) {
 
 function applyConfigToProcessEnv(config: any) {
    if (config.llm) {
-      if (config.llm.apiKey) process.env.GEMINI_API_KEY = config.llm.apiKey;
-      if (config.llm.model) process.env.GEMINI_MODEL = config.llm.model;
+      if (config.llm.apiKey && config.llm.apiKey.trim() !== '') {
+         process.env.GEMINI_API_KEY = config.llm.apiKey;
+      }
+      if (config.llm.model && config.llm.model.trim() !== '') {
+         process.env.GEMINI_MODEL = config.llm.model;
+      }
    }
    if (config.githubClientId) process.env.GITHUB_CLIENT_ID = config.githubClientId;
    if (config.githubClientSecret) process.env.GITHUB_CLIENT_SECRET = config.githubClientSecret;
