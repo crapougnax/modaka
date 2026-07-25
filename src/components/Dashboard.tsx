@@ -1499,6 +1499,43 @@ export default function Dashboard({
       }
    };
 
+   const handleDeleteQueueTask = async (taskId: string) => {
+      try {
+         await fetch(`/api/queue?taskId=${encodeURIComponent(taskId)}`, {
+            method: 'DELETE'
+         });
+         fetchQueue();
+      } catch (err) {
+         console.error('Failed to delete queue task', err);
+      }
+   };
+
+   const handleRetryQueueTask = async (taskId: string) => {
+      try {
+         await fetch('/api/queue', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ taskId })
+         });
+         fetchQueue();
+      } catch (err) {
+         console.error('Failed to retry queue task', err);
+      }
+   };
+
+   const handleClearAllQueueTasks = async () => {
+      try {
+         for (const task of queueTasks) {
+            await fetch(`/api/queue?taskId=${encodeURIComponent(task.id)}`, {
+               method: 'DELETE'
+            });
+         }
+         fetchQueue();
+      } catch (err) {
+         console.error('Failed to clear queue tasks', err);
+      }
+   };
+
    useEffect(() => {
       if (activeTab === 'chat') {
          chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -4263,12 +4300,36 @@ canvas.width = width;
                         <IconLoader2 size={20} style={{ animation: 'spin 1.5s linear infinite' }} />
                         File d'attente d'importation
                      </h3>
-                     <button 
-                        onClick={() => setShowQueueModal(false)}
-                        style={{ background: 'none', border: 'none', color: '#fff', fontSize: '18px', cursor: 'pointer', opacity: 0.6 }}
-                     >
-                        ✕
-                     </button>
+                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        {queueTasks.length > 0 && (
+                           <button
+                              onClick={handleClearAllQueueTasks}
+                              style={{
+                                 display: 'flex',
+                                 alignItems: 'center',
+                                 gap: '6px',
+                                 padding: '6px 12px',
+                                 borderRadius: '8px',
+                                 backgroundColor: 'rgba(239, 68, 68, 0.15)',
+                                 border: '1px solid rgba(239, 68, 68, 0.3)',
+                                 color: '#ef4444',
+                                 fontSize: '12px',
+                                 fontWeight: '600',
+                                 cursor: 'pointer'
+                              }}
+                              title="Purger toutes les tâches de la file"
+                           >
+                              <IconTrash size={14} />
+                              Vider la file
+                           </button>
+                        )}
+                        <button 
+                           onClick={() => setShowQueueModal(false)}
+                           style={{ background: 'none', border: 'none', color: '#fff', fontSize: '18px', cursor: 'pointer', opacity: 0.6 }}
+                        >
+                           ✕
+                        </button>
+                     </div>
                   </div>
 
                   <div style={{ overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '12px', paddingRight: '4px' }}>
@@ -4296,12 +4357,47 @@ canvas.width = width;
                                     <span style={{ fontSize: '14px', fontWeight: '600', color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
                                        {task.name || 'Tâche sans nom'}
                                     </span>
-                                    <span 
-                                       className={`status-badge ${task.status === 'processing' ? 'status-optimal' : task.status === 'failed' ? 'status-critical' : 'status-nominal'}`} 
-                                       style={{ fontSize: '11px', padding: '4px 10px', textTransform: 'capitalize' }}
-                                    >
-                                       {task.status === 'processing' ? 'Analyse...' : task.status === 'failed' ? 'Échec' : 'En attente'}
-                                    </span>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                       <span 
+                                          className={`status-badge ${task.status === 'processing' ? 'status-optimal' : task.status === 'failed' ? 'status-critical' : 'status-nominal'}`} 
+                                          style={{ fontSize: '11px', padding: '4px 10px', textTransform: 'capitalize' }}
+                                       >
+                                          {task.status === 'processing' ? 'Analyse...' : task.status === 'failed' ? 'Échec' : 'En attente'}
+                                       </span>
+                                       {task.status === 'failed' && (
+                                          <button
+                                             onClick={() => handleRetryQueueTask(task.id)}
+                                             style={{
+                                                background: 'none',
+                                                border: 'none',
+                                                color: '#38bdf8',
+                                                cursor: 'pointer',
+                                                padding: '4px',
+                                                display: 'flex',
+                                                alignItems: 'center'
+                                             }}
+                                             title="Réessayer"
+                                          >
+                                             <IconRefresh size={16} />
+                                          </button>
+                                       )}
+                                       <button
+                                          onClick={() => handleDeleteQueueTask(task.id)}
+                                          style={{
+                                             background: 'none',
+                                             border: 'none',
+                                             color: '#ef4444',
+                                             cursor: 'pointer',
+                                             padding: '4px',
+                                             display: 'flex',
+                                             alignItems: 'center',
+                                             opacity: 0.8
+                                          }}
+                                          title="Supprimer la tâche"
+                                       >
+                                          <IconTrash size={16} />
+                                       </button>
+                                    </div>
                                  </div>
                                  
                                  {task.status === 'processing' && (
