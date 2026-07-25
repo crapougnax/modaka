@@ -5,7 +5,7 @@
   "llm": {
     "provider": "gemini",
     "model": "gemini-2.5-flash",
-    "apiKey": "AQ.Ab8RN6KXL1du38pCr13FrzUVxkSqd6_HG5r0Ia7k8d4UZp5sbw",
+    "apiKey": "",
     "llamaEndpoint": "http://10.0.2.2:8080/v1"
   },
   "okfStorage": {

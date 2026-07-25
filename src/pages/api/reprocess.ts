@@ -58,7 +58,6 @@ export const POST: APIRoute = async ({ request }) => {
       item.set('tags', mergedTags);
       if (result.title) item.set('title', result.title);
       if (result.summary) item.set('summary', result.summary);
-      if (result.properNouns) item.set('properNouns', result.properNouns);
       if (result.category) item.set('category', result.category);
 
       await item.save({ skipAiReprocess: true });
