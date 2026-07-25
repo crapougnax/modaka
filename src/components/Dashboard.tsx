@@ -1572,6 +1572,18 @@ export default function Dashboard({
       }
    };
 
+   const handleRetryAllFailedQueueTasks = async () => {
+      const failedTasks = queueTasks.filter(t => t.status === 'failed');
+      if (failedTasks.length === 0) return;
+      for (const t of failedTasks) {
+         await handleRetryQueueTask(t.id);
+      }
+      setNotification({
+         message: `${failedTasks.length} tâche(s) en échec ont été relancée(s).`,
+         type: 'success'
+      });
+   };
+
    useEffect(() => {
       if (activeTab === 'chat') {
          chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -4347,6 +4359,28 @@ canvas.width = width;
                         File d'attente d'importation
                      </h3>
                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        {queueTasks.some(t => t.status === 'failed') && (
+                           <button
+                              onClick={handleRetryAllFailedQueueTasks}
+                              style={{
+                                 display: 'flex',
+                                 alignItems: 'center',
+                                 gap: '6px',
+                                 padding: '6px 12px',
+                                 borderRadius: '8px',
+                                 backgroundColor: 'rgba(59, 130, 246, 0.15)',
+                                 border: '1px solid rgba(59, 130, 246, 0.3)',
+                                 color: '#3b82f6',
+                                 fontSize: '12px',
+                                 fontWeight: '600',
+                                 cursor: 'pointer'
+                              }}
+                              title="Relancer toutes les tâches en échec"
+                           >
+                              <IconRefresh size={14} />
+                              Tout relancer
+                           </button>
+                        )}
                         {queueTasks.length > 0 && (
                            <button
                               onClick={handleClearAllQueueTasks}
