@@ -1,5 +1,5 @@
-import { AbstractSkillAdapter, ToolDefinition } from '../AbstractSkillAdapter';
-import { JellyfinClient, JellyfinConfig } from './JellyfinClient';
+import { AbstractSkillAdapter, type ToolDefinition } from '../AbstractSkillAdapter';
+import { JellyfinClient, type JellyfinConfig } from './JellyfinClient';
 import { ContentItem } from '../../models/ContentItem';
 import { slugify } from '../../utils/text';
 

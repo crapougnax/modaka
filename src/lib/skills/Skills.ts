@@ -1,5 +1,5 @@
 import { Core } from '@quatrain/core';
-import { AbstractSkillAdapter, ToolDefinition } from './AbstractSkillAdapter';
+import { AbstractSkillAdapter, type ToolDefinition } from './AbstractSkillAdapter';
 
 /**
  * Pivot class and registry manager representing Agent skills in the Quatrain Core framework.
