@@ -116,22 +116,39 @@ export class JellyfinClient {
    }
 
    /**
-    * Fetch all User Media Libraries / Views from Jellyfin.
+    * Fetch all User Media Libraries / Views from Jellyfin using robust fallback endpoints.
     */
    public async getLibraries(): Promise<JellyfinMediaView[]> {
       try {
          await this.authenticate();
-         const userEndpoint = this.userId ? `/Users/${this.userId}/Views` : '/UserViews';
-         const res = await this.apiClient.get(userEndpoint, {
-            headers: this.getHeaders()
-         });
-         if (res && res.data) {
-            const items = res.data.Items || res.data.items || (Array.isArray(res.data) ? res.data : []);
-            return items.map((item: any) => ({
-               id: item.Id || item.id || item.uid,
-               name: item.Name || item.name,
-               collectionType: item.CollectionType || item.collectionType
-            }));
+
+         const endpointsToTry: string[] = [];
+         if (this.userId) {
+            endpointsToTry.push(`/Users/${this.userId}/Views`);
+            endpointsToTry.push(`/Users/${this.userId}/Items?includeItemTypes=CollectionFolder&recursive=true`);
+         }
+         endpointsToTry.push('/Library/MediaFolders');
+         endpointsToTry.push('/UserViews');
+         endpointsToTry.push('/Items?includeItemTypes=CollectionFolder&recursive=true');
+
+         for (const endpoint of endpointsToTry) {
+            try {
+               const res = await this.apiClient.get(endpoint, {
+                  headers: this.getHeaders()
+               });
+               if (res && res.data) {
+                  const items = res.data.Items || res.data.items || (Array.isArray(res.data) ? res.data : []);
+                  if (items && items.length > 0) {
+                     return items.map((item: any) => ({
+                        id: item.Id || item.id || item.uid,
+                        name: item.Name || item.name,
+                        collectionType: item.CollectionType || item.collectionType
+                     }));
+                  }
+               }
+            } catch (e) {
+               // Silently try next fallback endpoint
+            }
          }
       } catch (err) {
          console.error('[JellyfinClient] Failed to fetch libraries:', err);
