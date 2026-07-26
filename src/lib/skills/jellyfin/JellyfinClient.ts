@@ -109,9 +109,9 @@ export class JellyfinClient {
                version: res.data.Version || 'Unknown'
             };
          }
-         return { success: false, error: 'Impossible d\'obtenir les infos du serveur Jellyfin' };
+         return { success: false, error: 'Failed to retrieve Jellyfin server information' };
       } catch (err: any) {
-         return { success: false, error: err.message || 'Impossible de se connecter au serveur Jellyfin' };
+         return { success: false, error: err.message || 'Failed to connect to Jellyfin server' };
       }
    }
 
