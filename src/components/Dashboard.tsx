@@ -111,6 +111,14 @@ export default function Dashboard({
    const [showUploadModal, setShowUploadModal] = useState(false);
    const [showQueueModal, setShowQueueModal] = useState(false);    
    const [isTestingKey, setIsTestingKey] = useState(false);
+   const [notification, setNotification] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
+
+   useEffect(() => {
+      if (notification) {
+         const timer = setTimeout(() => setNotification(null), 5000);
+         return () => clearTimeout(timer);
+      }
+   }, [notification]);
 
    const handleTestApiKey = async () => {
       setIsTestingKey(true);
@@ -2694,7 +2702,6 @@ canvas.width = width;
       
       if (!matchesCategory) return false;
       if (!searchQuery.trim()) return true;
-      
       const q = searchQuery.toLowerCase();
       return (
          doc.title?.toLowerCase().includes(q) ||
@@ -2709,6 +2716,34 @@ canvas.width = width;
     return (
        <div className="app-container">
           <style dangerouslySetInnerHTML={{ __html: AppConfig.getCssVariablesString() }} />
+
+          {notification && (
+             <div 
+                style={{
+                   position: 'fixed',
+                   top: '20px',
+                   right: '20px',
+                   zIndex: 3000,
+                   padding: '12px 20px',
+                   borderRadius: '14px',
+                   backgroundColor: notification.type === 'error' ? 'rgba(239, 68, 68, 0.95)' : notification.type === 'success' ? 'rgba(16, 185, 129, 0.95)' : 'rgba(59, 130, 246, 0.95)',
+                   color: '#fff',
+                   fontSize: '14px',
+                   fontWeight: '600',
+                   boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.5)',
+                   backdropFilter: 'blur(8px)',
+                   display: 'flex',
+                   alignItems: 'center',
+                   gap: '10px',
+                   maxWidth: '400px',
+                   cursor: 'pointer'
+                }}
+                onClick={() => setNotification(null)}
+             >
+                <span>{notification.message}</span>
+             </div>
+          )}
+
           {loading ? (
              <div style={{
                 display: 'flex',
