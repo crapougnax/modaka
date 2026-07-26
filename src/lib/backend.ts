@@ -470,6 +470,13 @@ export async function initBackend() {
    Ingestion.addAdapter(new AudioIngestionAdapter(), 'audio');
    Ingestion.addAdapter(new WebIngestionAdapter(), 'web');
 
+   // Initialize Skills Adapters
+   const { Skills } = await import('./skills/Skills');
+   const { JellyfinSkillAdapter } = await import('./skills/jellyfin/JellyfinSkillAdapter');
+   if (!Skills.hasSkill('jellyfin')) {
+      Skills.addSkill('jellyfin', new JellyfinSkillAdapter());
+   }
+
    // 6. Initialize Queue Adapter
    const queueDbDir = path.resolve(process.cwd(), '.queue');
    const queueDbPath = path.join(queueDbDir, 'queue.sqlite');

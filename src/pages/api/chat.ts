@@ -62,6 +62,50 @@ export const POST: APIRoute = async ({ request }) => {
          };
       });
 
+      // Intercept Skills execution (e.g. Jellyfin audio & playlists)
+      const { Skills } = await import('../../lib/skills/Skills');
+      const lastMsg = messages[messages.length - 1]?.content || '';
+      const lowerMsg = lastMsg.toLowerCase();
+      let skillContext = '';
+
+      if (Skills.hasSkill('jellyfin')) {
+         if (lowerMsg.includes('jellyfin') || lowerMsg.includes('playlist') || lowerMsg.includes('artiste') || lowerMsg.includes('album') || lowerMsg.includes('musique')) {
+            try {
+               if (lowerMsg.includes('playlist')) {
+                  const playlists = await Skills.execute('jellyfin_get_playlists', {});
+                  skillContext += `\n\n[Résultat Skill Jellyfin - Playlists]\n${JSON.stringify(playlists, null, 2)}`;
+               }
+               
+               const matchArtist = lastMsg.match(/(?:cherche|trouve|ajoute|crée|fiche|artiste|album)\s+([A-Za-z0-9À-ÿ\s'-]+?)(?:\s+sur\s+jellyfin|\s+dans\s+mon|\.|$)/i);
+               const targetQuery = matchArtist && matchArtist[1] ? matchArtist[1].trim() : '';
+
+               if (targetQuery && targetQuery.length > 1) {
+                  if (lowerMsg.includes('ajoute') || lowerMsg.includes('crée') || lowerMsg.includes('fiche')) {
+                     const ingestRes = await Skills.execute('jellyfin_ingest_artist_concept', { artistName: targetQuery });
+                     skillContext += `\n\n[Action Skill Jellyfin - Ingestion OKF Réussie]\n${JSON.stringify(ingestRes, null, 2)}`;
+                  } else {
+                     const details = await Skills.execute('jellyfin_get_artist_details', { artistName: targetQuery });
+                     if (details) {
+                        skillContext += `\n\n[Détails Artiste Jellyfin pour "${targetQuery}"]\n${JSON.stringify(details, null, 2)}`;
+                     }
+                  }
+               }
+            } catch (e: any) {
+               Core.warn(`[Chat API] Erreur lors de l'exécution du Skill Jellyfin: ${e.message}`);
+            }
+         }
+      }
+
+      if (skillContext) {
+         chatDocuments.push({
+            uid: 'jellyfin-live-context',
+            title: 'Contexte Live Jellyfin',
+            category: 'skills',
+            summary: 'Données récupérées en direct depuis le serveur Jellyfin',
+            contentLoader: async () => skillContext
+         });
+      }
+
       // Instantiate core ChatController
       const controller = new ChatController({
          provider: 'gemini',
