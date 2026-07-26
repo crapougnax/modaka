@@ -2772,14 +2772,36 @@ canvas.width = width;
                          fontSize: '13px',
                          fontWeight: '600',
                          cursor: 'pointer',
-                         transition: 'all 0.2s ease',
-                         marginRight: '4px'
+                         transition: 'all 0.2s ease'
                       }}
                       title="Configurer le Moteur IA / LLM (Gemini, Llama...)"
                    >
                       <IconSparkles size={18} />
                       <span>Moteur LLM</span>
                    </button>
+
+                  <button
+                     onClick={() => setShowSkillsModal(true)}
+                     style={{
+                        background: 'rgba(56, 189, 248, 0.1)',
+                        border: '1px solid rgba(56, 189, 248, 0.3)',
+                        borderRadius: '10px',
+                        height: '38px',
+                        padding: '0 12px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        color: '#38bdf8',
+                        cursor: 'pointer',
+                        fontSize: '13px',
+                        fontWeight: '600',
+                        transition: 'all 0.2s ease'
+                     }}
+                     title="Skills & Connexion aux services tiers (Jellyfin, Wikipédia...)"
+                  >
+                     <IconPuzzle size={18} />
+                     <span>Skills</span>
+                  </button>
 
                  <button
                      onClick={() => setShowProfileModal(true)}
