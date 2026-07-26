@@ -198,11 +198,14 @@ async function syncGitRepository(localPath: string, throwOnError = false) {
 
 function applyConfigToProcessEnv(config: any) {
    if (config.llm) {
-      if (config.llm.apiKey && config.llm.apiKey.trim() !== '') {
-         process.env.GEMINI_API_KEY = config.llm.apiKey;
+      if (config.llm.apiKey !== undefined && config.llm.apiKey !== null) {
+         const trimmedKey = String(config.llm.apiKey).trim();
+         if (trimmedKey) {
+            process.env.GEMINI_API_KEY = trimmedKey;
+         }
       }
       if (config.llm.model && config.llm.model.trim() !== '') {
-         process.env.GEMINI_MODEL = config.llm.model;
+         process.env.GEMINI_MODEL = config.llm.model.trim();
       }
    }
    if (config.githubClientId) process.env.GITHUB_CLIENT_ID = config.githubClientId;
@@ -259,12 +262,14 @@ export async function reconfigureBackend() {
    // Reload config into process.env
    loadUserConfig();
 
-   // Re-init AI Adapter
+   // Re-init AI Adapter with updated key
    const geminiApiKey = process.env.GEMINI_API_KEY;
    if (geminiApiKey) {
       const { GeminiAdapter } = await import('@quatrain/ai-gemini');
-      Ai.setAdapter(new GeminiAdapter(geminiApiKey));
-      Log.info('[Backend] AI adapter reconfigured successfully');
+      const adapter = new GeminiAdapter(geminiApiKey);
+      adapter.init();
+      Ai.setAdapter(adapter);
+      Log.info(`[Backend] AI adapter reconfigured successfully (Key: ...${geminiApiKey.slice(-4)})`);
    }
 
    // Re-init Document Storage
