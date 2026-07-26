@@ -1,4 +1,5 @@
 {
+  "$schema": "https://quatrain.github.io/spec/manifest.v1.schema.json",
   "extends": "package.json",
   "id": "@quatrain/skills-jellyfin",
   "icon": "🎵",
