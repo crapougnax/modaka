@@ -16,6 +16,16 @@ export const POST: APIRoute = async ({ request }) => {
          });
       }
 
+      if (apiKey.startsWith('AQ.')) {
+         return new Response(JSON.stringify({
+            success: false,
+            error: '⚠️ Les jetons d\'accès commençant par "AQ." sont des jetons OAuth temporaires non supportés par l\'API Gemini (ACCESS_TOKEN_TYPE_UNSUPPORTED). Veuillez utiliser une clé API permanente commençant par "AIzaSy..." générée sur https://aistudio.google.com/app/apikey'
+         }), {
+            status: 400,
+            headers: { 'Content-Type': 'application/json' }
+         });
+      }
+
       const ai = new GoogleGenAI({ apiKey });
       const model = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
 

@@ -96,12 +96,30 @@ export function parseOKFContent(text: string): { isOKF: boolean; result?: any } 
 class QueueManagerClass {
    protected isListening = false;
 
-   public startListening() {
+   public async startListening() {
       if (this.isListening) return;
       this.isListening = true;
       Queue.info('[QueueManager] Registering background queue listener on topic "ingestion"');
       
       const adapter = Queue.getQueue<any>();
+
+      // Auto-recover stale tasks stuck in 'processing' mode from previous session
+      try {
+         const tasks = await adapter.getTasks('ingestion');
+         const now = Date.now();
+         for (const t of tasks) {
+            if (t.status === 'processing') {
+               const startedAt = t.startedAt ? new Date(t.startedAt).getTime() : 0;
+               if (!startedAt || (now - startedAt > 5 * 60 * 1000)) {
+                  Queue.warn(`[QueueManager] Auto-recovering stale processing task [${t.id}] "${t.name}" -> resetting to pending`);
+                  await adapter.retryTask(t.id);
+               }
+            }
+         }
+      } catch (e: any) {
+         Queue.warn(`[QueueManager] Stale task recovery check failed: ${e.message}`);
+      }
+
       adapter.listen('ingestion', async (task: any, options: { updateProgress: Function }) => {
          Queue.info(`Processing task ${task.name || 'unnamed'}`);
          try {
