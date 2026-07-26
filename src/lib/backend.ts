@@ -478,11 +478,15 @@ export async function initBackend() {
    // Initialize Skills Packages (Lazy discovery & dynamic activation)
    const { Skills } = await import('./skills/Skills');
    const jellyfinManifest = (await import('./skills/jellyfin/manifest.json')).default;
+   let jellyfinPkgMeta;
+   if (jellyfinManifest.extends === 'package.json') {
+      jellyfinPkgMeta = (await import('./skills/jellyfin/package.json')).default;
+   }
 
    Skills.registerPackage('jellyfin', jellyfinManifest, async (cfg) => {
       const { JellyfinSkillAdapter } = await import('./skills/jellyfin/JellyfinSkillAdapter');
       return new JellyfinSkillAdapter(cfg);
-   });
+   }, jellyfinPkgMeta);
 
    // Auto-activate skill if configuration credentials exist
    if (process.env.JELLYFIN_API_KEY || (process.env.JELLYFIN_USERNAME && process.env.JELLYFIN_PASSWORD)) {

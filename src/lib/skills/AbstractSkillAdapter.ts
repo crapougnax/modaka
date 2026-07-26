@@ -11,9 +11,10 @@ export interface SkillField {
 
 export interface SkillManifest {
    id: string;
+   extends?: string;
    version?: string;
-   name: string;
-   description: string;
+   name?: string;
+   description?: string;
    icon?: string;
    category?: 'media' | 'knowledge' | 'erp' | 'communication' | 'utility';
    fields: SkillField[];

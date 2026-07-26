@@ -19,14 +19,27 @@ export class Skills extends Core {
     * @param alias Unique identifier for the skill (e.g. 'jellyfin', 'brevo', 'odoo').
     * @param manifest Skill JSON manifest object.
     * @param factory Factory function that dynamically imports and returns an AbstractSkillAdapter instance.
+    * @param baseMeta Optional base metadata from package.json or pyproject.toml referenced by manifest.extends.
     */
    public static registerPackage(
       alias: string,
       manifest: any,
-      factory: (config?: any) => Promise<AbstractSkillAdapter> | AbstractSkillAdapter
+      factory: (config?: any) => Promise<AbstractSkillAdapter> | AbstractSkillAdapter,
+      baseMeta?: { name?: string; version?: string; description?: string }
    ): void {
-      this._registeredPackages.set(alias, { alias, manifest, factory });
-      this.info(`[Skills] Registered available skill package '${alias}' (${manifest.name})`);
+      const resolvedManifest = {
+         id: manifest.id || baseMeta?.name || alias,
+         name: manifest.name || baseMeta?.name || alias,
+         version: manifest.version || baseMeta?.version || '1.0.0',
+         description: manifest.description || baseMeta?.description || '',
+         icon: manifest.icon || '⚡',
+         category: manifest.category || 'utility',
+         extends: manifest.extends,
+         fields: manifest.fields || []
+      };
+
+      this._registeredPackages.set(alias, { alias, manifest: resolvedManifest, factory });
+      this.info(`[Skills] Registered available skill package '${alias}' (${resolvedManifest.name})`);
    }
 
    /**

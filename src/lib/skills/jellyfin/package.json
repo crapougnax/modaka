@@ -1,0 +1,6 @@
+{
+  "name": "@quatrain/skills-jellyfin",
+  "version": "0.1.0",
+  "description": "Explores your Jellyfin audio library, playlists, and generates OKF concept sheets for your artists and albums.",
+  "main": "JellyfinSkillAdapter.ts"
+}
