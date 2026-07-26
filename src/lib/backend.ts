@@ -477,7 +477,7 @@ export async function initBackend() {
 
    // Initialize Skills Packages (Lazy discovery & dynamic activation)
    const { Skills } = await import('./skills/Skills');
-   const jellyfinManifest = (await import('./skills/jellyfin/skill.json')).default;
+   const jellyfinManifest = (await import('./skills/jellyfin/manifest.json')).default;
 
    Skills.registerPackage('jellyfin', jellyfinManifest, async (cfg) => {
       const { JellyfinSkillAdapter } = await import('./skills/jellyfin/JellyfinSkillAdapter');

@@ -11,6 +11,7 @@ export interface SkillField {
 
 export interface SkillManifest {
    id: string;
+   version?: string;
    name: string;
    description: string;
    icon?: string;

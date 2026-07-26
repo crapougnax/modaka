@@ -2,7 +2,7 @@ import { AbstractSkillAdapter, type ToolDefinition, type SkillManifest } from '.
 import { JellyfinClient, type JellyfinConfig } from './JellyfinClient';
 import { ContentItem } from '../../models/ContentItem';
 import { slugify } from '../../utils/text';
-import skillManifest from './skill.json';
+import skillManifest from './manifest.json';
 
 export class JellyfinSkillAdapter extends AbstractSkillAdapter {
    readonly manifest: SkillManifest = skillManifest as SkillManifest;
