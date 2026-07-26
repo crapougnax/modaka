@@ -1,5 +1,5 @@
 {
-  "$schema": "https://schema.quatrain.dev/package-interchange-v1.json",
+  "$schema": "https://schema.quatrain.dev/v1/package-interchange.json",
   "extends": "package.json",
   "id": "@quatrain/skills-jellyfin",
   "icon": "🎵",
