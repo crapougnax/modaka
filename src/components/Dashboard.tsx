@@ -187,6 +187,16 @@ export default function Dashboard({
       }
    };
 
+   useEffect(() => {
+      fetchSkillsData();
+   }, []);
+
+   useEffect(() => {
+      if (showSkillsModal) {
+         fetchSkillsData();
+      }
+   }, [showSkillsModal]);
+
    const handleFieldChange = (skillAlias: string, fieldName: string, value: any) => {
       setSkillFormValues(prev => ({
          ...prev,
