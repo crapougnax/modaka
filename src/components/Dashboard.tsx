@@ -24,7 +24,8 @@ import {
        IconPlayerStop,
        IconQrcode,
        IconLink,
-       IconPuzzle
+       IconPuzzle,
+       IconSparkles
     } from '@tabler/icons-react';
 
    const ONBOARDING_SUBTHEMES = [
@@ -884,31 +885,63 @@ export default function Dashboard({
       }
    }, [activeTab, selectedDoc]);
 
-    const [modalName, setModalName] = useState<string>('');
-    const [modalEmail, setModalEmail] = useState<string>('');
-    const [modalLanguage, setModalLanguage] = useState<string>('Français');
-    const [modalTtsProvider, setModalTtsProvider] = useState<string>('Browser');
-    const [modalElevenLabsApiKey, setModalElevenLabsApiKey] = useState<string>('');
-    const [modalElevenLabsVoiceId, setModalElevenLabsVoiceId] = useState<string>('bVsJfghVbJypxgwVISO3');
-    const [searchQuery, setSearchQuery] = useState<string>('');
-    const [showCategoryModal, setShowCategoryModal] = useState<boolean>(false);
-    const [showClassifyModal, setShowClassifyModal] = useState<boolean>(false);
-    const [customCategoryInput, setCustomCategoryInput] = useState<string>('');
+   const [modalName, setModalName] = useState<string>('');
+   const [modalEmail, setModalEmail] = useState<string>('');
+   const [modalLanguage, setModalLanguage] = useState<string>('Français');
+   const [modalTtsProvider, setModalTtsProvider] = useState<string>('Browser');
+   const [modalElevenLabsApiKey, setModalElevenLabsApiKey] = useState<string>('');
+   const [modalElevenLabsVoiceId, setModalElevenLabsVoiceId] = useState<string>('bVsJfghVbJypxgwVISO3');
+   const [modalGeminiApiKey, setModalGeminiApiKey] = useState<string>('');
+   const [modalGeminiModel, setModalGeminiModel] = useState<string>('gemini-2.5-flash');
+   const [isTestingGeminiInModal, setIsTestingGeminiInModal] = useState<boolean>(false);
+   const [geminiTestStatus, setGeminiTestStatus] = useState<{ success: boolean; message: string } | null>(null);
 
+   const [searchQuery, setSearchQuery] = useState<string>('');
+   const [showCategoryModal, setShowCategoryModal] = useState<boolean>(false);
+   const [showClassifyModal, setShowClassifyModal] = useState<boolean>(false);
+   const [customCategoryInput, setCustomCategoryInput] = useState<string>('');
 
+   useEffect(() => {
+      if (showProfileModal) {
+         setModalName(userProfile.name);
+         setModalEmail(userProfile.email);
+         setModalLanguage(userProfile.language);
+         setModalTtsProvider(userProfile.ttsProvider || 'Browser');
+         setModalElevenLabsApiKey(userProfile.elevenLabsApiKey || '');
+         setModalElevenLabsVoiceId(userProfile.elevenLabsVoiceId || 'bVsJfghVbJypxgwVISO3');
+         setGeminiTestStatus(null);
+         fetch('/api/config').then(r => r.ok ? r.json() : null).then(cfg => {
+            if (cfg && cfg.llm) {
+               setModalGeminiApiKey(cfg.llm.apiKey || '');
+               setModalGeminiModel(cfg.llm.model || 'gemini-2.5-flash');
+            }
+         }).catch(() => {});
+      }
+   }, [showProfileModal, userProfile]);
 
-    useEffect(() => {
-       if (showProfileModal) {
-          setModalName(userProfile.name);
-          setModalEmail(userProfile.email);
-          setModalLanguage(userProfile.language);
-          setModalTtsProvider(userProfile.ttsProvider || 'Browser');
-          setModalElevenLabsApiKey(userProfile.elevenLabsApiKey || '');
-          setModalElevenLabsVoiceId(userProfile.elevenLabsVoiceId || 'bVsJfghVbJypxgwVISO3');
-       }
-    }, [showProfileModal, userProfile]);
+   const handleTestGeminiInModal = async () => {
+      setIsTestingGeminiInModal(true);
+      setGeminiTestStatus(null);
+      try {
+         const res = await fetch('/api/test-key', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ apiKey: modalGeminiApiKey })
+         });
+         const data = await res.json();
+         if (res.ok && data.success) {
+            setGeminiTestStatus({ success: true, message: data.message || 'Clé API Gemini validée !' });
+         } else {
+            setGeminiTestStatus({ success: false, message: data.error || 'Clé API invalide.' });
+         }
+      } catch (err: any) {
+         setGeminiTestStatus({ success: false, message: `Erreur : ${err.message}` });
+      } finally {
+         setIsTestingGeminiInModal(false);
+      }
+   };
 
-   const handleSaveProfile = async (profile: typeof userProfile) => {
+   const handleSaveProfile = async (profile: typeof userProfile & { geminiApiKey?: string; geminiModel?: string }) => {
       setUserProfile(profile);
       localStorage.setItem('sb_user_profile', JSON.stringify(profile));
       setShowProfileModal(false);
@@ -922,12 +955,21 @@ export default function Dashboard({
                ...currentConfig,
                name: profile.name,
                email: profile.email,
-               lang: profile.language
+               lang: profile.language,
+               llm: {
+                  ...currentConfig.llm,
+                  apiKey: profile.geminiApiKey !== undefined ? profile.geminiApiKey : (currentConfig.llm?.apiKey || ''),
+                  model: profile.geminiModel || currentConfig.llm?.model || 'gemini-2.5-flash'
+               }
             };
             await fetch('/api/config', {
                method: 'POST',
                headers: { 'Content-Type': 'application/json' },
                body: JSON.stringify(updatedConfig)
+            });
+            setNotification({
+               message: '🟢 Préférences et clé API Gemini enregistrées avec succès !',
+               type: 'success'
             });
          }
       } catch (err) {
