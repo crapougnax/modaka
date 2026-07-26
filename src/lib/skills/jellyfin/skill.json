@@ -1,13 +1,13 @@
 {
   "id": "jellyfin",
-  "name": "Jellyfin Audio & Musique",
-  "description": "Explore votre bibliothèque audio Jellyfin, vos playlists et génère des fiches concepts OKF pour vos artistes et albums.",
+  "name": "Jellyfin Audio & Music",
+  "description": "Explores your Jellyfin audio library, playlists, and generates OKF concept sheets for your artists and albums.",
   "icon": "🎵",
   "category": "media",
   "fields": [
     {
       "name": "url",
-      "label": "URL du serveur Jellyfin",
+      "label": "Jellyfin Server URL",
       "type": "text",
       "placeholder": "http://localhost:8096",
       "default": "http://localhost:8096",
@@ -15,31 +15,31 @@
     },
     {
       "name": "apiKey",
-      "label": "Clé API Jellyfin (Authentification Directe)",
+      "label": "Jellyfin API Key (Direct Auth)",
       "type": "password",
-      "placeholder": "Saisissez votre clé d'API Jellyfin (Recommandé)...",
+      "placeholder": "Enter your Jellyfin API Key (Recommended)...",
       "required": false
     },
     {
       "name": "username",
-      "label": "Nom d'utilisateur Jellyfin",
+      "label": "Jellyfin Username",
       "type": "text",
-      "placeholder": "Nom de compte Jellyfin...",
+      "placeholder": "Jellyfin account username...",
       "required": false
     },
     {
       "name": "password",
-      "label": "Mot de passe Jellyfin",
+      "label": "Jellyfin Password",
       "type": "password",
-      "placeholder": "Mot de passe...",
+      "placeholder": "Password...",
       "required": false
     },
     {
       "name": "libraryName",
-      "label": "Nom du dossier / Bibliothèque Média cible",
+      "label": "Target Media Library Name",
       "type": "text",
-      "placeholder": "Musique Olivier, Audio, ...",
-      "description": "Filtre optionnel pour limiter les requêtes à une bibliothèque spécifique.",
+      "placeholder": "Music, Audio, ...",
+      "description": "Optional filter to restrict queries to a specific library.",
       "required": false
     }
   ]

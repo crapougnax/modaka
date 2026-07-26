@@ -34,12 +34,12 @@ export class JellyfinSkillAdapter extends AbstractSkillAdapter {
       if (res.success) {
          return {
             success: true,
-            message: `Connexion réussie au serveur Jellyfin "${res.serverName}" (v${res.version})`
+            message: `Successfully connected to Jellyfin server "${res.serverName}" (v${res.version})`
          };
       }
       return {
          success: false,
-         error: res.error || 'Impossible de se connecter au serveur Jellyfin'
+         error: res.error || 'Failed to connect to Jellyfin server'
       };
    }
 
@@ -63,31 +63,31 @@ export class JellyfinSkillAdapter extends AbstractSkillAdapter {
       return [
          {
             name: 'jellyfin_search_music',
-            description: 'Recherche des artistes, albums ou morceaux dans votre bibliothèque musicale Jellyfin.',
+            description: 'Search for artists, albums, or tracks in your Jellyfin music library.',
             parameters: {
-               query: { type: 'string', description: 'Nom de l\'artiste, titre de l\'album ou morceau à chercher', required: true },
-               type: { type: 'string', description: 'Type de média à chercher: MusicArtist, MusicAlbum, Audio ou all', required: false }
+               query: { type: 'string', description: 'Artist name, album title, or track query to search for', required: true },
+               type: { type: 'string', description: 'Media item type filter: MusicArtist, MusicAlbum, Audio, or all', required: false }
             }
          },
          {
             name: 'jellyfin_get_artist_details',
-            description: 'Obtient les détails complets et la discographie d\'un artiste sur Jellyfin.',
+            description: 'Fetch detailed information and discography for an artist on Jellyfin.',
             parameters: {
-               artistName: { type: 'string', description: 'Nom de l\'artiste', required: true }
+               artistName: { type: 'string', description: 'Name of the artist', required: true }
             }
          },
          {
             name: 'jellyfin_get_playlists',
-            description: 'Liste les playlists musicales de votre compte Jellyfin.',
+            description: 'List music playlists from your Jellyfin account.',
             parameters: {}
          },
          {
             name: 'jellyfin_ingest_artist_concept',
-            description: 'Crée ou met à jour une fiche concept OKF v0.1 pour un artiste musical dans votre Second Brain.',
+            description: 'Create or update an OKF v0.1 concept markdown sheet for a music artist in your Second Brain.',
             parameters: {
-               artistName: { type: 'string', description: 'Nom de l\'artiste', required: true },
-               summary: { type: 'string', description: 'Court résumé ou biographie de l\'artiste', required: false },
-               albums: { type: 'array', description: 'Liste des albums principaux de l\'artiste', required: false }
+               artistName: { type: 'string', description: 'Name of the artist', required: true },
+               summary: { type: 'string', description: 'Short summary or bio of the artist', required: false },
+               albums: { type: 'array', description: 'List of main albums for the artist', required: false }
             }
          }
       ];
@@ -124,22 +124,22 @@ export class JellyfinSkillAdapter extends AbstractSkillAdapter {
       const details = await this.client.getArtistDetails(artistName);
       const name = details?.name || artistName;
       const id = slugify(name);
-      const bio = summary || details?.overview || `Fiche artiste et discographie pour ${name} issue de Jellyfin.`;
+      const bio = summary || details?.overview || `Artist profile and discography for ${name} imported from Jellyfin.`;
       
       const albums = albumsList || details?.albums || [];
       const albumsFormatted = albums.length > 0
          ? albums.map(a => `- **${a.name}**${a.productionYear ? ` (${a.productionYear})` : ''}`).join('\n')
-         : '*Aucun album répertorié dans Jellyfin.*';
+         : '*No albums found in Jellyfin.*';
 
       const markdownBody = `## ${name}
 
 ${bio}
 
-### Albums dans la bibliothèque
+### Albums in Library
 ${albumsFormatted}
 
 ---
-*Source : Bibliothèque audio Jellyfin (Modaka Skill)*
+*Source: Jellyfin Audio Library (Modaka Skill)*
 `;
 
       const item = await ContentItem.factory();
@@ -156,7 +156,7 @@ ${albumsFormatted}
       item.set('type', 'concept');
       item.set('category', 'concepts');
       item.set('summary', bio);
-      item.set('tags', ['musique', 'jellyfin', 'artiste', slugify(name)]);
+      item.set('tags', ['music', 'jellyfin', 'artist', slugify(name)]);
       item.set('body', markdownBody);
       item.set('source', 'Skill Jellyfin');
 
@@ -164,7 +164,7 @@ ${albumsFormatted}
 
       return {
          success: true,
-         message: `Fiche concept créée avec succès pour l'artiste ${name}`,
+         message: `Successfully created concept sheet for artist ${name}`,
          item: {
             id,
             title: name,
