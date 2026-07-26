@@ -43,6 +43,7 @@
     "@quatrain/queue": "^1.2.3",
     "@quatrain/queue-sqlite": "^1.0.1",
     "@quatrain/searchengine": "^1.0.0",
+    "@quatrain/skills": "^1.0.3",
     "@quatrain/searchengine-qmd": "^1.0.0",
     "@quatrain/storage": "^1.2.13",
     "@quatrain/storage-git": "^1.2.13",
