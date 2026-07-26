@@ -25,7 +25,8 @@ import {
        IconQrcode,
        IconLink,
        IconPuzzle,
-       IconSparkles
+       IconSparkles,
+       IconKey
     } from '@tabler/icons-react';
 
    const ONBOARDING_SUBTHEMES = [
@@ -2705,6 +2706,30 @@ canvas.width = width;
                   >
                      <IconQrcode size={18} />
                   </button>
+
+                  <button
+                      onClick={() => setShowProfileModal(true)}
+                      style={{
+                         background: 'rgba(59, 130, 246, 0.12)',
+                         border: '1px solid rgba(59, 130, 246, 0.3)',
+                         borderRadius: '10px',
+                         height: '38px',
+                         padding: '0 12px',
+                         display: 'flex',
+                         alignItems: 'center',
+                         gap: '6px',
+                         color: '#60a5fa',
+                         fontSize: '13px',
+                         fontWeight: '600',
+                         cursor: 'pointer',
+                         transition: 'all 0.2s ease',
+                         marginRight: '4px'
+                      }}
+                      title="Configurer votre Clé API Google Gemini"
+                   >
+                      <IconKey size={18} />
+                      <span>Clé Gemini</span>
+                   </button>
 
                  <button
                      onClick={() => setShowProfileModal(true)}
