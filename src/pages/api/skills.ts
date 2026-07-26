@@ -9,14 +9,10 @@ export const GET: APIRoute = async () => {
    try {
       await initBackend();
 
-      const registeredSkills = Array.from(Skills.getSkills().entries()).map(([alias, adapter]) => {
-         const manifest = adapter.manifest || {
-            id: alias,
-            name: adapter.name,
-            description: adapter.description,
-            icon: '⚡',
-            fields: []
-         };
+      const catalogSkills = Skills.getCatalog().map((reg) => {
+         const alias = reg.alias;
+         const manifest = reg.manifest;
+         const adapter = reg.instance || Skills.getSkill(alias);
 
          // Build current values from env/config
          let currentValues: Record<string, any> = {};
@@ -36,7 +32,7 @@ export const GET: APIRoute = async () => {
          return {
             alias,
             manifest,
-            tools: adapter.getTools(),
+            tools: adapter ? adapter.getTools() : [],
             values: currentValues,
             configured
          };
@@ -44,13 +40,13 @@ export const GET: APIRoute = async () => {
 
       return new Response(JSON.stringify({
          success: true,
-         skills: registeredSkills
+         skills: catalogSkills
       }), {
          status: 200,
          headers: { 'Content-Type': 'application/json' }
       });
    } catch (err: any) {
-      return new Response(JSON.stringify({ error: err.message || 'Failed to fetch skills' }), {
+      return new Response(JSON.stringify({ error: err.message || 'Failed to fetch skills catalog' }), {
          status: 500,
          headers: { 'Content-Type': 'application/json' }
       });
@@ -64,16 +60,14 @@ export const POST: APIRoute = async ({ request }) => {
       const action = body.action || 'test';
       const skillAlias = body.skillAlias || body.skillId || 'jellyfin';
 
-      const adapter = Skills.getSkill(skillAlias);
-      if (!adapter) {
-         return new Response(JSON.stringify({ error: `Skill '${skillAlias}' non enregistré.` }), {
-            status: 400,
-            headers: { 'Content-Type': 'application/json' }
-         });
-      }
+      let adapter = Skills.getSkill(skillAlias);
 
       if (action === 'test' || action === 'test_skill' || action === 'test_jellyfin') {
-         if (adapter.testConnection) {
+         if (!adapter) {
+            // Instantiate temporary instance from factory to test
+            adapter = await Skills.activateSkill(skillAlias, body.values || body);
+         }
+         if (adapter && adapter.testConnection) {
             const values = body.values || body;
             const res = await adapter.testConnection(values);
             return new Response(JSON.stringify(res), {
@@ -81,12 +75,12 @@ export const POST: APIRoute = async ({ request }) => {
                headers: { 'Content-Type': 'application/json' }
             });
          }
-         return new Response(JSON.stringify({ success: true, message: 'Skill disponible.' }), { status: 200 });
+         return new Response(JSON.stringify({ success: true, message: 'Skill available.' }), { status: 200 });
       }
 
       if (action === 'detect_libraries') {
          if (skillAlias === 'jellyfin') {
-            const jellyfinSkill = adapter as JellyfinSkillAdapter;
+            const { JellyfinSkillAdapter } = await import('../../lib/skills/jellyfin/JellyfinSkillAdapter');
             const tempConfig = {
                url: body.url || process.env.JELLYFIN_URL || 'http://localhost:8096',
                apiKey: (body.apiKey && body.apiKey !== '••••••••') ? body.apiKey : process.env.JELLYFIN_API_KEY,
@@ -116,24 +110,25 @@ export const POST: APIRoute = async ({ request }) => {
             if (values.username !== undefined) process.env.JELLYFIN_USERNAME = values.username;
             if (values.password !== undefined && values.password !== '••••••••') process.env.JELLYFIN_PASSWORD = values.password;
             if (values.libraryName !== undefined) process.env.JELLYFIN_LIBRARY_NAME = values.libraryName;
+         }
 
-            if (adapter.updateConfig) {
-               adapter.updateConfig(values);
-            }
+         // Dynamically activate or update adapter
+         if (!adapter) {
+            adapter = await Skills.activateSkill(skillAlias, values);
          } else if (adapter.updateConfig) {
             adapter.updateConfig(values);
          }
 
          return new Response(JSON.stringify({
             success: true,
-            message: `Configuration du skill '${adapter.manifest.name}' enregistrée avec succès.`
+            message: `Skill configuration for '${adapter.manifest.name}' saved and activated successfully.`
          }), {
             status: 200,
             headers: { 'Content-Type': 'application/json' }
          });
       }
 
-      return new Response(JSON.stringify({ error: `Action '${action}' inconnue.` }), {
+      return new Response(JSON.stringify({ error: `Unknown action '${action}'.` }), {
          status: 400,
          headers: { 'Content-Type': 'application/json' }
       });

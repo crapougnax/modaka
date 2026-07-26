@@ -475,11 +475,18 @@ export async function initBackend() {
    Ingestion.addAdapter(new AudioIngestionAdapter(), 'audio');
    Ingestion.addAdapter(new WebIngestionAdapter(), 'web');
 
-   // Initialize Skills Adapters
+   // Initialize Skills Packages (Lazy discovery & dynamic activation)
    const { Skills } = await import('./skills/Skills');
-   const { JellyfinSkillAdapter } = await import('./skills/jellyfin/JellyfinSkillAdapter');
-   if (!Skills.hasSkill('jellyfin')) {
-      Skills.addSkill('jellyfin', new JellyfinSkillAdapter());
+   const jellyfinManifest = (await import('./skills/jellyfin/skill.json')).default;
+
+   Skills.registerPackage('jellyfin', jellyfinManifest, async (cfg) => {
+      const { JellyfinSkillAdapter } = await import('./skills/jellyfin/JellyfinSkillAdapter');
+      return new JellyfinSkillAdapter(cfg);
+   });
+
+   // Auto-activate skill if configuration credentials exist
+   if (process.env.JELLYFIN_API_KEY || (process.env.JELLYFIN_USERNAME && process.env.JELLYFIN_PASSWORD)) {
+      await Skills.activateSkill('jellyfin');
    }
 
    // 6. Initialize Queue Adapter
