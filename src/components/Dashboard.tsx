@@ -245,6 +245,8 @@ export default function Dashboard({
          if (res.ok && data.success) {
             setNotification({ message: '🟢 Configuration du Skill Jellyfin enregistrée !', type: 'success' });
             fetchSkillsData();
+            setSelectedSkillId(null);
+            setShowSkillsModal(false);
          } else {
             setNotification({ message: `🔴 ${data.error}`, type: 'error' });
          }
@@ -921,6 +923,7 @@ export default function Dashboard({
    }, [showLlmModal]);
 
    const handleSaveLlmConfig = async () => {
+      setShowLlmModal(false);
       try {
          const res = await fetch('/api/config');
          if (res.ok) {
@@ -943,7 +946,6 @@ export default function Dashboard({
                message: '🟢 Configuration du moteur IA enregistrée avec succès !',
                type: 'success'
             });
-            setShowLlmModal(false);
          }
       } catch (err: any) {
          setNotification({
