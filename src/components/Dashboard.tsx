@@ -886,21 +886,103 @@ export default function Dashboard({
       }
    }, [activeTab, selectedDoc]);
 
+   const [showLlmModal, setShowLlmModal] = useState<boolean>(false);
+   const [modalLlmProvider, setModalLlmProvider] = useState<'gemini' | 'llama'>('gemini');
+   const [modalLlmModel, setModalLlmModel] = useState<string>('gemini-2.5-flash');
+   const [modalLlmApiKey, setModalLlmApiKey] = useState<string>('');
+   const [modalLlamaEndpoint, setModalLlamaEndpoint] = useState<string>('http://localhost:11434');
+   const [isTestingLlmInModal, setIsTestingLlmInModal] = useState<boolean>(false);
+   const [llmTestStatusInModal, setLlmTestStatusInModal] = useState<{ success: boolean; message: string } | null>(null);
+
    const [modalName, setModalName] = useState<string>('');
    const [modalEmail, setModalEmail] = useState<string>('');
    const [modalLanguage, setModalLanguage] = useState<string>('Français');
    const [modalTtsProvider, setModalTtsProvider] = useState<string>('Browser');
    const [modalElevenLabsApiKey, setModalElevenLabsApiKey] = useState<string>('');
    const [modalElevenLabsVoiceId, setModalElevenLabsVoiceId] = useState<string>('bVsJfghVbJypxgwVISO3');
-   const [modalGeminiApiKey, setModalGeminiApiKey] = useState<string>('');
-   const [modalGeminiModel, setModalGeminiModel] = useState<string>('gemini-2.5-flash');
-   const [isTestingGeminiInModal, setIsTestingGeminiInModal] = useState<boolean>(false);
-   const [geminiTestStatus, setGeminiTestStatus] = useState<{ success: boolean; message: string } | null>(null);
 
    const [searchQuery, setSearchQuery] = useState<string>('');
    const [showCategoryModal, setShowCategoryModal] = useState<boolean>(false);
    const [showClassifyModal, setShowClassifyModal] = useState<boolean>(false);
    const [customCategoryInput, setCustomCategoryInput] = useState<string>('');
+
+   useEffect(() => {
+      if (showLlmModal) {
+         setLlmTestStatusInModal(null);
+         fetch('/api/config').then(r => r.ok ? r.json() : null).then(cfg => {
+            if (cfg && cfg.llm) {
+               setModalLlmProvider(cfg.llm.provider || 'gemini');
+               setModalLlmModel(cfg.llm.model || 'gemini-2.5-flash');
+               setModalLlmApiKey(cfg.llm.apiKey || '');
+               setModalLlamaEndpoint(cfg.llm.llamaEndpoint || 'http://localhost:11434');
+            }
+         }).catch(() => {});
+      }
+   }, [showLlmModal]);
+
+   const handleSaveLlmConfig = async () => {
+      try {
+         const res = await fetch('/api/config');
+         if (res.ok) {
+            const currentConfig = await res.json();
+            const updatedConfig = {
+               ...currentConfig,
+               llm: {
+                  provider: modalLlmProvider,
+                  model: modalLlmModel,
+                  apiKey: modalLlmApiKey,
+                  llamaEndpoint: modalLlamaEndpoint
+               }
+            };
+            await fetch('/api/config', {
+               method: 'POST',
+               headers: { 'Content-Type': 'application/json' },
+               body: JSON.stringify(updatedConfig)
+            });
+            setNotification({
+               message: '🟢 Configuration du moteur IA enregistrée avec succès !',
+               type: 'success'
+            });
+            setShowLlmModal(false);
+         }
+      } catch (err: any) {
+         setNotification({
+            message: `Erreur d'enregistrement : ${err.message}`,
+            type: 'error'
+         });
+      }
+   };
+
+   const handleTestLlmInModal = async () => {
+      setIsTestingLlmInModal(true);
+      setLlmTestStatusInModal(null);
+      try {
+         if (modalLlmProvider === 'gemini') {
+            const res = await fetch('/api/test-key', {
+               method: 'POST',
+               headers: { 'Content-Type': 'application/json' },
+               body: JSON.stringify({ apiKey: modalLlmApiKey })
+            });
+            const data = await res.json();
+            if (res.ok && data.success) {
+               setLlmTestStatusInModal({ success: true, message: data.message || 'Clé API Gemini validée !' });
+            } else {
+               setLlmTestStatusInModal({ success: false, message: data.error || 'Clé API invalide.' });
+            }
+         } else {
+            const res = await fetch(`${modalLlamaEndpoint}/v1/models`).catch(() => null);
+            if (res && res.ok) {
+               setLlmTestStatusInModal({ success: true, message: 'Moteur LLM Local accessible !' });
+            } else {
+               setLlmTestStatusInModal({ success: false, message: `Impossible de contacter l'endpoint local (${modalLlamaEndpoint})` });
+            }
+         }
+      } catch (err: any) {
+         setLlmTestStatusInModal({ success: false, message: `Erreur de connexion : ${err.message}` });
+      } finally {
+         setIsTestingLlmInModal(false);
+      }
+   };
 
    useEffect(() => {
       if (showProfileModal) {
@@ -2708,7 +2790,7 @@ canvas.width = width;
                   </button>
 
                   <button
-                      onClick={() => setShowProfileModal(true)}
+                      onClick={() => setShowLlmModal(true)}
                       style={{
                          background: 'rgba(59, 130, 246, 0.12)',
                          border: '1px solid rgba(59, 130, 246, 0.3)',
@@ -2725,10 +2807,10 @@ canvas.width = width;
                          transition: 'all 0.2s ease',
                          marginRight: '4px'
                       }}
-                      title="Configurer votre Clé API Google Gemini"
+                      title="Configurer le Moteur IA / LLM (Gemini, Llama...)"
                    >
-                      <IconKey size={18} />
-                      <span>Clé Gemini</span>
+                      <IconSparkles size={18} />
+                      <span>Moteur LLM</span>
                    </button>
 
                  <button
@@ -4940,6 +5022,243 @@ canvas.width = width;
                </div>
             </div>
          )}
+
+          {showLlmModal && (
+             <div 
+                style={{
+                   position: 'fixed',
+                   top: 0,
+                   left: 0,
+                   right: 0,
+                   bottom: 0,
+                   backgroundColor: 'rgba(9, 13, 22, 0.85)',
+                   backdropFilter: 'blur(12px)',
+                   display: 'flex',
+                   alignItems: 'center',
+                   justifyContent: 'center',
+                   zIndex: 1000,
+                   padding: '20px',
+                   boxSizing: 'border-box'
+                }}
+                onClick={(e) => {
+                   if (e.target === e.currentTarget) {
+                      setShowLlmModal(false);
+                   }
+                }}
+             >
+                <div 
+                   style={{
+                      backgroundColor: '#131924',
+                      padding: '24px',
+                      borderRadius: '24px',
+                      border: '1px solid rgba(59, 130, 246, 0.25)',
+                      maxWidth: '480px',
+                      width: '100%',
+                      boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.8)',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '18px',
+                      position: 'relative'
+                   }}
+                >
+                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                         <IconSparkles size={22} style={{ color: '#3b82f6' }} />
+                         <h3 style={{ fontSize: '18px', fontWeight: 'bold', color: '#fff', margin: 0 }}>Moteur IA & LLM</h3>
+                      </div>
+                      <button 
+                         onClick={() => setShowLlmModal(false)}
+                         style={{ background: 'none', border: 'none', color: '#fff', fontSize: '18px', cursor: 'pointer', opacity: 0.6 }}
+                      >
+                         ✕
+                      </button>
+                   </div>
+
+                   <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.6)', lineHeight: '1.4', margin: 0 }}>
+                      Sélectionnez et configurez le modèle de langage (LLM) utilisé par Modaka pour l'intelligence, la synthèse et le chat.
+                   </p>
+
+                   <form 
+                      onSubmit={(e) => {
+                         e.preventDefault();
+                         handleSaveLlmConfig();
+                      }}
+                      style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}
+                   >
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                         <label style={{ fontSize: '13px', color: 'rgba(255,255,255,0.7)', fontWeight: '600' }}>Fournisseur IA :</label>
+                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                            <button
+                               type="button"
+                               onClick={() => setModalLlmProvider('gemini')}
+                               style={{
+                                  padding: '12px',
+                                  borderRadius: '12px',
+                                  backgroundColor: modalLlmProvider === 'gemini' ? 'rgba(59, 130, 246, 0.2)' : 'rgba(255,255,255,0.04)',
+                                  border: modalLlmProvider === 'gemini' ? '1px solid #3b82f6' : '1px solid rgba(255,255,255,0.08)',
+                                  color: modalLlmProvider === 'gemini' ? '#60a5fa' : '#fff',
+                                  fontWeight: '600',
+                                  fontSize: '13px',
+                                  cursor: 'pointer',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  gap: '8px'
+                               }}
+                            >
+                               ⚡ Google Gemini
+                            </button>
+                            <button
+                               type="button"
+                               onClick={() => setModalLlmProvider('llama')}
+                               style={{
+                                  padding: '12px',
+                                  borderRadius: '12px',
+                                  backgroundColor: modalLlmProvider === 'llama' ? 'rgba(16, 185, 129, 0.2)' : 'rgba(255,255,255,0.04)',
+                                  border: modalLlmProvider === 'llama' ? '1px solid #10b981' : '1px solid rgba(255,255,255,0.08)',
+                                  color: modalLlmProvider === 'llama' ? '#34d399' : '#fff',
+                                  fontWeight: '600',
+                                  fontSize: '13px',
+                                  cursor: 'pointer',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  gap: '8px'
+                               }}
+                            >
+                               🦙 LLM Local (Ollama / Llama.cpp)
+                            </button>
+                         </div>
+                      </div>
+
+                      {modalLlmProvider === 'gemini' ? (
+                         <>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                               <label style={{ fontSize: '13px', color: 'rgba(255,255,255,0.7)', fontWeight: '600' }}>Clé API Google Gemini (AI Studio) :</label>
+                               <div style={{ display: 'flex', gap: '8px' }}>
+                                  <input 
+                                     type="password" 
+                                     className="action-input-sm"
+                                     value={modalLlmApiKey}
+                                     onChange={(e) => {
+                                        setModalLlmApiKey(e.target.value);
+                                        setLlmTestStatusInModal(null);
+                                     }}
+                                     placeholder="AIzaSy..."
+                                     style={{ flex: 1, boxSizing: 'border-box' }}
+                                  />
+                                  <button
+                                     type="button"
+                                     onClick={handleTestLlmInModal}
+                                     disabled={isTestingLlmInModal}
+                                     style={{
+                                        backgroundColor: 'rgba(59, 130, 246, 0.2)',
+                                        border: '1px solid rgba(59, 130, 246, 0.4)',
+                                        color: '#60a5fa',
+                                        borderRadius: '10px',
+                                        padding: '0 14px',
+                                        fontSize: '12px',
+                                        fontWeight: '600',
+                                        cursor: 'pointer',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '6px'
+                                     }}
+                                  >
+                                     {isTestingLlmInModal ? <IconLoader2 size={14} style={{ animation: 'spin 1.5s linear infinite' }} /> : 'Tester'}
+                                  </button>
+                               </div>
+                               {llmTestStatusInModal && (
+                                  <span style={{ fontSize: '12px', color: llmTestStatusInModal.success ? 'var(--color-vivid-green)' : '#f87171', fontWeight: '500', marginTop: '2px' }}>
+                                     {llmTestStatusInModal.success ? '🟢 ' : '🔴 '}{llmTestStatusInModal.message}
+                                  </span>
+                               )}
+                            </div>
+
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                               <label style={{ fontSize: '13px', color: 'rgba(255,255,255,0.7)', fontWeight: '600' }}>Modèle Gemini :</label>
+                               <select 
+                                  className="action-input-sm"
+                                  value={modalLlmModel}
+                                  onChange={(e) => setModalLlmModel(e.target.value)}
+                                  style={{ width: '100%', boxSizing: 'border-box', backgroundColor: '#182030', color: '#fff', border: '1px solid rgba(255,255,255,0.08)' }}
+                               >
+                                  <option value="gemini-2.5-flash">Gemini 2.5 Flash (Recommandé - Ultra Rapide) ⚡</option>
+                                  <option value="gemini-2.5-pro">Gemini 2.5 Pro (Raisonnement Avancé) 🧠</option>
+                                  <option value="gemini-1.5-flash">Gemini 1.5 Flash ⚡</option>
+                                  <option value="gemini-1.5-pro">Gemini 1.5 Pro 🧠</option>
+                               </select>
+                            </div>
+                         </>
+                      ) : (
+                         <>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                               <label style={{ fontSize: '13px', color: 'rgba(255,255,255,0.7)', fontWeight: '600' }}>Endpoint Local (Ollama / Llama.cpp) :</label>
+                               <div style={{ display: 'flex', gap: '8px' }}>
+                                  <input 
+                                     type="text" 
+                                     className="action-input-sm"
+                                     value={modalLlamaEndpoint}
+                                     onChange={(e) => {
+                                        setModalLlamaEndpoint(e.target.value);
+                                        setLlmTestStatusInModal(null);
+                                     }}
+                                     placeholder="http://localhost:11434"
+                                     style={{ flex: 1, boxSizing: 'border-box' }}
+                                  />
+                                  <button
+                                     type="button"
+                                     onClick={handleTestLlmInModal}
+                                     disabled={isTestingLlmInModal}
+                                     style={{
+                                        backgroundColor: 'rgba(16, 185, 129, 0.2)',
+                                        border: '1px solid rgba(16, 185, 129, 0.4)',
+                                        color: '#34d399',
+                                        borderRadius: '10px',
+                                        padding: '0 14px',
+                                        fontSize: '12px',
+                                        fontWeight: '600',
+                                        cursor: 'pointer',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '6px'
+                                     }}
+                                  >
+                                     {isTestingLlmInModal ? <IconLoader2 size={14} style={{ animation: 'spin 1.5s linear infinite' }} /> : 'Tester'}
+                                  </button>
+                               </div>
+                               {llmTestStatusInModal && (
+                                  <span style={{ fontSize: '12px', color: llmTestStatusInModal.success ? 'var(--color-vivid-green)' : '#f87171', fontWeight: '500', marginTop: '2px' }}>
+                                     {llmTestStatusInModal.success ? '🟢 ' : '🔴 '}{llmTestStatusInModal.message}
+                                  </span>
+                               )}
+                            </div>
+
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                               <label style={{ fontSize: '13px', color: 'rgba(255,255,255,0.7)', fontWeight: '600' }}>Nom du Modèle Local :</label>
+                               <input 
+                                  type="text" 
+                                  className="action-input-sm"
+                                  value={modalLlmModel}
+                                  onChange={(e) => setModalLlmModel(e.target.value)}
+                                  placeholder="llama3, mistral, qwen2..."
+                                  style={{ width: '100%', boxSizing: 'border-box' }}
+                               />
+                            </div>
+                         </>
+                      )}
+
+                      <button 
+                         type="submit" 
+                         className="action-button" 
+                         style={{ height: '48px', fontWeight: '600', marginTop: '6px', cursor: 'pointer' }}
+                      >
+                         Enregistrer la configuration IA
+                      </button>
+                   </form>
+                </div>
+             </div>
+          )}
 
          {showProfileModal && (
             <div 
