@@ -2,54 +2,10 @@ import { AbstractSkillAdapter, type ToolDefinition, type SkillManifest } from '.
 import { JellyfinClient, type JellyfinConfig } from './JellyfinClient';
 import { ContentItem } from '../../models/ContentItem';
 import { slugify } from '../../utils/text';
+import skillManifest from './skill.json';
 
 export class JellyfinSkillAdapter extends AbstractSkillAdapter {
-   readonly manifest: SkillManifest = {
-      id: 'jellyfin',
-      name: 'Jellyfin Audio & Musique',
-      description: 'Explore votre bibliothèque audio Jellyfin, vos playlists et génère des fiches concepts OKF pour vos artistes et albums.',
-      icon: '🎵',
-      category: 'media',
-      fields: [
-         {
-            name: 'url',
-            label: 'URL du serveur Jellyfin',
-            type: 'text',
-            placeholder: 'http://localhost:8096',
-            default: 'http://localhost:8096',
-            required: true
-         },
-         {
-            name: 'apiKey',
-            label: 'Clé API Jellyfin (Authentification Directe)',
-            type: 'password',
-            placeholder: 'Saisissez votre clé d\'API Jellyfin (Recommandé)...',
-            required: false
-         },
-         {
-            name: 'username',
-            label: 'Nom d\'utilisateur Jellyfin',
-            type: 'text',
-            placeholder: 'Nom de compte Jellyfin...',
-            required: false
-         },
-         {
-            name: 'password',
-            label: 'Mot de passe Jellyfin',
-            type: 'password',
-            placeholder: 'Mot de passe...',
-            required: false
-         },
-         {
-            name: 'libraryName',
-            label: 'Nom du dossier / Bibliothèque Média cible',
-            type: 'text',
-            placeholder: 'Musique Olivier, Audio, ...',
-            description: 'Filtre optionnel pour limiter les requêtes à une bibliothèque spécifique.',
-            required: false
-         }
-      ]
-   };
+   readonly manifest: SkillManifest = skillManifest as SkillManifest;
 
    protected client: JellyfinClient;
 
