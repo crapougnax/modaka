@@ -9,40 +9,42 @@ export const GET: APIRoute = async () => {
    try {
       await initBackend();
 
-      const registeredSkills = Array.from(Skills.getSkills().entries()).map(([alias, adapter]) => ({
-         alias,
-         name: adapter.name,
-         description: adapter.description,
-         tools: adapter.getTools()
-      }));
+      const registeredSkills = Array.from(Skills.getSkills().entries()).map(([alias, adapter]) => {
+         const manifest = adapter.manifest || {
+            id: alias,
+            name: adapter.name,
+            description: adapter.description,
+            icon: '⚡',
+            fields: []
+         };
 
-      const jellyfinSkill = Skills.getSkill('jellyfin') as JellyfinSkillAdapter | undefined;
-      let jellyfinStatus = { connected: false, error: 'Non configuré' };
-      let jellyfinConfig = {
-         url: process.env.JELLYFIN_URL || 'http://localhost:8096',
-         apiKey: process.env.JELLYFIN_API_KEY ? '••••••••' : '',
-         hasApiKey: !!process.env.JELLYFIN_API_KEY,
-         username: process.env.JELLYFIN_USERNAME || '',
-         libraryName: process.env.JELLYFIN_LIBRARY_NAME || '',
-         parentId: process.env.JELLYFIN_PARENT_ID || ''
-      };
+         // Build current values from env/config
+         let currentValues: Record<string, any> = {};
+         let configured = false;
 
-      if (jellyfinSkill) {
-         const testRes = await jellyfinSkill.getClient().testConnection();
-         if (testRes.success) {
-            jellyfinStatus = { connected: true, error: '' };
-         } else {
-            jellyfinStatus = { connected: false, error: testRes.error || 'Connexion échouée' };
+         if (alias === 'jellyfin') {
+            currentValues = {
+               url: process.env.JELLYFIN_URL || 'http://localhost:8096',
+               apiKey: process.env.JELLYFIN_API_KEY ? '••••••••' : '',
+               username: process.env.JELLYFIN_USERNAME || '',
+               password: process.env.JELLYFIN_PASSWORD ? '••••••••' : '',
+               libraryName: process.env.JELLYFIN_LIBRARY_NAME || ''
+            };
+            configured = !!(process.env.JELLYFIN_API_KEY || (process.env.JELLYFIN_USERNAME && process.env.JELLYFIN_PASSWORD));
          }
-      }
+
+         return {
+            alias,
+            manifest,
+            tools: adapter.getTools(),
+            values: currentValues,
+            configured
+         };
+      });
 
       return new Response(JSON.stringify({
          success: true,
-         skills: registeredSkills,
-         jellyfin: {
-            status: jellyfinStatus,
-            config: jellyfinConfig
-         }
+         skills: registeredSkills
       }), {
          status: 200,
          headers: { 'Content-Type': 'application/json' }
@@ -60,87 +62,71 @@ export const POST: APIRoute = async ({ request }) => {
       await initBackend();
       const body = await request.json();
       const action = body.action || 'test';
+      const skillAlias = body.skillAlias || body.skillId || 'jellyfin';
 
-      const jellyfinSkill = Skills.getSkill('jellyfin') as JellyfinSkillAdapter | undefined;
-      if (!jellyfinSkill) {
-         return new Response(JSON.stringify({ error: 'Skill Jellyfin non enregistré' }), {
+      const adapter = Skills.getSkill(skillAlias);
+      if (!adapter) {
+         return new Response(JSON.stringify({ error: `Skill '${skillAlias}' non enregistré.` }), {
             status: 400,
             headers: { 'Content-Type': 'application/json' }
          });
       }
 
-      if (action === 'test' || action === 'test_jellyfin') {
-         const tempConfig = {
-            url: body.url || process.env.JELLYFIN_URL || 'http://localhost:8096',
-            apiKey: (body.apiKey && body.apiKey !== '••••••••') ? body.apiKey : process.env.JELLYFIN_API_KEY,
-            username: body.username !== undefined ? body.username : process.env.JELLYFIN_USERNAME,
-            password: body.password || process.env.JELLYFIN_PASSWORD,
-            libraryName: body.libraryName !== undefined ? body.libraryName : process.env.JELLYFIN_LIBRARY_NAME,
-            parentId: body.parentId !== undefined ? body.parentId : process.env.JELLYFIN_PARENT_ID
-         };
-
-         const tempAdapter = new JellyfinSkillAdapter(tempConfig);
-         const res = await tempAdapter.getClient().testConnection();
-
-         if (res.success) {
-            return new Response(JSON.stringify({
-               success: true,
-               message: `Connexion réussie au serveur Jellyfin "${res.serverName}" (v${res.version})`
-            }), {
-               status: 200,
+      if (action === 'test' || action === 'test_skill' || action === 'test_jellyfin') {
+         if (adapter.testConnection) {
+            const values = body.values || body;
+            const res = await adapter.testConnection(values);
+            return new Response(JSON.stringify(res), {
+               status: res.success ? 200 : 400,
                headers: { 'Content-Type': 'application/json' }
             });
-         } else {
+         }
+         return new Response(JSON.stringify({ success: true, message: 'Skill disponible.' }), { status: 200 });
+      }
+
+      if (action === 'detect_libraries') {
+         if (skillAlias === 'jellyfin') {
+            const jellyfinSkill = adapter as JellyfinSkillAdapter;
+            const tempConfig = {
+               url: body.url || process.env.JELLYFIN_URL || 'http://localhost:8096',
+               apiKey: (body.apiKey && body.apiKey !== '••••••••') ? body.apiKey : process.env.JELLYFIN_API_KEY,
+               username: body.username !== undefined ? body.username : process.env.JELLYFIN_USERNAME,
+               password: body.password || process.env.JELLYFIN_PASSWORD
+            };
+
+            const tempAdapter = new JellyfinSkillAdapter(tempConfig);
+            const libraries = await tempAdapter.getClient().getLibraries();
+
             return new Response(JSON.stringify({
-               success: false,
-               error: res.error || 'Impossible de se connecter au serveur Jellyfin'
+               success: true,
+               libraries
             }), {
-               status: 400,
+               status: 200,
                headers: { 'Content-Type': 'application/json' }
             });
          }
       }
 
-      if (action === 'detect_libraries') {
-         const tempConfig = {
-            url: body.url || process.env.JELLYFIN_URL || 'http://localhost:8096',
-            apiKey: (body.apiKey && body.apiKey !== '••••••••') ? body.apiKey : process.env.JELLYFIN_API_KEY,
-            username: body.username !== undefined ? body.username : process.env.JELLYFIN_USERNAME,
-            password: body.password || process.env.JELLYFIN_PASSWORD
-         };
+      if (action === 'save_skill_config' || action === 'save_jellyfin_config' || action === 'save') {
+         const values = body.values || body;
 
-         const tempAdapter = new JellyfinSkillAdapter(tempConfig);
-         const libraries = await tempAdapter.getClient().getLibraries();
+         if (skillAlias === 'jellyfin') {
+            if (values.url) process.env.JELLYFIN_URL = values.url;
+            if (values.apiKey && values.apiKey !== '••••••••') process.env.JELLYFIN_API_KEY = values.apiKey;
+            if (values.username !== undefined) process.env.JELLYFIN_USERNAME = values.username;
+            if (values.password !== undefined && values.password !== '••••••••') process.env.JELLYFIN_PASSWORD = values.password;
+            if (values.libraryName !== undefined) process.env.JELLYFIN_LIBRARY_NAME = values.libraryName;
 
-         return new Response(JSON.stringify({
-            success: true,
-            libraries
-         }), {
-            status: 200,
-            headers: { 'Content-Type': 'application/json' }
-         });
-      }
-
-      if (action === 'save_jellyfin_config') {
-         if (body.url) process.env.JELLYFIN_URL = body.url;
-         if (body.apiKey && body.apiKey !== '••••••••') process.env.JELLYFIN_API_KEY = body.apiKey;
-         if (body.username !== undefined) process.env.JELLYFIN_USERNAME = body.username;
-         if (body.password !== undefined) process.env.JELLYFIN_PASSWORD = body.password;
-         if (body.libraryName !== undefined) process.env.JELLYFIN_LIBRARY_NAME = body.libraryName;
-         if (body.parentId !== undefined) process.env.JELLYFIN_PARENT_ID = body.parentId;
-
-         jellyfinSkill.updateConfig({
-            url: process.env.JELLYFIN_URL,
-            apiKey: process.env.JELLYFIN_API_KEY,
-            username: process.env.JELLYFIN_USERNAME,
-            password: process.env.JELLYFIN_PASSWORD,
-            libraryName: process.env.JELLYFIN_LIBRARY_NAME,
-            parentId: process.env.JELLYFIN_PARENT_ID
-         });
+            if (adapter.updateConfig) {
+               adapter.updateConfig(values);
+            }
+         } else if (adapter.updateConfig) {
+            adapter.updateConfig(values);
+         }
 
          return new Response(JSON.stringify({
             success: true,
-            message: 'Configuration Jellyfin enregistrée et mise à jour avec succès.'
+            message: `Configuration du skill '${adapter.manifest.name}' enregistrée avec succès.`
          }), {
             status: 200,
             headers: { 'Content-Type': 'application/json' }

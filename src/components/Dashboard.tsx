@@ -152,13 +152,9 @@ export default function Dashboard({
 
    const [showSkillsModal, setShowSkillsModal] = useState(false);
    const [skillsData, setSkillsData] = useState<any>(null);
-   const [jellyfinUrlInput, setJellyfinUrlInput] = useState('http://localhost:8096');
-   const [jellyfinApiKeyInput, setJellyfinApiKeyInput] = useState('');
-   const [jellyfinUsernameInput, setJellyfinUsernameInput] = useState('');
-   const [jellyfinPasswordInput, setJellyfinPasswordInput] = useState('');
-   const [jellyfinLibraryInput, setJellyfinLibraryInput] = useState('');
+   const [skillFormValues, setSkillFormValues] = useState<Record<string, Record<string, any>>>({});
+   const [testingSkillAlias, setTestingSkillAlias] = useState<string | null>(null);
    const [jellyfinLibraries, setJellyfinLibraries] = useState<any[]>([]);
-   const [isTestingJellyfin, setIsTestingJellyfin] = useState(false);
    const [isDetectingLibraries, setIsDetectingLibraries] = useState(false);
 
    const fetchSkillsData = async () => {
@@ -167,10 +163,23 @@ export default function Dashboard({
          if (res.ok) {
             const data = await res.json();
             setSkillsData(data);
-            if (data.jellyfin?.config) {
-               if (data.jellyfin.config.url) setJellyfinUrlInput(data.jellyfin.config.url);
-               if (data.jellyfin.config.username) setJellyfinUsernameInput(data.jellyfin.config.username);
-               if (data.jellyfin.config.libraryName) setJellyfinLibraryInput(data.jellyfin.config.libraryName);
+
+            // Populate form values from manifest defaults and server values
+            if (data.skills && Array.isArray(data.skills)) {
+               const initialValues: Record<string, Record<string, any>> = {};
+               for (const skill of data.skills) {
+                  const alias = skill.alias;
+                  initialValues[alias] = { ...skill.values };
+                  // Fill defaults for missing fields
+                  if (skill.manifest?.fields) {
+                     for (const field of skill.manifest.fields) {
+                        if (initialValues[alias][field.name] === undefined && field.default !== undefined) {
+                           initialValues[alias][field.name] = field.default;
+                        }
+                     }
+                  }
+               }
+               setSkillFormValues(prev => ({ ...initialValues, ...prev }));
             }
          }
       } catch (err) {
@@ -178,47 +187,79 @@ export default function Dashboard({
       }
    };
 
-   const handleTestJellyfinConnection = async () => {
-      setIsTestingJellyfin(true);
+   const handleFieldChange = (skillAlias: string, fieldName: string, value: any) => {
+      setSkillFormValues(prev => ({
+         ...prev,
+         [skillAlias]: {
+            ...(prev[skillAlias] || {}),
+            [fieldName]: value
+         }
+      }));
+   };
+
+   const handleTestSkill = async (skillAlias: string) => {
+      setTestingSkillAlias(skillAlias);
       try {
+         const values = skillFormValues[skillAlias] || {};
          const res = await fetch('/api/skills', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-               action: 'test_jellyfin',
-               url: jellyfinUrlInput,
-               apiKey: jellyfinApiKeyInput,
-               username: jellyfinUsernameInput,
-               password: jellyfinPasswordInput,
-               libraryName: jellyfinLibraryInput
+               action: 'test_skill',
+               skillAlias,
+               values
             })
          });
          const data = await res.json();
          if (res.ok && data.success) {
-            setNotification({ message: `🟢 ${data.message}`, type: 'success' });
+            setNotification({ message: `🟢 ${data.message || 'Connexion réussie au skill !'}`, type: 'success' });
             fetchSkillsData();
          } else {
-            setNotification({ message: `🔴 ${data.error || 'Connexion au serveur Jellyfin échouée'}`, type: 'error' });
+            setNotification({ message: `🔴 ${data.error || 'Test de connexion échoué.'}`, type: 'error' });
          }
       } catch (err: any) {
-         setNotification({ message: `Erreur connexion : ${err.message}`, type: 'error' });
+         setNotification({ message: `Erreur : ${err.message}`, type: 'error' });
       } finally {
-         setIsTestingJellyfin(false);
+         setTestingSkillAlias(null);
+      }
+   };
+
+   const handleSaveSkillConfig = async (skillAlias: string) => {
+      try {
+         const values = skillFormValues[skillAlias] || {};
+         const res = await fetch('/api/skills', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+               action: 'save_skill_config',
+               skillAlias,
+               values
+            })
+         });
+         const data = await res.json();
+         if (res.ok && data.success) {
+            setNotification({ message: `🟢 ${data.message || 'Configuration enregistrée avec succès !'}`, type: 'success' });
+            fetchSkillsData();
+            setShowSkillsModal(false);
+         } else {
+            setNotification({ message: `🔴 ${data.error}`, type: 'error' });
+         }
+      } catch (err: any) {
+         setNotification({ message: `Erreur : ${err.message}`, type: 'error' });
       }
    };
 
    const handleDetectJellyfinLibraries = async () => {
       setIsDetectingLibraries(true);
       try {
+         const jellyfinValues = skillFormValues['jellyfin'] || {};
          const res = await fetch('/api/skills', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                action: 'detect_libraries',
-               url: jellyfinUrlInput,
-               apiKey: jellyfinApiKeyInput,
-               username: jellyfinUsernameInput,
-               password: jellyfinPasswordInput
+               skillAlias: 'jellyfin',
+               ...jellyfinValues
             })
          });
          const data = await res.json();
@@ -232,34 +273,6 @@ export default function Dashboard({
          setNotification({ message: `Erreur : ${err.message}`, type: 'error' });
       } finally {
          setIsDetectingLibraries(false);
-      }
-   };
-
-   const handleSaveJellyfinConfig = async () => {
-      try {
-         const res = await fetch('/api/skills', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-               action: 'save_jellyfin_config',
-               url: jellyfinUrlInput,
-               apiKey: jellyfinApiKeyInput,
-               username: jellyfinUsernameInput,
-               password: jellyfinPasswordInput,
-               libraryName: jellyfinLibraryInput
-            })
-         });
-         const data = await res.json();
-         if (res.ok && data.success) {
-            setNotification({ message: '🟢 Configuration du Skill Jellyfin enregistrée !', type: 'success' });
-            fetchSkillsData();
-            setSelectedSkillId(null);
-            setShowSkillsModal(false);
-         } else {
-            setNotification({ message: `🔴 ${data.error}`, type: 'error' });
-         }
-      } catch (err: any) {
-         setNotification({ message: `Erreur : ${err.message}`, type: 'error' });
       }
    };
 
@@ -4897,153 +4910,160 @@ canvas.width = width;
                      Connectez vos services externes (Jellyfin, Wikipédia, Odoo...) pour permettre à l'assistant IA d'interagir en toute autonomie et d'enrichir votre Second Brain.
                   </p>
 
-                  <div style={{ overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '16px', paddingRight: '4px' }}>
-                     {/* Jellyfin Skill Card */}
-                     <div style={{ padding: '18px', borderRadius: '16px', backgroundColor: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.08)', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                              <span style={{ fontSize: '20px' }}>🎵</span>
-                              <div>
-                                 <h4 style={{ margin: 0, fontSize: '15px', fontWeight: 'bold', color: '#fff' }}>Jellyfin Audio & Musique</h4>
-                                 <p style={{ margin: 0, fontSize: '11px', color: 'rgba(255,255,255,0.5)' }}>Bibliothèque audio, playlists et fiches concepts artistes</p>
-                              </div>
-                           </div>
-                           <span className={`status-badge ${skillsData?.jellyfin?.status?.connected ? 'status-optimal' : 'status-nominal'}`} style={{ fontSize: '11px', padding: '3px 10px' }}>
-                              {skillsData?.jellyfin?.status?.connected ? '🟢 Connecté' : '⚪ Non configuré'}
-                           </span>
-                        </div>
+                   <div style={{ overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '16px', paddingRight: '4px' }}>
+                      {skillsData?.skills?.map((skillItem: any) => {
+                         const alias = skillItem.alias;
+                         const manifest = skillItem.manifest || { id: alias, name: skillItem.name, description: skillItem.description, icon: '⚡', fields: [] };
+                         const currentValues = skillFormValues[alias] || {};
+                         const isConfigured = skillItem.configured;
 
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '4px' }}>
-                           <div style={{ display: 'flex', gap: '10px' }}>
-                              <div style={{ flex: 2, display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                                 <label style={{ fontSize: '11px', color: 'rgba(255,255,255,0.7)' }}>URL du Serveur Jellyfin</label>
-                                 <input 
-                                    type="text"
-                                    value={jellyfinUrlInput}
-                                    onChange={(e) => setJellyfinUrlInput(e.target.value)}
-                                    placeholder="http://localhost:8096"
-                                    style={{ height: '36px', borderRadius: '8px', backgroundColor: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'white', padding: '0 10px', fontSize: '13px' }}
-                                 />
-                              </div>
-                              <div style={{ flex: 2, display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                                 <label style={{ fontSize: '11px', color: 'rgba(255,255,255,0.7)' }}>Clé d'API Jellyfin</label>
-                                 <input 
-                                    type="password"
-                                    value={jellyfinApiKeyInput}
-                                    onChange={(e) => setJellyfinApiKeyInput(e.target.value)}
-                                    placeholder="Clé d'API Jellyfin"
-                                    style={{ height: '36px', borderRadius: '8px', backgroundColor: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'white', padding: '0 10px', fontSize: '13px' }}
-                                 />
-                              </div>
-                           </div>
+                         return (
+                            <div 
+                               key={alias} 
+                               style={{ 
+                                  padding: '18px', 
+                                  borderRadius: '16px', 
+                                  backgroundColor: 'rgba(255,255,255,0.02)', 
+                                  border: '1px solid rgba(255,255,255,0.08)', 
+                                  display: 'flex', 
+                                  flexDirection: 'column', 
+                                  gap: '14px' 
+                               }}
+                            >
+                               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                     <span style={{ fontSize: '22px' }}>{manifest.icon || '⚡'}</span>
+                                     <div>
+                                        <h4 style={{ margin: 0, fontSize: '15px', fontWeight: 'bold', color: '#fff' }}>{manifest.name}</h4>
+                                        <p style={{ margin: 0, fontSize: '11px', color: 'rgba(255,255,255,0.5)' }}>{manifest.description}</p>
+                                     </div>
+                                  </div>
+                                  <span className={`status-badge ${isConfigured ? 'status-optimal' : 'status-nominal'}`} style={{ fontSize: '11px', padding: '3px 10px' }}>
+                                     {isConfigured ? '🟢 Connecté / Actif' : '⚪ Non configuré'}
+                                  </span>
+                               </div>
 
-                           <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                 <label style={{ fontSize: '11px', color: 'rgba(255,255,255,0.7)', fontWeight: 'bold' }}>
-                                    🎯 Dossier musical personnel (Filtre strict)
-                                 </label>
-                                 <button
-                                    type="button"
-                                    onClick={handleDetectJellyfinLibraries}
-                                    disabled={isDetectingLibraries}
-                                    style={{ background: 'none', border: 'none', color: '#38bdf8', fontSize: '11px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
-                                 >
-                                    <IconRefresh size={12} style={{ animation: isDetectingLibraries ? 'spin 1.5s linear infinite' : 'none' }} />
-                                    {isDetectingLibraries ? 'Détection...' : 'Détecter mes dossiers'}
-                                 </button>
-                              </div>
-                              <input 
-                                 type="text"
-                                 value={jellyfinLibraryInput}
-                                 onChange={(e) => setJellyfinLibraryInput(e.target.value)}
-                                 placeholder="Ex: Musique Olivier (Laissez vide pour la bibliothèque globale)"
-                                 style={{ height: '36px', borderRadius: '8px', backgroundColor: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'white', padding: '0 10px', fontSize: '13px' }}
-                              />
-                           </div>
+                               {manifest.fields && manifest.fields.length > 0 && (
+                                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '4px' }}>
+                                     <div style={{ display: 'grid', gridTemplateColumns: manifest.fields.length > 1 ? '1fr 1fr' : '1fr', gap: '10px' }}>
+                                        {manifest.fields.map((field: any) => (
+                                           <div key={field.name} style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                                 <label style={{ fontSize: '11px', color: 'rgba(255,255,255,0.7)', fontWeight: '600' }}>
+                                                    {field.label} {field.required && <span style={{ color: '#ef4444' }}>*</span>}
+                                                 </label>
+                                                 {alias === 'jellyfin' && field.name === 'libraryName' && (
+                                                    <button
+                                                       type="button"
+                                                       onClick={handleDetectJellyfinLibraries}
+                                                       disabled={isDetectingLibraries}
+                                                       style={{ background: 'none', border: 'none', color: '#38bdf8', fontSize: '11px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
+                                                    >
+                                                       <IconRefresh size={12} style={{ animation: isDetectingLibraries ? 'spin 1.5s linear infinite' : 'none' }} />
+                                                       {isDetectingLibraries ? 'Détection...' : 'Détecter mes dossiers'}
+                                                    </button>
+                                                 )}
+                                              </div>
 
-                           {jellyfinLibraries.length > 0 && (
-                              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', backgroundColor: 'rgba(255,255,255,0.03)', padding: '10px', borderRadius: '8px' }}>
-                                 <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.6)', width: '100%', marginBottom: '2px' }}>Dossiers détectés (cliquez pour sélectionner) :</span>
-                                 {jellyfinLibraries.map(lib => (
-                                    <button
-                                       key={lib.id}
-                                       type="button"
-                                       onClick={() => setJellyfinLibraryInput(lib.name)}
-                                       style={{
-                                          padding: '4px 10px',
-                                          borderRadius: '6px',
-                                          backgroundColor: jellyfinLibraryInput === lib.name ? 'rgba(56, 189, 248, 0.25)' : 'rgba(255,255,255,0.08)',
-                                          border: jellyfinLibraryInput === lib.name ? '1px solid #38bdf8' : '1px solid transparent',
-                                          color: jellyfinLibraryInput === lib.name ? '#38bdf8' : '#fff',
-                                          fontSize: '12px',
-                                          cursor: 'pointer'
-                                       }}
-                                    >
-                                       📁 {lib.name}
-                                    </button>
-                                 ))}
-                              </div>
-                           )}
+                                              {field.type === 'select' ? (
+                                                 <select
+                                                    value={currentValues[field.name] || ''}
+                                                    onChange={(e) => handleFieldChange(alias, field.name, e.target.value)}
+                                                    style={{ height: '36px', borderRadius: '8px', backgroundColor: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'white', padding: '0 10px', fontSize: '13px' }}
+                                                 >
+                                                    <option value="">Sélectionnez...</option>
+                                                    {field.options?.map((opt: any) => (
+                                                       <option key={opt.value} value={opt.value}>{opt.label}</option>
+                                                    ))}
+                                                 </select>
+                                              ) : (
+                                                 <input 
+                                                    type={field.type || 'text'}
+                                                    value={currentValues[field.name] || ''}
+                                                    onChange={(e) => handleFieldChange(alias, field.name, e.target.value)}
+                                                    placeholder={field.placeholder || ''}
+                                                    style={{ height: '36px', borderRadius: '8px', backgroundColor: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'white', padding: '0 10px', fontSize: '13px' }}
+                                                 />
+                                              )}
+                                              {field.description && (
+                                                 <span style={{ fontSize: '10px', color: 'rgba(255,255,255,0.4)' }}>{field.description}</span>
+                                              )}
+                                           </div>
+                                        ))}
+                                     </div>
 
-                           <div style={{ display: 'flex', gap: '10px', marginTop: '6px' }}>
-                              <button
-                                 type="button"
-                                 onClick={handleTestJellyfinConnection}
-                                 disabled={isTestingJellyfin}
-                                 style={{
-                                    flex: 1,
-                                    height: '38px',
-                                    borderRadius: '8px',
-                                    backgroundColor: 'rgba(59, 130, 246, 0.15)',
-                                    border: '1px solid rgba(59, 130, 246, 0.3)',
-                                    color: '#3b82f6',
-                                    fontSize: '12px',
-                                    fontWeight: '600',
-                                    cursor: 'pointer',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    gap: '6px'
-                                 }}
-                              >
-                                 <IconRefresh size={14} style={{ animation: isTestingJellyfin ? 'spin 1.5s linear infinite' : 'none' }} />
-                                 {isTestingJellyfin ? 'Test...' : 'Tester la connexion'}
-                              </button>
-                              <button
-                                 type="button"
-                                 onClick={handleSaveJellyfinConfig}
-                                 style={{
-                                    flex: 1,
-                                    height: '38px',
-                                    borderRadius: '8px',
-                                    backgroundColor: 'rgba(34, 197, 94, 0.15)',
-                                    border: '1px solid rgba(34, 197, 94, 0.3)',
-                                    color: '#22c55e',
-                                    fontSize: '12px',
-                                    fontWeight: '600',
-                                    cursor: 'pointer'
-                                 }}
-                              >
-                                 💾 Enregistrer
-                              </button>
-                           </div>
-                        </div>
-                     </div>
+                                     {alias === 'jellyfin' && jellyfinLibraries.length > 0 && (
+                                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', backgroundColor: 'rgba(255,255,255,0.03)', padding: '10px', borderRadius: '8px' }}>
+                                           <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.6)', width: '100%', marginBottom: '2px' }}>Dossiers détectés (cliquez pour sélectionner) :</span>
+                                           {jellyfinLibraries.map(lib => (
+                                              <button
+                                                 key={lib.id}
+                                                 type="button"
+                                                 onClick={() => handleFieldChange('jellyfin', 'libraryName', lib.name)}
+                                                 style={{
+                                                    padding: '4px 10px',
+                                                    borderRadius: '6px',
+                                                    backgroundColor: currentValues['libraryName'] === lib.name ? 'rgba(56, 189, 248, 0.25)' : 'rgba(255,255,255,0.08)',
+                                                    border: currentValues['libraryName'] === lib.name ? '1px solid #38bdf8' : '1px solid transparent',
+                                                    color: currentValues['libraryName'] === lib.name ? '#38bdf8' : '#fff',
+                                                    fontSize: '12px',
+                                                    cursor: 'pointer'
+                                                 }}
+                                              >
+                                                 📁 {lib.name}
+                                              </button>
+                                           ))}
+                                        </div>
+                                     )}
 
-                     {/* Wikipedia Skill Card */}
-                     <div style={{ padding: '16px', borderRadius: '16px', backgroundColor: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                           <span style={{ fontSize: '20px' }}>🌐</span>
-                           <div>
-                              <h4 style={{ margin: 0, fontSize: '14px', fontWeight: 'bold', color: '#fff' }}>Wikipédia Concept Autolink</h4>
-                              <p style={{ margin: 0, fontSize: '11px', color: 'rgba(255,255,255,0.5)' }}>Auto-génération de fiches concepts à partir des noms propres extraits</p>
-                           </div>
-                        </div>
-                        <span className="status-badge status-optimal" style={{ fontSize: '11px', padding: '3px 10px' }}>
-                           🟢 Actif
-                        </span>
-                     </div>
-                  </div>
+                                     <div style={{ display: 'flex', gap: '10px', marginTop: '6px' }}>
+                                        <button
+                                           type="button"
+                                           onClick={() => handleTestSkill(alias)}
+                                           disabled={testingSkillAlias === alias}
+                                           style={{
+                                              flex: 1,
+                                              height: '38px',
+                                              borderRadius: '8px',
+                                              backgroundColor: 'rgba(59, 130, 246, 0.15)',
+                                              border: '1px solid rgba(59, 130, 246, 0.3)',
+                                              color: '#3b82f6',
+                                              fontSize: '12px',
+                                              fontWeight: '600',
+                                              cursor: 'pointer',
+                                              display: 'flex',
+                                              alignItems: 'center',
+                                              justifyContent: 'center',
+                                              gap: '6px'
+                                           }}
+                                        >
+                                           <IconRefresh size={14} style={{ animation: testingSkillAlias === alias ? 'spin 1.5s linear infinite' : 'none' }} />
+                                           {testingSkillAlias === alias ? 'Test en cours...' : 'Tester la connexion'}
+                                        </button>
+                                        <button
+                                           type="button"
+                                           onClick={() => handleSaveSkillConfig(alias)}
+                                           style={{
+                                              flex: 1,
+                                              height: '38px',
+                                              borderRadius: '8px',
+                                              backgroundColor: 'rgba(34, 197, 94, 0.15)',
+                                              border: '1px solid rgba(34, 197, 94, 0.3)',
+                                              color: '#22c55e',
+                                              fontSize: '12px',
+                                              fontWeight: '600',
+                                              cursor: 'pointer'
+                                           }}
+                                        >
+                                           💾 Enregistrer
+                                        </button>
+                                     </div>
+                                  </div>
+                               )}
+                            </div>
+                         );
+                      })}
+                   </div>
                </div>
             </div>
          )}

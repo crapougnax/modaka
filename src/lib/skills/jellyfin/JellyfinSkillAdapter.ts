@@ -1,11 +1,55 @@
-import { AbstractSkillAdapter, type ToolDefinition } from '../AbstractSkillAdapter';
+import { AbstractSkillAdapter, type ToolDefinition, type SkillManifest } from '../AbstractSkillAdapter';
 import { JellyfinClient, type JellyfinConfig } from './JellyfinClient';
 import { ContentItem } from '../../models/ContentItem';
 import { slugify } from '../../utils/text';
 
 export class JellyfinSkillAdapter extends AbstractSkillAdapter {
-   readonly name = 'Jellyfin Audio & Musique';
-   readonly description = 'Explore votre bibliothèque audio Jellyfin, vos playlists et génère des fiches concepts OKF pour vos artistes et albums.';
+   readonly manifest: SkillManifest = {
+      id: 'jellyfin',
+      name: 'Jellyfin Audio & Musique',
+      description: 'Explore votre bibliothèque audio Jellyfin, vos playlists et génère des fiches concepts OKF pour vos artistes et albums.',
+      icon: '🎵',
+      category: 'media',
+      fields: [
+         {
+            name: 'url',
+            label: 'URL du serveur Jellyfin',
+            type: 'text',
+            placeholder: 'http://localhost:8096',
+            default: 'http://localhost:8096',
+            required: true
+         },
+         {
+            name: 'apiKey',
+            label: 'Clé API Jellyfin (Authentification Directe)',
+            type: 'password',
+            placeholder: 'Saisissez votre clé d\'API Jellyfin (Recommandé)...',
+            required: false
+         },
+         {
+            name: 'username',
+            label: 'Nom d\'utilisateur Jellyfin',
+            type: 'text',
+            placeholder: 'Nom de compte Jellyfin...',
+            required: false
+         },
+         {
+            name: 'password',
+            label: 'Mot de passe Jellyfin',
+            type: 'password',
+            placeholder: 'Mot de passe...',
+            required: false
+         },
+         {
+            name: 'libraryName',
+            label: 'Nom du dossier / Bibliothèque Média cible',
+            type: 'text',
+            placeholder: 'Musique Olivier, Audio, ...',
+            description: 'Filtre optionnel pour limiter les requêtes à une bibliothèque spécifique.',
+            required: false
+         }
+      ]
+   };
 
    protected client: JellyfinClient;
 
@@ -20,6 +64,27 @@ export class JellyfinSkillAdapter extends AbstractSkillAdapter {
          parentId: config?.parentId || process.env.JELLYFIN_PARENT_ID || ''
       };
       this.client = new JellyfinClient(resolvedConfig);
+   }
+
+   public async testConnection(values: Record<string, any>): Promise<{ success: boolean; message?: string; error?: string }> {
+      const testClient = new JellyfinClient({
+         url: values.url || process.env.JELLYFIN_URL || 'http://localhost:8096',
+         apiKey: (values.apiKey && values.apiKey !== '••••••••') ? values.apiKey : process.env.JELLYFIN_API_KEY,
+         username: values.username !== undefined ? values.username : process.env.JELLYFIN_USERNAME,
+         password: values.password || process.env.JELLYFIN_PASSWORD,
+         libraryName: values.libraryName !== undefined ? values.libraryName : process.env.JELLYFIN_LIBRARY_NAME
+      });
+      const res = await testClient.testConnection();
+      if (res.success) {
+         return {
+            success: true,
+            message: `Connexion réussie au serveur Jellyfin "${res.serverName}" (v${res.version})`
+         };
+      }
+      return {
+         success: false,
+         error: res.error || 'Impossible de se connecter au serveur Jellyfin'
+      };
    }
 
    public updateConfig(config: Partial<JellyfinConfig>): void {
