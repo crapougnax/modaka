@@ -994,39 +994,10 @@ export default function Dashboard({
          setModalTtsProvider(userProfile.ttsProvider || 'Browser');
          setModalElevenLabsApiKey(userProfile.elevenLabsApiKey || '');
          setModalElevenLabsVoiceId(userProfile.elevenLabsVoiceId || 'bVsJfghVbJypxgwVISO3');
-         setGeminiTestStatus(null);
-         fetch('/api/config').then(r => r.ok ? r.json() : null).then(cfg => {
-            if (cfg && cfg.llm) {
-               setModalGeminiApiKey(cfg.llm.apiKey || '');
-               setModalGeminiModel(cfg.llm.model || 'gemini-2.5-flash');
-            }
-         }).catch(() => {});
       }
    }, [showProfileModal, userProfile]);
 
-   const handleTestGeminiInModal = async () => {
-      setIsTestingGeminiInModal(true);
-      setGeminiTestStatus(null);
-      try {
-         const res = await fetch('/api/test-key', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ apiKey: modalGeminiApiKey })
-         });
-         const data = await res.json();
-         if (res.ok && data.success) {
-            setGeminiTestStatus({ success: true, message: data.message || 'Clé API Gemini validée !' });
-         } else {
-            setGeminiTestStatus({ success: false, message: data.error || 'Clé API invalide.' });
-         }
-      } catch (err: any) {
-         setGeminiTestStatus({ success: false, message: `Erreur : ${err.message}` });
-      } finally {
-         setIsTestingGeminiInModal(false);
-      }
-   };
-
-   const handleSaveProfile = async (profile: typeof userProfile & { geminiApiKey?: string; geminiModel?: string }) => {
+   const handleSaveProfile = async (profile: typeof userProfile) => {
       setUserProfile(profile);
       localStorage.setItem('sb_user_profile', JSON.stringify(profile));
       setShowProfileModal(false);
@@ -1040,12 +1011,7 @@ export default function Dashboard({
                ...currentConfig,
                name: profile.name,
                email: profile.email,
-               lang: profile.language,
-               llm: {
-                  ...currentConfig.llm,
-                  apiKey: profile.geminiApiKey !== undefined ? profile.geminiApiKey : (currentConfig.llm?.apiKey || ''),
-                  model: profile.geminiModel || currentConfig.llm?.model || 'gemini-2.5-flash'
-               }
+               lang: profile.language
             };
             await fetch('/api/config', {
                method: 'POST',
@@ -1053,7 +1019,7 @@ export default function Dashboard({
                body: JSON.stringify(updatedConfig)
             });
             setNotification({
-               message: '🟢 Préférences et clé API Gemini enregistrées avec succès !',
+               message: '🟢 Profil et préférences enregistrés avec succès !',
                type: 'success'
             });
          }
