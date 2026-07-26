@@ -26,6 +26,7 @@
     "@mantine/hooks": "^7.10.0",
     "@quatrain/ai": "^1.1.4",
     "@quatrain/ai-gemini": "^1.1.4",
+    "@quatrain/api-client": "^1.1.7",
     "@quatrain/api-server": "^1.1.11",
     "@quatrain/api-server-astro": "^1.1.15",
     "@quatrain/auth": "^1.2.10",

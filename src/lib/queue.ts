@@ -9,7 +9,10 @@ import { Queue } from '@quatrain/queue';
 import { ContentItem } from './models/ContentItem';
 import { fetchHtmlWithJs } from './browser';
 import { gitAddIfRepo } from './utils/git';
+import { ApiClient } from '@quatrain/api-client';
 import { normalizeUrl, extractLinks, slugify } from './utils';
+
+const nominatimClient = new ApiClient('https://nominatim.openstreetmap.org', 'nominatim');
 
 let backendPromise: Promise<void> | null = null;
 function ensureBackend() {
@@ -91,7 +94,7 @@ export function parseOKFContent(text: string): { isOKF: boolean; result?: any } 
 
 
 class QueueManagerClass {
-   private isListening = false;
+   protected isListening = false;
 
    public startListening() {
       if (this.isListening) return;
@@ -165,20 +168,16 @@ class QueueManagerClass {
       return await adapter.deleteTask(id);
    }
 
-   private async cleanupOldTempFiles() {
+   protected async cleanupOldTempFiles() {
       try {
-         const tempDir = path.resolve(process.cwd(), 'tmp');
+         const tempDir = path.resolve(process.cwd(), '.second-brain-temp');
          const files = await fs.readdir(tempDir);
          const now = Date.now();
-         const ONE_DAY = 24 * 60 * 60 * 1000;
-         
          for (const file of files) {
-            if (file === 'chrome-profile') continue;
             const filePath = path.join(tempDir, file);
             const stat = await fs.stat(filePath);
-            if (stat.isFile() && (now - stat.mtimeMs > ONE_DAY)) {
-               await fs.unlink(filePath);
-               Queue.info(`[Queue Cleanup] Deleted old temporary file: ${filePath}`);
+            if (now - stat.mtimeMs > 24 * 3600 * 1000) {
+               await fs.unlink(filePath).catch(() => {});
             }
          }
       } catch (e: any) {
@@ -186,7 +185,7 @@ class QueueManagerClass {
       }
    }
 
-   private async executeTask(task: any, updateProgress: (progress: number) => Promise<void>): Promise<void> {
+   protected async executeTask(task: any, updateProgress: (progress: number) => Promise<void>): Promise<void> {
       ensureBackend();
 
       const gitLocalPath = process.env.GIT_LOCAL_PATH || path.resolve(process.cwd(), '.second-brain-git');
@@ -196,20 +195,21 @@ class QueueManagerClass {
       if (task.latitude !== undefined && task.longitude !== undefined) {
          try {
             Queue.info(`[Queue Geocoding] Fetching location for coords: ${task.latitude}, ${task.longitude}`);
-            const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${task.latitude}&lon=${task.longitude}&zoom=10`;
-            const response = await fetch(url, {
+            const res = await nominatimClient.get('/reverse', {
                headers: {
                   'User-Agent': 'SecondBrainNoteTaker/1.0 (contact: brad@quatrain.com)'
-               }
+               },
+               format: 'json',
+               lat: task.latitude,
+               lon: task.longitude,
+               zoom: 10
             });
-            if (response.ok) {
-               const data = await response.json();
-               if (data && data.address) {
-                  const city = data.address.city || data.address.town || data.address.village || data.address.municipality || data.address.county || '';
-                  const country = data.address.country || '';
-                  locationContext = [city, country].filter(Boolean).join(', ');
-                  Queue.info(`[Queue Geocoding] Resolved location to: ${locationContext}`);
-               }
+            const data = res?.data;
+            if (data && data.address) {
+               const city = data.address.city || data.address.town || data.address.village || data.address.municipality || data.address.county || '';
+               const country = data.address.country || '';
+               locationContext = [city, country].filter(Boolean).join(', ');
+               Queue.info(`[Queue Geocoding] Resolved location to: ${locationContext}`);
             }
          } catch (e: any) {
             Queue.warn(`[Queue Geocoding] Failed to reverse geocode: ${e.message}`);

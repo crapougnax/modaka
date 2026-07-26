@@ -1,3 +1,5 @@
+import { ApiClient } from '@quatrain/api-client';
+
 export interface JellyfinConfig {
    url: string;
    apiKey?: string;
@@ -22,14 +24,15 @@ export interface JellyfinArtistItem {
 }
 
 export class JellyfinClient {
-   private url: string;
-   private apiKey: string;
-   private username?: string;
-   private password?: string;
-   private libraryName?: string;
-   private parentId?: string;
-   private userId?: string;
-   private accessToken?: string;
+   protected url: string;
+   protected apiKey: string;
+   protected username?: string;
+   protected password?: string;
+   protected libraryName?: string;
+   protected parentId?: string;
+   protected userId?: string;
+   protected accessToken?: string;
+   protected apiClient: ApiClient;
 
    constructor(config: JellyfinConfig) {
       // Normalize URL by removing trailing slashes
@@ -39,9 +42,10 @@ export class JellyfinClient {
       this.password = config.password;
       this.libraryName = config.libraryName;
       this.parentId = config.parentId;
+      this.apiClient = new ApiClient(this.url, `jellyfin-${Math.random().toString(36).substring(7)}`);
    }
 
-   private getHeaders(): Record<string, string> {
+   protected getHeaders(): Record<string, string> {
       const headers: Record<string, string> = {
          'Accept': 'application/json',
          'Content-Type': 'application/json'
@@ -73,19 +77,14 @@ export class JellyfinClient {
       }
 
       try {
-         const res = await fetch(`${this.url}/Users/AuthenticateByName`, {
-            method: 'POST',
-            headers: this.getHeaders(),
-            body: JSON.stringify({
-               Username: this.username,
-               Pw: this.password || ''
-            })
-         });
+         const res = await this.apiClient.query('/Users/AuthenticateByName', 'POST' as any, {
+            Username: this.username,
+            Pw: this.password || ''
+         }, { headers: this.getHeaders() });
 
-         if (res.ok) {
-            const data = await res.json();
-            this.accessToken = data.AccessToken;
-            this.userId = data.User?.Id;
+         if (res && res.data) {
+            this.accessToken = res.data.AccessToken;
+            this.userId = res.data.User?.Id;
             return true;
          }
       } catch (err) {
@@ -100,18 +99,17 @@ export class JellyfinClient {
    public async testConnection(): Promise<{ success: boolean; serverName?: string; version?: string; error?: string }> {
       try {
          await this.authenticate();
-         const res = await fetch(`${this.url}/System/Info/Public`, {
+         const res = await this.apiClient.get('/System/Info/Public', {
             headers: this.getHeaders()
          });
-         if (res.ok) {
-            const info = await res.json();
+         if (res && res.data) {
             return {
                success: true,
-               serverName: info.ServerName || 'Jellyfin',
-               version: info.Version || 'Unknown'
+               serverName: res.data.ServerName || 'Jellyfin',
+               version: res.data.Version || 'Unknown'
             };
          }
-         return { success: false, error: `Jellyfin HTTP ${res.status}: ${res.statusText}` };
+         return { success: false, error: 'Impossible d\'obtenir les infos du serveur Jellyfin' };
       } catch (err: any) {
          return { success: false, error: err.message || 'Impossible de se connecter au serveur Jellyfin' };
       }
@@ -124,16 +122,15 @@ export class JellyfinClient {
       try {
          await this.authenticate();
          const userEndpoint = this.userId ? `/Users/${this.userId}/Views` : '/UserViews';
-         const res = await fetch(`${this.url}${userEndpoint}`, {
+         const res = await this.apiClient.get(userEndpoint, {
             headers: this.getHeaders()
          });
-         if (res.ok) {
-            const data = await res.json();
-            const items = data.Items || [];
+         if (res && res.data) {
+            const items = res.data.Items || res.data.items || (Array.isArray(res.data) ? res.data : []);
             return items.map((item: any) => ({
-               id: item.Id,
-               name: item.Name,
-               collectionType: item.CollectionType
+               id: item.Id || item.id || item.uid,
+               name: item.Name || item.name,
+               collectionType: item.CollectionType || item.collectionType
             }));
          }
       } catch (err) {
@@ -172,27 +169,26 @@ export class JellyfinClient {
          await this.authenticate();
          const parentId = await this.resolveParentId();
 
-         const params = new URLSearchParams({
+         const searchOptions: Record<string, any> = {
+            headers: this.getHeaders(),
             searchTerm: query,
             includeItemTypes: itemTypes.join(','),
             recursive: 'true',
-            limit: '20'
-         });
+            limit: 20
+         };
 
          if (parentId) {
-            params.append('parentId', parentId);
+            searchOptions.parentId = parentId;
          }
 
-         const res = await fetch(`${this.url}/Items?${params.toString()}`, {
-            headers: this.getHeaders()
-         });
+         const res = await this.apiClient.get('/Items', searchOptions);
 
-         if (res.ok) {
-            const data = await res.json();
-            return (data.Items || []).map((item: any) => ({
-               id: item.Id,
-               name: item.Name,
-               type: item.Type,
+         if (res && res.data) {
+            const items = res.data.Items || res.data.items || (Array.isArray(res.data) ? res.data : []);
+            return items.map((item: any) => ({
+               id: item.Id || item.id || item.uid,
+               name: item.Name || item.name,
+               type: item.Type || item.type,
                artist: item.AlbumArtist || item.Artists?.[0] || '',
                album: item.Album || '',
                productionYear: item.ProductionYear,
@@ -220,23 +216,24 @@ export class JellyfinClient {
          const artist = artists[0];
 
          // Fetch albums for this artist
-         const albumParams = new URLSearchParams({
+         const albumOptions: Record<string, any> = {
+            headers: this.getHeaders(),
             artistIds: artist.id,
             includeItemTypes: 'MusicAlbum',
             recursive: 'true'
-         });
-         if (parentId) albumParams.append('parentId', parentId);
+         };
+         if (parentId) {
+            albumOptions.parentId = parentId;
+         }
 
-         const albumsRes = await fetch(`${this.url}/Items?${albumParams.toString()}`, {
-            headers: this.getHeaders()
-         });
+         const albumsRes = await this.apiClient.get('/Items', albumOptions);
 
          let albums: { id: string; name: string; productionYear?: number }[] = [];
-         if (albumsRes.ok) {
-            const data = await albumsRes.json();
-            albums = (data.Items || []).map((a: any) => ({
-               id: a.Id,
-               name: a.Name,
+         if (albumsRes && albumsRes.data) {
+            const items = albumsRes.data.Items || albumsRes.data.items || (Array.isArray(albumsRes.data) ? albumsRes.data : []);
+            albums = items.map((a: any) => ({
+               id: a.Id || a.id || a.uid,
+               name: a.Name || a.name,
                productionYear: a.ProductionYear
             }));
          }
@@ -261,21 +258,22 @@ export class JellyfinClient {
          await this.authenticate();
          const parentId = await this.resolveParentId();
 
-         const params = new URLSearchParams({
+         const playlistOptions: Record<string, any> = {
+            headers: this.getHeaders(),
             includeItemTypes: 'Playlist',
             recursive: 'true'
-         });
-         if (parentId) params.append('parentId', parentId);
+         };
+         if (parentId) {
+            playlistOptions.parentId = parentId;
+         }
 
-         const res = await fetch(`${this.url}/Items?${params.toString()}`, {
-            headers: this.getHeaders()
-         });
+         const res = await this.apiClient.get('/Items', playlistOptions);
 
-         if (res.ok) {
-            const data = await res.json();
-            return (data.Items || []).map((p: any) => ({
-               id: p.Id,
-               name: p.Name,
+         if (res && res.data) {
+            const items = res.data.Items || res.data.items || (Array.isArray(res.data) ? res.data : []);
+            return items.map((p: any) => ({
+               id: p.Id || p.id || p.uid,
+               name: p.Name || p.name,
                itemCount: p.ChildCount || 0
             }));
          }

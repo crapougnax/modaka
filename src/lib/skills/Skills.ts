@@ -5,7 +5,7 @@ import { AbstractSkillAdapter, ToolDefinition } from './AbstractSkillAdapter';
  * Pivot class and registry manager representing Agent skills in the Quatrain Core framework.
  */
 export class Skills extends Core {
-   private static _adapters = new Map<string, AbstractSkillAdapter>();
+   protected static _adapters = new Map<string, AbstractSkillAdapter>();
    public static logger = this.addLogger('Skills');
 
    /**

@@ -1,7 +1,11 @@
 import { ContentItem } from './models/ContentItem';
 import { Storage } from '@quatrain/storage';
 import { Log } from '@quatrain/log';
+import { ApiClient } from '@quatrain/api-client';
 import { Readable } from 'node:stream';
+
+const wikiFrClient = new ApiClient('https://fr.wikipedia.org/api/rest_v1', 'wiki-fr');
+const wikiEnClient = new ApiClient('https://en.wikipedia.org/api/rest_v1', 'wiki-en');
 
 /**
  * Searches Wikipedia for a given proper noun and automatically creates a Concept OKF document
@@ -26,20 +30,23 @@ export async function searchAndCreateConcept(properNoun: string): Promise<void> 
 
    Log.info(`[Concept Auto-Link] Searching Wikipedia for "${properNoun}"...`);
    try {
-      let wikiUrl = `https://fr.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(properNoun.replace(/ /g, '_'))}`;
-      let response = await fetch(wikiUrl, {
-         headers: { 'User-Agent': 'SecondBrainAgent/1.0 (contact: olivier@lepine.fr)' }
-      });
+      const pageSlug = encodeURIComponent(properNoun.replace(/ /g, '_'));
+      const headers = { 'User-Agent': 'SecondBrainAgent/1.0 (contact: olivier@lepine.fr)' };
 
-      if (!response.ok) {
-         wikiUrl = `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(properNoun.replace(/ /g, '_'))}`;
-         response = await fetch(wikiUrl, {
-            headers: { 'User-Agent': 'SecondBrainAgent/1.0 (contact: olivier@lepine.fr)' }
-          });
+      let data: any = null;
+      try {
+         const res = await wikiFrClient.get(`/page/summary/${pageSlug}`, { headers });
+         data = res.data;
+      } catch {
+         try {
+            const res = await wikiEnClient.get(`/page/summary/${pageSlug}`, { headers });
+            data = res.data;
+         } catch {
+            data = null;
+         }
       }
 
-      if (response.ok) {
-         const data = await response.json();
+      if (data) {
          if (data.type === 'standard' && data.extract) {
             Log.info(`[Concept Auto-Link] Found Wikipedia entry for "${properNoun}". Creating concept document.`);
 

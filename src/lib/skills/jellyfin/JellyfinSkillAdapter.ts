@@ -7,7 +7,7 @@ export class JellyfinSkillAdapter extends AbstractSkillAdapter {
    readonly name = 'Jellyfin Audio & Musique';
    readonly description = 'Explore votre bibliothèque audio Jellyfin, vos playlists et génère des fiches concepts OKF pour vos artistes et albums.';
 
-   private client: JellyfinClient;
+   protected client: JellyfinClient;
 
    constructor(config?: Partial<JellyfinConfig>) {
       super();
@@ -99,7 +99,7 @@ export class JellyfinSkillAdapter extends AbstractSkillAdapter {
    /**
     * Ingests or updates an OKF v0.1 concept markdown sheet for an artist into second-brain-data.
     */
-   private async ingestArtistConcept(artistName: string, summary?: string, albumsList?: any[]): Promise<any> {
+   protected async ingestArtistConcept(artistName: string, summary?: string, albumsList?: any[]): Promise<any> {
       const details = await this.client.getArtistDetails(artistName);
       const name = details?.name || artistName;
       const id = slugify(name);
