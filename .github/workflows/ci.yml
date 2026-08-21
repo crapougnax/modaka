@@ -10,9 +10,6 @@ jobs:
   test:
     name: Test & Build Validation
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: read
 
     steps:
       - name: Checkout Code
@@ -26,18 +23,13 @@ jobs:
       - name: Enable Corepack & Yarn Berry
         run: corepack enable
 
-      - name: Resolve Workspace Portal Dependencies
+      - name: Resolve Workspace Dependencies
         run: node ./bin/resolve-workspaces.cjs
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Install Dependencies
         run: yarn install
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           YARN_ENABLE_IMMUTABLE_INSTALLS: "false"
 
       - name: Run Unit Tests
         run: yarn test
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
