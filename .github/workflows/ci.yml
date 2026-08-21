@@ -18,22 +18,13 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Setup Node.js & GitHub Packages Auth
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 22
-          registry-url: 'https://npm.pkg.github.com'
-          scope: '@quatrain'
 
-      - name: Enable Corepack & Yarn Berry
-        run: |
-          corepack enable
-          corepack prepare yarn@4.1.1 --activate || true
-
-      - name: Configure GitHub Packages npmrc
-        run: |
-          echo "@quatrain:registry=https://npm.pkg.github.com" >> ~/.npmrc
-          echo "//npm.pkg.github.com/:_authToken=${{ secrets.GITHUB_TOKEN }}" >> ~/.npmrc
+      - name: Enable Corepack
+        run: corepack enable
 
       - name: Resolve Workspace Portal Dependencies
         run: node ./bin/resolve-workspaces.cjs
@@ -48,3 +39,5 @@ jobs:
 
       - name: Run Unit Tests
         run: yarn test
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
