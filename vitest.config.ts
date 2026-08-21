@@ -34,7 +34,9 @@ const localAliases = hasLocalPortal ? {
   '@quatrain/git-client': path.join(coreDir, 'git-client/src/index.ts'),
   '@quatrain/auth': path.join(coreDir, 'auth/src/index.ts'),
   '@quatrain/auth-github': path.join(coreDir, 'auth-github/src/index.ts')
-} : {};
+} : {
+  '@quatrain/git-client': path.resolve(__dirname, 'src/lib/mocks/git-client.ts')
+};
 
 export default defineConfig({
   plugins: [react()],
