@@ -1,6 +1,13 @@
-# Modaka - Digital Knowledge Copilot
+# Modaka — Digital Knowledge Copilot & Sovereign Edge Brain
 
-**Modaka** is a local-first, touch-optimized digital knowledge base and personal assistant built on **Astro**, **React**, **Quatrain Core**, and **Google Gemini AI**. It organizes your notes, voice recordings, PDFs, images, and web bookmarks using the standardized **OKF (Open Knowledge Format v0.1)** structure backed by local Git storage.
+[![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
+[![TypeScript](https://img.shields.io/badge/TypeScript-Strict-3178C6.svg?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![Astro](https://img.shields.io/badge/Astro-5.0-BC52EE.svg?logo=astro&logoColor=white)](https://astro.build/)
+[![OKF v0.1](https://img.shields.io/badge/Format-OKF_v0.1-orange.svg)](#)
+[![Local-First](https://img.shields.io/badge/Architecture-Local--First_0ms-success.svg)](#)
+[![Tests: 41 Passed](https://img.shields.io/badge/Tests-41_Passed-brightgreen.svg)](#)
+
+**Modaka** is a decentralized, local-first, touch-optimized digital knowledge base and personal AI copilot built on **Astro 5**, **React**, **Quatrain Core**, and **Google Gemini AI**. It organizes your notes, audio transcripts, PDFs, images, and web research using the standardized **OKF (Open Knowledge Format v0.1)** structure backed by local Git storage.
 
 ---
 

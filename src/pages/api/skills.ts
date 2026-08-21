@@ -20,7 +20,7 @@ export const GET: APIRoute = async () => {
 
          if (alias === 'jellyfin') {
             currentValues = {
-               url: process.env.JELLYFIN_URL || 'http://localhost:8096',
+               url: process.env.JELLYFIN_URL || process.env.JELLYFIN_API_URL || 'http://localhost:8096',
                apiKey: process.env.JELLYFIN_API_KEY ? '••••••••' : '',
                username: process.env.JELLYFIN_USERNAME || '',
                password: process.env.JELLYFIN_PASSWORD ? '••••••••' : '',
@@ -59,16 +59,15 @@ export const POST: APIRoute = async ({ request }) => {
       const body = await request.json();
       const action = body.action || 'test';
       const skillAlias = body.skillAlias || body.skillId || 'jellyfin';
+      const values = body.values || body;
 
       let adapter = Skills.getSkill(skillAlias);
 
       if (action === 'test' || action === 'test_skill' || action === 'test_jellyfin') {
          if (!adapter) {
-            // Instantiate temporary instance from factory to test
-            adapter = await Skills.activateSkill(skillAlias, body.values || body);
+            adapter = await Skills.activateSkill(skillAlias, values);
          }
          if (adapter && adapter.testConnection) {
-            const values = body.values || body;
             const res = await adapter.testConnection(values);
             return new Response(JSON.stringify(res), {
                status: res.success ? 200 : 400,
@@ -82,10 +81,10 @@ export const POST: APIRoute = async ({ request }) => {
          if (skillAlias === 'jellyfin') {
             const { JellyfinSkillAdapter } = await import('../../lib/skills/jellyfin/JellyfinSkillAdapter');
             const tempConfig = {
-               url: body.url || process.env.JELLYFIN_URL || 'http://localhost:8096',
-               apiKey: (body.apiKey && body.apiKey !== '••••••••') ? body.apiKey : process.env.JELLYFIN_API_KEY,
-               username: body.username !== undefined ? body.username : process.env.JELLYFIN_USERNAME,
-               password: body.password || process.env.JELLYFIN_PASSWORD
+               url: values.url || process.env.JELLYFIN_URL || process.env.JELLYFIN_API_URL || 'http://localhost:8096',
+               apiKey: (values.apiKey && values.apiKey !== '••••••••') ? values.apiKey : process.env.JELLYFIN_API_KEY,
+               username: values.username !== undefined ? values.username : process.env.JELLYFIN_USERNAME,
+               password: (values.password && values.password !== '••••••••') ? values.password : process.env.JELLYFIN_PASSWORD
             };
 
             const tempAdapter = new JellyfinSkillAdapter(tempConfig);
@@ -102,10 +101,11 @@ export const POST: APIRoute = async ({ request }) => {
       }
 
       if (action === 'save_skill_config' || action === 'save_jellyfin_config' || action === 'save') {
-         const values = body.values || body;
-
          if (skillAlias === 'jellyfin') {
-            if (values.url) process.env.JELLYFIN_URL = values.url;
+            if (values.url) {
+               process.env.JELLYFIN_URL = values.url;
+               process.env.JELLYFIN_API_URL = values.url;
+            }
             if (values.apiKey && values.apiKey !== '••••••••') process.env.JELLYFIN_API_KEY = values.apiKey;
             if (values.username !== undefined) process.env.JELLYFIN_USERNAME = values.username;
             if (values.password !== undefined && values.password !== '••••••••') process.env.JELLYFIN_PASSWORD = values.password;
