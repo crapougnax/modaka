@@ -188,7 +188,7 @@ class QueueManagerClass {
 
    protected async cleanupOldTempFiles() {
       try {
-         const tempDir = path.resolve(process.cwd(), '.second-brain-temp');
+         const tempDir = path.resolve(process.cwd(), '.tmp');
          const files = await fs.readdir(tempDir);
          const now = Date.now();
          for (const file of files) {
@@ -206,8 +206,8 @@ class QueueManagerClass {
    protected async executeTask(task: any, updateProgress: (progress: number) => Promise<void>): Promise<void> {
       ensureBackend();
 
-      const gitLocalPath = process.env.GIT_LOCAL_PATH || path.resolve(process.cwd(), '.second-brain-git');
-      const documentStoragePath = process.env.DOCUMENT_STORAGE_PATH || path.resolve(process.cwd(), '.second-brain-docs');
+      const gitLocalPath = process.env.GIT_LOCAL_PATH || path.resolve(process.cwd(), 'data/content');
+      const documentStoragePath = process.env.DOCUMENT_STORAGE_PATH || path.resolve(process.cwd(), 'data/documents');
 
       let locationContext = '';
       if (task.latitude !== undefined && task.longitude !== undefined) {

@@ -30,7 +30,7 @@ export const modakaComposition: AppCompositionInterface<PWAContentInterface> = {
       queue: { package: '@quatrain/queue-sqlite', adapter: 'SQLiteQueueAdapter' }
    },
    config: {
-      okfRoot: './second-brain-data/content',
+      okfRoot: process.env.GIT_LOCAL_PATH || './data/content',
       defaultCategory: 'inbox'
    }
 };

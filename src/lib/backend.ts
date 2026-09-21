@@ -58,7 +58,7 @@ async function updateReadmeChangelog(localPath: string) {
       try {
          currentContent = await fs.readFile(readmePath, 'utf-8');
       } catch (e) {
-         currentContent = '# second-brain-data\n';
+         currentContent = '# Knowledge Base\n';
       }
 
       const newLines = newEntries.split('\n').filter(line => line.trim().startsWith('*'));
@@ -273,7 +273,7 @@ export async function reconfigureBackend() {
    }
 
    // Re-init Document Storage
-   const documentStoragePath = process.env.DOCUMENT_STORAGE_PATH || path.resolve(process.cwd(), '.second-brain-docs');
+   const documentStoragePath = process.env.DOCUMENT_STORAGE_PATH || path.resolve(process.cwd(), 'data/documents');
    let docAdapter: any;
    if (process.env.S3_ACCESS_KEY && process.env.S3_SECRET_KEY) {
       const { S3StorageAdapter } = await import('@quatrain/storage-s3');
@@ -298,7 +298,7 @@ export async function reconfigureBackend() {
 
    // Re-init Git Storage
    const gitMode = (process.env.GIT_MODE as 'local' | 'github') || 'local';
-   const gitLocalPath = process.env.GIT_LOCAL_PATH || path.resolve(process.cwd(), '.second-brain-git');
+   const gitLocalPath = process.env.GIT_LOCAL_PATH || path.resolve(process.cwd(), 'data/content');
    const { GitStorageAdapter } = await import('@quatrain/storage-git');
    const gitAdapter = new GitStorageAdapter({
       config: {
@@ -404,8 +404,8 @@ export async function initBackend() {
    }
 
    const gitMode = (process.env.GIT_MODE as 'local' | 'github') || 'local';
-   const gitLocalPath = process.env.GIT_LOCAL_PATH || path.resolve(process.cwd(), '.second-brain-git');
-   const documentStoragePath = process.env.DOCUMENT_STORAGE_PATH || path.resolve(process.cwd(), '.second-brain-docs');
+   const gitLocalPath = process.env.GIT_LOCAL_PATH || path.resolve(process.cwd(), 'data/content');
+   const documentStoragePath = process.env.DOCUMENT_STORAGE_PATH || path.resolve(process.cwd(), 'data/documents');
 
     // 1. Initialize Document Storage (S3StorageAdapter with LocalStorageAdapter fallback)
     let docAdapter: any;
@@ -506,13 +506,13 @@ export async function initBackend() {
    }), 'default', true);
 
    // 7. Initialize SearchEngine Adapter (QMD)
-   const qmdStorageDir = process.env.OKF_STORAGE_PATH || (gitMode === 'local' && gitLocalPath ? gitLocalPath : path.resolve(process.cwd(), '.second-brain-data/content'));
+   const qmdStorageDir = process.env.OKF_STORAGE_PATH || gitLocalPath || path.resolve(process.cwd(), 'data/content');
    const { QmdSearchEngineAdapter } = await import('@quatrain/searchengine-qmd');
    const { SearchEngine } = await import('@quatrain/searchengine');
    const searchAdapter = new QmdSearchEngineAdapter({
       alias: 'default',
       config: {
-         collectionName: 'modaka-second-brain',
+         collectionName: process.env.COLLECTION_NAME || 'modaka-knowledge',
          storageDir: qmdStorageDir
       }
    });
@@ -544,7 +544,7 @@ export async function initBackend() {
 }
 
 export async function triggerGitSync(): Promise<{ success: boolean; message?: string }> {
-   const gitLocalPath = process.env.GIT_LOCAL_PATH || path.resolve(process.cwd(), '.second-brain-git');
+   const gitLocalPath = process.env.GIT_LOCAL_PATH || path.resolve(process.cwd(), 'data/content');
    try {
       await syncGitRepository(gitLocalPath, true);
       return { success: true };

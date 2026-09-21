@@ -64,7 +64,10 @@ export default defineConfig({
         '@quatrain/ux-form-react',
         '@quatrain/ux-list-react',
         '@quatrain/ux-react',
-        /@quatrain\/.*/
+        /@quatrain\/.*/,
+        '@faker-js/faker',
+        '@google/genai',
+        /@octokit\/.*/
       ]
     },
     resolve: {
