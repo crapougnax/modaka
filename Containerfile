@@ -32,6 +32,12 @@ COPY src ./src
 # Build Astro standalone SSR bundle
 RUN bun run build
 
+# Prune development leftovers and debug symbols from node_modules
+RUN rm -rf /app/node_modules/.cache && \
+    find /app/node_modules -type f -name "*.map" -delete && \
+    find /app/node_modules -type f -name "*.d.ts" -delete && \
+    find /app/node_modules -type d -name "__tests__" -exec rm -rf {} + 2>/dev/null || true
+
 # ==============================================================================
 # Stage 2: Production Runtime (Ultra-lean, data-agnostic sovereign engine)
 # ==============================================================================
@@ -47,22 +53,15 @@ LABEL org.opencontainers.image.licenses="AGPL-3.0"
 LABEL org.opencontainers.image.vendor="Quatrain Technologies"
 LABEL org.opencontainers.image.authors="Quatrain Developers <developers@quatrain.com>"
 
-# Runtime system dependencies:
+# Lean runtime system dependencies:
 # - git: essential for local git repo commits and remote GitHub sync
-# - chromium + rendering libs: headless capture and OCR
+# - ca-certificates: TLS verification for remote sync and Gemini AI calls
 # - curl: container healthcheck probe and network diagnostics
 RUN apk add --no-cache \
     git \
     ca-certificates \
-    chromium \
-    curl \
-    nss \
-    freetype \
-    harfbuzz \
-    ttf-freefont
+    curl
 
-ENV CHROME_PATH=/usr/bin/chromium-browser
-ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
 ENV NODE_ENV=production
 ENV HOST=0.0.0.0
 ENV PORT=4000
@@ -75,14 +74,14 @@ ENV GIT_MODE=local
 ENV GIT_LOCAL_PATH=/data/content
 ENV DOCUMENT_STORAGE_PATH=/data/documents
 
-# Copy package metadata, installed node_modules, and compiled SSR bundle from builder
-COPY --from=builder /app/package.json ./
-COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/dist ./dist
+# Copy files directly with --chown to avoid duplicate OverlayFS layers
+COPY --chown=bun:bun --from=builder /app/package.json ./
+COPY --chown=bun:bun --from=builder /app/node_modules ./node_modules
+COPY --chown=bun:bun --from=builder /app/dist ./dist
 
-# Create agnostic storage mount targets and set permissions for unprivileged user
+# Create agnostic storage mount targets and queue directory
 RUN mkdir -p /data/content /data/documents /data/queue /app/.queue && \
-    chown -R bun:bun /data /app
+    chown -R bun:bun /data /app/.queue
 
 # Non-root unprivileged execution (UID 1000)
 USER bun

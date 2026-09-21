@@ -31,12 +31,22 @@ import { GithubAuthAdapter } from '@quatrain/auth-github';
 const execPromise = promisify(exec);
 const GIT_SYNC_LOCK_KEY = Symbol.for('__second_brain_git_sync_lock');
 
+function runGit(cmd: string, cwd: string, token?: string): Promise<{ stdout: string; stderr: string }> {
+   const env = { ...process.env, GIT_TERMINAL_PROMPT: '0' };
+   let extraArgs = '';
+   if (token) {
+      const auth = Buffer.from(`x-access-token:${token}`).toString('base64');
+      extraArgs = `-c "http.extraheader=AUTHORIZATION: basic ${auth}" -c "credential.helper=" `;
+   }
+   return execPromise(`git ${extraArgs}${cmd}`, { cwd, env });
+}
+
 async function updateReadmeChangelog(localPath: string) {
    try {
       // Check if origin/main exists
       let hasOriginMain = false;
       try {
-         await execPromise('git rev-parse --verify origin/main', { cwd: localPath });
+         await runGit('rev-parse --verify origin/main', localPath);
          hasOriginMain = true;
       } catch (e) {
          // origin/main doesn't exist yet
@@ -44,9 +54,9 @@ async function updateReadmeChangelog(localPath: string) {
 
       const logRange = hasOriginMain ? 'origin/main..HEAD' : 'HEAD';
       // Format: YYYY-MM-DD: Commit message
-      const { stdout } = await execPromise(
-         `git log ${logRange} --pretty=format:"* **%cd** : %s" --date=format:"%Y-%m-%d"`,
-         { cwd: localPath }
+      const { stdout } = await runGit(
+         `log ${logRange} --pretty=format:"* **%cd** : %s" --date=format:"%Y-%m-%d"`,
+         localPath
       );
 
       const newEntries = stdout.trim();
@@ -83,8 +93,8 @@ async function updateReadmeChangelog(localPath: string) {
       }
 
       await fs.writeFile(readmePath, updatedContent, 'utf-8');
-      await execPromise('git add README.md', { cwd: localPath });
-      await execPromise('git commit -m "docs: update changelog in README.md [skip ci]"', { cwd: localPath });
+      await runGit('add README.md', localPath);
+      await runGit('commit -m "docs: update changelog in README.md [skip ci]"', localPath);
       Log.info('[Git Sync] Changelog updated in README.md');
    } catch (err: any) {
       Log.warn(`[Git Sync] Failed to update README.md changelog: ${err.message}`);
@@ -114,19 +124,7 @@ function getCloneUrl(): string | null {
       const owner = process.env.GIT_REPO_OWNER;
       const repo = process.env.GIT_REPO_NAME;
       if (!owner || !repo) return null;
-      const token = process.env.GIT_GITHUB_TOKEN;
-      if (token) {
-         return `https://${token}@github.com/${owner}/${repo}.git`;
-      }
       return `https://github.com/${owner}/${repo}.git`;
-   }
-   
-   const token = process.env.GIT_GITHUB_TOKEN;
-   if (token && gitUrl.includes('github.com') && gitUrl.startsWith('http')) {
-      const parsed = parseGitUrl(gitUrl);
-      if (parsed) {
-         return `https://${token}@github.com/${parsed.owner}/${parsed.repo}.git`;
-      }
    }
    return gitUrl;
 }
@@ -142,7 +140,7 @@ async function syncGitRepository(localPath: string, throwOnError = false) {
       // Ensure target directory exists
       await fs.mkdir(localPath, { recursive: true });
       
-      // If not a git repo, clone or initialize it!
+      const token = process.env.GIT_GITHUB_TOKEN;
       const gitDir = path.join(localPath, '.git');
       const hasGit = fsSync.existsSync(gitDir);
       
@@ -150,13 +148,13 @@ async function syncGitRepository(localPath: string, throwOnError = false) {
          const cloneUrl = getCloneUrl();
          if (cloneUrl) {
             Log.info(`[Git Sync] Initializing local Git repository from remote URL...`);
-            await execPromise('git init', { cwd: localPath });
-            await execPromise(`git remote add origin "${cloneUrl}"`, { cwd: localPath });
-            await execPromise('git fetch origin', { cwd: localPath });
+            await runGit('init', localPath);
+            await runGit(`remote add origin "${cloneUrl}"`, localPath);
+            await runGit('fetch origin', localPath, token);
             try {
-               await execPromise('git checkout main', { cwd: localPath });
+               await runGit('checkout main', localPath);
             } catch (e) {
-               await execPromise('git checkout -b main', { cwd: localPath });
+               await runGit('checkout -b main', localPath);
             }
             Log.info(`[Git Sync] Local Git repository initialized successfully in ${localPath}`);
          } else {
@@ -164,29 +162,61 @@ async function syncGitRepository(localPath: string, throwOnError = false) {
             if (throwOnError) throw new Error("Aucune URL de dépôt Git configurée");
             return;
          }
-      } else {
+      }
+
+      // Check remote configuration
+      let remoteUrl = '';
+      try {
+         const { stdout } = await runGit('remote get-url origin', localPath);
+         remoteUrl = stdout.trim();
+      } catch (e) {
+         // No origin remote configured yet
+      }
+
+      if (!remoteUrl) {
          const cloneUrl = getCloneUrl();
          if (cloneUrl) {
             try {
-               await execPromise(`git remote set-url origin "${cloneUrl}"`, { cwd: localPath });
+               await runGit(`remote add origin "${cloneUrl}"`, localPath);
+               remoteUrl = cloneUrl;
             } catch (e) {}
          }
       }
 
+      if (!remoteUrl) {
+         Log.debug(`[Git Sync] Aucun remote configuré pour ${localPath}, synchronisation distante ignorée`);
+         return;
+      }
+
+      // If remote is GitHub HTTPS and no token is provided, avoid prompting or failing with fatal username error
+      if (remoteUrl.includes('github.com') && !token && !remoteUrl.includes('@')) {
+         Log.info(`[Git Sync] Dépôt distant GitHub détecté mais aucun GIT_GITHUB_TOKEN configuré : synchronisation distante ignorée.`);
+         if (throwOnError) {
+            throw new Error("GIT_GITHUB_TOKEN requis pour synchroniser avec GitHub");
+         }
+         return;
+      }
+
       Log.info(`[Git Sync] Synchronisant le dépôt Git local-first...`);
-      await execPromise('git fetch origin', { cwd: localPath });
+      await runGit('fetch origin', localPath, token);
       
       // Update changelog in README.md based on new local commits before pulling/pushing
       await updateReadmeChangelog(localPath);
 
+      // Ensure upstream branch is tracked once if not already set
       try {
-         await execPromise('git pull --rebase origin main', { cwd: localPath });
-      } catch (pullErr) {
-         await execPromise('git branch --set-upstream-to=origin/main main', { cwd: localPath }).catch(() => {});
-         await execPromise('git pull origin main', { cwd: localPath }).catch(() => {});
+         await runGit('rev-parse --abbrev-ref @{u}', localPath);
+      } catch (e) {
+         await runGit('branch --set-upstream-to=origin/main main', localPath).catch(() => {});
       }
 
-      await execPromise('git push origin main', { cwd: localPath });
+      try {
+         await runGit('pull --rebase origin main', localPath, token);
+      } catch (pullErr) {
+         await runGit('pull origin main', localPath, token).catch(() => {});
+      }
+
+      await runGit('push origin main', localPath, token);
       Log.info(`[Git Sync] Synchronisation terminée avec succès`);
    } catch (err: any) {
       Log.warn(`[Git Sync] Échec de la synchronisation : ${err.message}`);
@@ -331,7 +361,8 @@ export async function reconfigureBackend() {
       clearInterval(existingInterval);
       delete (globalThis as any)[GIT_SYNC_INTERVAL_KEY];
    }
-   if (gitMode === 'local' && gitLocalPath) {
+   const autoSyncEnabled = process.env.GIT_AUTO_SYNC === 'true' || (process.env.GIT_AUTO_SYNC !== 'false' && !!process.env.GIT_GITHUB_TOKEN);
+   if (autoSyncEnabled && gitMode === 'local' && gitLocalPath) {
       syncGitRepository(gitLocalPath);
       const interval = setInterval(() => {
          syncGitRepository(gitLocalPath);
@@ -340,6 +371,8 @@ export async function reconfigureBackend() {
          interval.unref();
       }
       (globalThis as any)[GIT_SYNC_INTERVAL_KEY] = interval;
+   } else if (gitMode === 'local') {
+      Log.info('[Git Sync] Auto-sync disabled in local mode (set GIT_AUTO_SYNC=true and provide GIT_GITHUB_TOKEN to enable).');
    }
 
    // Re-register Github OAuth endpoints if configuration changed
@@ -519,8 +552,9 @@ export async function initBackend() {
    await searchAdapter.initialize();
    SearchEngine.addEngine(searchAdapter, 'default', true);
 
-   // Start background synchronization in local mode
-   if (gitMode === 'local' && gitLocalPath) {
+   // Start background synchronization in local mode if enabled
+   const autoSyncEnabled = process.env.GIT_AUTO_SYNC === 'true' || (process.env.GIT_AUTO_SYNC !== 'false' && !!process.env.GIT_GITHUB_TOKEN);
+   if (autoSyncEnabled && gitMode === 'local' && gitLocalPath) {
       const GIT_SYNC_INTERVAL_KEY = Symbol.for('__second_brain_git_sync_interval');
       if (!(globalThis as any)[GIT_SYNC_INTERVAL_KEY]) {
          syncGitRepository(gitLocalPath);
@@ -532,6 +566,8 @@ export async function initBackend() {
          }
          (globalThis as any)[GIT_SYNC_INTERVAL_KEY] = interval;
       }
+   } else if (gitMode === 'local') {
+      Log.info('[Git Sync] Auto-sync disabled in local mode (set GIT_AUTO_SYNC=true and provide GIT_GITHUB_TOKEN to enable).');
    }
 
    import('./queue').then(({ QueueManager }) => {
