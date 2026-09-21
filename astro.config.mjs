@@ -34,7 +34,8 @@ const localAliases = hasLocalPortal ? {
   '@quatrain/searchengine-qmd': path.join(coreDir, 'searchengine-qmd/src/index.ts'),
   '@quatrain/git-client': path.join(coreDir, 'git-client/src/index.ts'),
   '@quatrain/auth': path.join(coreDir, 'auth/src/index.ts'),
-  '@quatrain/auth-github': path.join(coreDir, 'auth-github/src/index.ts')
+  '@quatrain/auth-github': path.join(coreDir, 'auth-github/src/index.ts'),
+  '@quatrain/config': path.join(coreDir, 'config/src/index.ts')
 } : {};
 
 export default defineConfig({

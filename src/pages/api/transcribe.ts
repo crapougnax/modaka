@@ -1,5 +1,6 @@
 import type { APIRoute } from 'astro';
 import { Ai } from '@quatrain/ai';
+import { Config } from '@quatrain/config';
 import { initBackend } from '../../lib/backend';
 
 export const prerender = false;
@@ -28,7 +29,7 @@ export const POST: APIRoute = async ({ request }) => {
          });
       }
 
-      const model = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
+      const model = Config.requireString('gemini.model', 'GEMINI_MODEL is required');
       const prompt = "Transcris fidèlement et mot à mot ce message audio en français. Ne commente pas et ne résume pas. S'il n'y a pas de parole intelligible, réponds par une chaîne vide.";
 
       const mediaPart = {

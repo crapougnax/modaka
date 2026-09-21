@@ -2,6 +2,7 @@ import { AbstractSkillAdapter, type ToolDefinition, type SkillManifest } from '.
 import { JellyfinClient, type JellyfinConfig } from './JellyfinClient';
 import { ContentItem } from '../../models/ContentItem';
 import { slugify } from '../../utils/text';
+import { Config } from '@quatrain/config';
 import skillManifest from './manifest.json';
 
 export class JellyfinSkillAdapter extends AbstractSkillAdapter {
@@ -12,23 +13,23 @@ export class JellyfinSkillAdapter extends AbstractSkillAdapter {
    constructor(config?: Partial<JellyfinConfig>) {
       super();
       const resolvedConfig: JellyfinConfig = {
-         url: config?.url || process.env.JELLYFIN_URL || 'http://localhost:8096',
-         apiKey: config?.apiKey || process.env.JELLYFIN_API_KEY || '',
-         username: config?.username || process.env.JELLYFIN_USERNAME || '',
-         password: config?.password || process.env.JELLYFIN_PASSWORD || '',
-         libraryName: config?.libraryName || process.env.JELLYFIN_LIBRARY_NAME || '',
-         parentId: config?.parentId || process.env.JELLYFIN_PARENT_ID || ''
+         url: config?.url || Config.get<string>('jellyfin.url') || '',
+         apiKey: config?.apiKey || Config.get<string>('jellyfin.apiKey') || '',
+         username: config?.username || Config.get<string>('jellyfin.username') || '',
+         password: config?.password || Config.get<string>('jellyfin.password') || '',
+         libraryName: config?.libraryName || Config.get<string>('jellyfin.libraryName') || '',
+         parentId: config?.parentId || Config.get<string>('jellyfin.parentId') || ''
       };
       this.client = new JellyfinClient(resolvedConfig);
    }
 
    public async testConnection(values: Record<string, any>): Promise<{ success: boolean; message?: string; error?: string }> {
       const testClient = new JellyfinClient({
-         url: values.url || process.env.JELLYFIN_URL || 'http://localhost:8096',
-         apiKey: (values.apiKey && values.apiKey !== '••••••••') ? values.apiKey : process.env.JELLYFIN_API_KEY,
-         username: values.username !== undefined ? values.username : process.env.JELLYFIN_USERNAME,
-         password: values.password || process.env.JELLYFIN_PASSWORD,
-         libraryName: values.libraryName !== undefined ? values.libraryName : process.env.JELLYFIN_LIBRARY_NAME
+         url: values.url || Config.get<string>('jellyfin.url') || '',
+         apiKey: (values.apiKey && values.apiKey !== '••••••••') ? values.apiKey : (Config.get<string>('jellyfin.apiKey') || ''),
+         username: values.username !== undefined ? values.username : (Config.get<string>('jellyfin.username') || ''),
+         password: values.password || Config.get<string>('jellyfin.password') || '',
+         libraryName: values.libraryName !== undefined ? values.libraryName : (Config.get<string>('jellyfin.libraryName') || '')
       });
       const res = await testClient.testConnection();
       if (res.success) {
@@ -45,12 +46,12 @@ export class JellyfinSkillAdapter extends AbstractSkillAdapter {
 
    public updateConfig(config: Partial<JellyfinConfig>): void {
       const resolvedConfig: JellyfinConfig = {
-         url: config.url || process.env.JELLYFIN_URL || 'http://localhost:8096',
-         apiKey: config.apiKey || process.env.JELLYFIN_API_KEY || '',
-         username: config.username || process.env.JELLYFIN_USERNAME || '',
-         password: config.password || process.env.JELLYFIN_PASSWORD || '',
-         libraryName: config.libraryName || process.env.JELLYFIN_LIBRARY_NAME || '',
-         parentId: config.parentId || process.env.JELLYFIN_PARENT_ID || ''
+         url: config.url || Config.get<string>('jellyfin.url') || '',
+         apiKey: config.apiKey || Config.get<string>('jellyfin.apiKey') || '',
+         username: config.username || Config.get<string>('jellyfin.username') || '',
+         password: config.password || Config.get<string>('jellyfin.password') || '',
+         libraryName: config.libraryName || Config.get<string>('jellyfin.libraryName') || '',
+         parentId: config.parentId || Config.get<string>('jellyfin.parentId') || ''
       };
       this.client = new JellyfinClient(resolvedConfig);
    }

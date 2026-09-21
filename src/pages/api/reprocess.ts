@@ -4,6 +4,7 @@ import { ContentItem } from '../../lib/models/ContentItem';
 import { Ingestion } from '@quatrain/ingestion';
 import { searchAndCreateConcept } from '../../lib/concept-autolink';
 import { Log } from '@quatrain/log';
+import { Config } from '@quatrain/config';
 
 export const POST: APIRoute = async ({ request }) => {
    try {
@@ -38,7 +39,7 @@ export const POST: APIRoute = async ({ request }) => {
 
       const bodyText = item.val('body') || '';
       const note = item.val('contextNote') || '';
-      const model = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
+      const model = Config.requireString('gemini.model', 'GEMINI_MODEL is required');
 
       Log.info(`[Reprocess API] Processing document "${item.val('title')}" (${id}) with model ${model}`);
 

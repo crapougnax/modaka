@@ -22,8 +22,9 @@ export const GET: APIRoute = async ({ request }) => {
       }
 
       const docStorage = Storage.getStorage('document-storage');
+      const bucket = (docStorage as any)?._params?.config?.bucket;
       const getDocFile = (ref: string) => ({
-         bucket: process.env.S3_BUCKET || 'second-brain',
+         bucket,
          ref,
          name: path.basename(ref)
       });

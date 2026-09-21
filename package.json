@@ -33,6 +33,7 @@
     "@quatrain/auth-github": "^1.2.10",
     "@quatrain/backend": "^1.2.17",
     "@quatrain/chat": "^1.0.3",
+    "@quatrain/config": "^1.0.1",
     "@quatrain/core": "^1.2.17",
     "@quatrain/ingestion": "^1.0.1",
     "@quatrain/ingestion-audio": "^1.0.1",

@@ -4,6 +4,7 @@ import { ContentItem } from '../../lib/models/ContentItem';
 import { Storage } from '@quatrain/storage';
 import { Backend } from '@quatrain/backend';
 import { Core } from '@quatrain/core';
+import { Config } from '@quatrain/config';
 import { ChatController } from '@quatrain/chat';
 import type { ChatDocument } from '@quatrain/chat';
 import { Readable } from 'node:stream';
@@ -51,8 +52,9 @@ export const POST: APIRoute = async ({ request }) => {
             summary: item.val('summary') || '',
             contentLoader: markdownRef ? async () => {
                const docStorage = Storage.getStorage('document-storage');
+               const bucket = (docStorage as any)?._params?.config?.bucket;
                const getDocFile = (ref: string) => ({
-                  bucket: process.env.S3_BUCKET || 'documents',
+                  bucket,
                   ref,
                   name: path.basename(ref)
                });
@@ -107,9 +109,10 @@ export const POST: APIRoute = async ({ request }) => {
       }
 
       // Instantiate core ChatController
+      const chatModel = Config.requireString('gemini.model', 'GEMINI_MODEL is required');
       const controller = new ChatController({
          provider: 'gemini',
-         model: process.env.GEMINI_MODEL || 'gemini-2.5-flash',
+         model: chatModel,
          userProfile: {
             name: userProfile?.name,
             email: userProfile?.email,

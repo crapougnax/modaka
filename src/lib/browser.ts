@@ -1,6 +1,7 @@
 import { launch } from 'puppeteer-core';
 import { Log } from '@quatrain/log';
 import * as fs from 'node:fs/promises';
+import { Config } from '@quatrain/config';
 
 export async function fetchHtmlWithJs(url: string): Promise<string> {
    // 1. Fast HTTP fetch check for HTML pages
@@ -30,7 +31,7 @@ export async function fetchHtmlWithJs(url: string): Promise<string> {
       Log.warn(`[Browser Scraper] Fast fetch failed: ${e.message}. Falling back to Puppeteer.`);
    }
 
-   let executablePath = process.env.CHROME_PATH || '';
+   let executablePath = Config.get<string>('chrome.path');
 
    if (!executablePath) {
       if (process.platform === 'darwin') {

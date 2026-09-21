@@ -1,10 +1,11 @@
 import type { APIRoute } from 'astro';
 import { GoogleGenAI } from '@google/genai';
+import { Config } from '@quatrain/config';
 
 export const POST: APIRoute = async ({ request }) => {
    try {
       const body = await request.json().catch(() => ({}));
-      const apiKey = (body.apiKey && body.apiKey.trim()) ? body.apiKey.trim() : (process.env.GEMINI_API_KEY || '');
+      const apiKey = (body.apiKey && body.apiKey.trim()) ? body.apiKey.trim() : Config.get<string>('gemini.apiKey');
 
       if (!apiKey) {
          return new Response(JSON.stringify({
@@ -27,7 +28,7 @@ export const POST: APIRoute = async ({ request }) => {
       }
 
       const ai = new GoogleGenAI({ apiKey });
-      const model = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
+      const model = Config.requireString('gemini.model', 'GEMINI_MODEL is required');
 
       const response = await ai.models.generateContent({
          model,
