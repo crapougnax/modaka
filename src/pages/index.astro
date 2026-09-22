@@ -4,8 +4,9 @@ import '../styles/global.css';
 
 const devModeCookie = Astro.cookies.get('sb_dev_mode');
 const initialDevMode = devModeCookie ? devModeCookie.value === 'true' : false;
-const elevenLabsApiKey = import.meta.env.ELEVENLABS_API_KEY || '';
-const elevenLabsVoiceId = import.meta.env.ELEVENLABS_VOICE_ID || '';
+const ttsApiKey = import.meta.env.TTS_API_KEY || import.meta.env.ELEVENLABS_API_KEY || '';
+const ttsVoiceId = import.meta.env.TTS_VOICE_ID || import.meta.env.ELEVENLABS_VOICE_ID || '';
+const ttsProvider = import.meta.env.TTS_PROVIDER || '';
 ---
 
 <html lang="fr">
@@ -26,8 +27,9 @@ const elevenLabsVoiceId = import.meta.env.ELEVENLABS_VOICE_ID || '';
     <Dashboard 
       client:only="react" 
       initialDevMode={initialDevMode} 
-      defaultElevenLabsApiKey={elevenLabsApiKey} 
-      defaultElevenLabsVoiceId={elevenLabsVoiceId} 
+      defaultTtsApiKey={ttsApiKey} 
+      defaultTtsVoiceId={ttsVoiceId} 
+      defaultTtsProvider={ttsProvider} 
     />
 
     <script is:inline>

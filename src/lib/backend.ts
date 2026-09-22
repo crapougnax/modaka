@@ -232,17 +232,39 @@ function applyConfig(config: any) {
    if (config.email) Config.set('user.email', config.email);
    if (config.lang) Config.set('lang', config.lang);
    if (config.llm) {
-      if (config.llm.apiKey !== undefined && config.llm.apiKey !== null) {
-         const trimmedKey = String(config.llm.apiKey).trim();
-         if (trimmedKey) {
+      const activeProvider = config.llm.active || config.llm.provider || 'gemini';
+      Config.set('llm.active', activeProvider);
+      Config.set('llm.provider', activeProvider);
+
+      let activeConf: any = null;
+      if (config.llm.providers && typeof config.llm.providers === 'object') {
+         Config.set('llm.providers', config.llm.providers);
+         activeConf = config.llm.providers[activeProvider];
+      }
+
+      const activeApiKey = activeConf?.apiKey ?? config.llm.apiKey;
+      const activeModel = activeConf?.model ?? config.llm.model;
+      const activeEndpoint = activeConf?.endpoint ?? config.llm.endpoint;
+
+      if (activeApiKey !== undefined && activeApiKey !== null) {
+         const trimmedKey = String(activeApiKey).trim();
+         Config.set('llm.apiKey', trimmedKey);
+         if (activeProvider === 'gemini') {
             Config.set('gemini.apiKey', trimmedKey);
             process.env.GEMINI_API_KEY = trimmedKey;
          }
       }
-      if (config.llm.model && config.llm.model.trim() !== '') {
-         const model = config.llm.model.trim();
-         Config.set('gemini.model', model);
-         process.env.GEMINI_MODEL = model;
+      if (activeModel !== undefined && activeModel !== null) {
+         const trimmedModel = String(activeModel).trim();
+         Config.set('llm.model', trimmedModel);
+         if (activeProvider === 'gemini') {
+            Config.set('gemini.model', trimmedModel);
+            process.env.GEMINI_MODEL = trimmedModel;
+         }
+      }
+      if (activeEndpoint !== undefined && activeEndpoint !== null) {
+         const trimmedEndpoint = String(activeEndpoint).trim();
+         Config.set('llm.endpoint', trimmedEndpoint);
       }
    }
    if (config.githubClientId) {
@@ -337,19 +359,55 @@ function loadUserConfig() {
    }
 }
 
+async function configureAiAdapter() {
+   const activeProvider = Config.get<string>('llm.provider') || Config.get<string>('llm.active') || 'gemini';
+   const apiKey = Config.get<string>('llm.apiKey') || Config.get<string>('gemini.apiKey');
+   const model = Config.get<string>('llm.model') || Config.get<string>('gemini.model');
+   const endpoint = Config.get<string>('llm.endpoint');
+
+   if (!apiKey && activeProvider !== 'llama' && activeProvider !== 'ollama') {
+      Log.warn(`[Backend] API key is not configured for LLM provider "${activeProvider}", AI adapter not set`);
+      return;
+   }
+
+   if (activeProvider === 'gemini') {
+      const { GeminiAdapter } = await import('@quatrain/ai-gemini');
+      const adapter = new GeminiAdapter(apiKey);
+      if (typeof (adapter as any).init === 'function') {
+         (adapter as any).init();
+      }
+      Ai.setAdapter(adapter);
+      Log.info(`[Backend] Gemini AI adapter registered successfully (Key: ...${apiKey ? apiKey.slice(-4) : 'none'})`);
+   } else {
+      const { OpenAiAdapter } = await import('@quatrain/ai-openai');
+      let baseUrl = endpoint;
+      if (!baseUrl) {
+         if (activeProvider === 'openai') baseUrl = 'https://api.openai.com/v1';
+         else if (activeProvider === 'mistral') baseUrl = 'https://api.mistral.ai/v1';
+         else if (activeProvider === 'groq') baseUrl = 'https://api.groq.com/openai/v1';
+         else if (activeProvider === 'openrouter') baseUrl = 'https://openrouter.ai/api/v1';
+         else if (activeProvider === 'ollama' || activeProvider === 'llama') baseUrl = 'http://localhost:11434/v1';
+      }
+
+      const adapter = new OpenAiAdapter({
+         apiKey: apiKey || 'ollama',
+         baseUrl: baseUrl || undefined,
+         defaultModel: model || undefined
+      });
+      if (typeof (adapter as any).init === 'function') {
+         (adapter as any).init();
+      }
+      Ai.setAdapter(adapter);
+      Log.info(`[Backend] OpenAI-compatible (${activeProvider}) AI adapter registered successfully (BaseUrl: ${baseUrl || 'default'}, Model: ${model || 'unspecified'})`);
+   }
+}
+
 export async function reconfigureBackend() {
    // Reload config into Config registry
    loadUserConfig();
 
-   // Re-init AI Adapter with updated key
-   const geminiApiKey = Config.get<string>('gemini.apiKey');
-   if (geminiApiKey) {
-      const { GeminiAdapter } = await import('@quatrain/ai-gemini');
-      const adapter = new GeminiAdapter(geminiApiKey);
-      adapter.init();
-      Ai.setAdapter(adapter);
-      Log.info(`[Backend] AI adapter reconfigured successfully (Key: ...${geminiApiKey.slice(-4)})`);
-   }
+   // Re-init AI Adapter with updated configuration
+   await configureAiAdapter();
 
    // Re-init Document Storage
    let docAdapter: any;
@@ -484,14 +542,8 @@ export async function initBackend() {
    const isProd = nodeEnv === 'production';
    Log.addLogger('default', new DefaultLoggerAdapter('', isProd ? LogLevel.INFO : LogLevel.DEBUG), true);
 
-   const geminiApiKey = Config.get<string>('gemini.apiKey');
-   if (geminiApiKey) {
-      const { GeminiAdapter } = await import('@quatrain/ai-gemini');
-      Ai.setAdapter(new GeminiAdapter(geminiApiKey));
-      Log.info('AI adapter registered successfully');
-   } else {
-      Log.warn('GEMINI_API_KEY is not configured, AI adapter not set');
-   }
+   // Initialize AI Adapter
+   await configureAiAdapter();
 
    const gitMode = Config.requireEnum<'local' | 'github'>('git.mode', ['local', 'github'], 'GIT_MODE must be "local" or "github"');
    const gitLocalPath = Config.requireString('git.localPath', 'GIT_LOCAL_PATH is required');

@@ -109,9 +109,13 @@ export const POST: APIRoute = async ({ request }) => {
       }
 
       // Instantiate core ChatController
-      const chatModel = Config.requireString('gemini.model', 'GEMINI_MODEL is required');
+      const chatProvider = Config.get<string>('llm.provider') || Config.get<string>('llm.active') || 'gemini';
+      const chatModel = Config.get<string>('llm.model') || Config.get<string>('gemini.model');
+      if (!chatModel) {
+         throw new Error('Aucun modèle LLM configuré. Veuillez définir un modèle dans les paramètres.');
+      }
       const controller = new ChatController({
-         provider: 'gemini',
+         provider: chatProvider,
          model: chatModel,
          userProfile: {
             name: userProfile?.name,
@@ -131,7 +135,7 @@ export const POST: APIRoute = async ({ request }) => {
       const ioTimeMs = Date.now() - startTime;
       const aiStartTime = Date.now();
 
-      Core.info(`[Gemini] Initiated text streaming successfully via @quatrain/chat`);
+      Core.info(`[${chatProvider}] Initiated text streaming (${chatModel}) via @quatrain/chat`);
 
       const encoder = new TextEncoder();
       const readable = new ReadableStream({
