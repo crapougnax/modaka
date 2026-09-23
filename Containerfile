@@ -79,9 +79,9 @@ COPY --chown=bun:bun --from=builder /app/package.json ./
 COPY --chown=bun:bun --from=builder /app/node_modules ./node_modules
 COPY --chown=bun:bun --from=builder /app/dist ./dist
 
-# Create agnostic storage mount targets and queue directory
-RUN mkdir -p /data/content /data/documents /data/queue /app/.queue && \
-    chown -R bun:bun /data /app/.queue
+# Create agnostic storage mount targets, upload temp and queue directory
+RUN mkdir -p /data/content /data/documents /data/queue /app/.queue /tmp/modaka-uploads && \
+    chown -R bun:bun /data /app/.queue /tmp/modaka-uploads
 
 # Non-root unprivileged execution (UID 1000)
 USER bun

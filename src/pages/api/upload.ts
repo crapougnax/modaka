@@ -1,8 +1,10 @@
 import type { APIRoute } from 'astro';
 import * as crypto from 'node:crypto';
 import * as path from 'node:path';
+import * as os from 'node:os';
 import * as fs from 'node:fs/promises';
 import { QueueManager } from '../../lib/queue';
+import { initBackend } from '../../lib/backend';
 
 export const prerender = false;
 
@@ -27,6 +29,7 @@ function decodeFilename(filename: string): string {
 
 export const POST: APIRoute = async ({ request }) => {
    try {
+      await initBackend();
       const formData = await request.formData();
       const files = (formData.getAll('file') as File[]).filter(f => f.name && f.size > 0);
       const textContent = (formData.get('textContent') as string) || '';
@@ -49,7 +52,7 @@ export const POST: APIRoute = async ({ request }) => {
 
       const taskIds: string[] = [];
       if (files.length > 0) {
-         const tempDir = path.resolve(process.cwd(), 'tmp');
+         const tempDir = process.env.UPLOAD_TEMP_DIR || path.join(os.tmpdir(), 'modaka-uploads');
          await fs.mkdir(tempDir, { recursive: true });
 
          for (const file of files) {

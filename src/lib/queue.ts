@@ -1,5 +1,6 @@
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
+import * as os from 'node:os';
 import * as crypto from 'node:crypto';
 import { Readable } from 'node:stream';
 import { parse as parseYaml } from 'yaml';
@@ -16,14 +17,17 @@ import { normalizeUrl, extractLinks, slugify } from './utils';
 const nominatimClient = new ApiClient('https://nominatim.openstreetmap.org', 'nominatim');
 
 let backendPromise: Promise<void> | null = null;
-function ensureBackend() {
+async function ensureBackend(): Promise<void> {
    if (!backendPromise) {
-      backendPromise = import('./backend').then(({ initBackend }) => {
-         return initBackend();
+      backendPromise = import('./backend').then(async ({ initBackend }) => {
+         await initBackend();
       }).catch(e => {
          Queue.error(`Failed to initialize backend dynamically: ${e.message}`);
+         backendPromise = null;
+         throw e;
       });
    }
+   await backendPromise;
 }
 
 export interface Task {
@@ -136,7 +140,7 @@ class QueueManagerClass {
    }
 
    public async getTasks(): Promise<Task[]> {
-      ensureBackend();
+      await ensureBackend();
       const adapter = Queue.getQueue<any>();
       const tasks = await adapter.getTasks('ingestion');
       return Promise.all(tasks.map(async (task: any) => {
@@ -154,7 +158,7 @@ class QueueManagerClass {
    }
 
    public async addTask(task: Omit<Task, 'id' | 'status' | 'progress' | 'createdAt'>): Promise<Task> {
-      ensureBackend();
+      await ensureBackend();
       const adapter = Queue.getQueue<any>();
       
       this.cleanupOldTempFiles().catch(() => {});
@@ -170,13 +174,13 @@ class QueueManagerClass {
    }
 
    public async retryTask(id: string): Promise<boolean> {
-      ensureBackend();
+      await ensureBackend();
       const adapter = Queue.getQueue<any>();
       return await adapter.retryTask(id);
    }
 
    public async deleteTask(id: string): Promise<boolean> {
-      ensureBackend();
+      await ensureBackend();
       const adapter = Queue.getQueue<any>();
       
       const tasks = await adapter.getTasks('ingestion');
@@ -189,7 +193,7 @@ class QueueManagerClass {
 
    protected async cleanupOldTempFiles() {
       try {
-         const tempDir = path.resolve(process.cwd(), '.tmp');
+         const tempDir = process.env.UPLOAD_TEMP_DIR || path.join(os.tmpdir(), 'modaka-uploads');
          const files = await fs.readdir(tempDir);
          const now = Date.now();
          for (const file of files) {
@@ -205,7 +209,7 @@ class QueueManagerClass {
    }
 
    protected async executeTask(task: any, updateProgress: (progress: number) => Promise<void>): Promise<void> {
-      ensureBackend();
+      await ensureBackend();
 
       const gitLocalPath = Config.requireString('git.localPath', 'GIT_LOCAL_PATH is required');
       const documentStoragePath = Config.requireString('document.storagePath', 'DOCUMENT_STORAGE_PATH is required');
@@ -253,7 +257,7 @@ class QueueManagerClass {
          mime
       });
 
-      const model = Config.requireString('gemini.model', 'GEMINI_MODEL is required');
+      const model = Config.get<string>('llm.model') || Config.get<string>('gemini.model') || 'gemini-2.5-flash';
 
       if (task.type === 'url') {
          if (!task.url) throw new Error('Missing URL for URL ingestion');

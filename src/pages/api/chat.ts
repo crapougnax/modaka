@@ -35,11 +35,13 @@ export const POST: APIRoute = async ({ request }) => {
       }
 
       // Fetch all metadata documents to construct high-level context
+      const ioStartTime = Date.now();
       const query = ContentItem.query();
       query.setLimits({ offset: 0, batch: 1000 });
       const itemsResult = await ContentItem.repository().query(query);
       const items = itemsResult.items || [];
-      Backend.info(`Queried metadata documents from database: found ${items.length} items`);
+      const ioTimeMs = Date.now() - ioStartTime;
+      Backend.info(`Queried metadata documents from database: found ${items.length} items in ${ioTimeMs}ms`);
 
       // Convert ContentItem to ChatDocument (decoupling data query from prompt builder)
       const chatDocuments: ChatDocument[] = items.map((item) => {
@@ -125,15 +127,13 @@ export const POST: APIRoute = async ({ request }) => {
       });
 
       // Delegate prompt construction, token search (RAG) and LLM streaming to @quatrain/chat
+      const aiStartTime = Date.now();
       const {
          stream,
          matchedDocsCount,
          finalPrompt,
          model
       } = await controller.sendMessageStream(messages, chatDocuments);
-
-      const ioTimeMs = Date.now() - startTime;
-      const aiStartTime = Date.now();
 
       Core.info(`[${chatProvider}] Initiated text streaming (${chatModel}) via @quatrain/chat`);
 
