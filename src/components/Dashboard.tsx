@@ -140,6 +140,7 @@ import {
 interface ContentItemData {
    id: string;
    title?: string;
+   type?: string;
    category?: string;
    tags?: string[];
    summary?: string;
@@ -195,6 +196,7 @@ export default function Dashboard({
    const [uploading, setUploading] = useState(false);
    const [uploadSuccess, setUploadSuccess] = useState(false);
    const [selectedDoc, setSelectedDoc] = useState<ContentItemData | null>(null);    
+   const [isReprocessing, setIsReprocessing] = useState(false);
    const [categoryFilter, setCategoryFilter] = useState<string>('all');
    const [showUploadModal, setShowUploadModal] = useState(false);
    const [showQueueModal, setShowQueueModal] = useState(false);    
@@ -1528,7 +1530,13 @@ export default function Dashboard({
                 inversionAttempts: 'attemptBoth',
              });
              if (code) {
-                applyImportedConfig(config);
+                try {
+                   stopScanner();
+                   const parsedConfig = decompressConfig(JSON.parse(code.data));
+                   applyImportedConfig(parsedConfig);
+                } catch (e) {
+                   console.error('Failed to parse scanned QR config', e);
+                }
              }
           }
        }
