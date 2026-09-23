@@ -28,4 +28,5 @@ queue.sqlite*
 
 tmp/
 coverage/
-
+bun.lock
+bun.lockb

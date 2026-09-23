@@ -1,4 +1,5 @@
 import type { AppCompositionInterface, PWAContentInterface } from '@quatrain/types';
+import { Config } from '@quatrain/config';
 
 /**
  * Official Modaka application composition definition.
@@ -30,7 +31,7 @@ export const modakaComposition: AppCompositionInterface<PWAContentInterface> = {
       queue: { package: '@quatrain/queue-sqlite', adapter: 'SQLiteQueueAdapter' }
    },
    config: {
-      okfRoot: './second-brain-data/content',
+      okfRoot: Config.requireString('git.localPath', 'GIT_LOCAL_PATH is required'),
       defaultCategory: 'inbox'
    }
 };

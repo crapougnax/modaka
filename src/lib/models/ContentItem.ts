@@ -1,5 +1,6 @@
 import { PersistedBaseObject } from '@quatrain/backend';
 import { StringProperty, ArrayProperty, DateTimeProperty } from '@quatrain/core';
+import { Config } from '@quatrain/config';
 
 export const ContentItemProperties = [
    {
@@ -141,7 +142,7 @@ export class ContentItem extends PersistedBaseObject {
          try {
             const gemini = Ai.getAdapter();
             if (gemini) {
-               const model = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
+               const model = Config.requireString('gemini.model', 'GEMINI_MODEL is required');
                const createdAtStr = this.val('createdAt') || new Date().toISOString();
                const originalCreatedAt = new Date(createdAtStr);
                const dayOfWeek = new Intl.DateTimeFormat('en-US', { weekday: 'long' }).format(originalCreatedAt);
@@ -238,7 +239,7 @@ ${newBody}
                const docStorage = Storage.getStorage('document-storage');
                if (docStorage) {
                   const getDocFile = (ref: string) => ({
-                     bucket: process.env.S3_BUCKET || 'documents',
+                     bucket: (docStorage as any)?._params?.config?.bucket,
                      ref,
                      name: ref.split('/').pop() || ''
                   });

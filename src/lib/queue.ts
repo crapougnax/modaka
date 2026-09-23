@@ -6,6 +6,7 @@ import { parse as parseYaml } from 'yaml';
 import { Storage } from '@quatrain/storage';
 import { Ingestion } from '@quatrain/ingestion';
 import { Queue } from '@quatrain/queue';
+import { Config } from '@quatrain/config';
 import { ContentItem } from './models/ContentItem';
 import { fetchHtmlWithJs } from './browser';
 import { gitAddIfRepo } from './utils/git';
@@ -188,7 +189,7 @@ class QueueManagerClass {
 
    protected async cleanupOldTempFiles() {
       try {
-         const tempDir = path.resolve(process.cwd(), '.second-brain-temp');
+         const tempDir = path.resolve(process.cwd(), '.tmp');
          const files = await fs.readdir(tempDir);
          const now = Date.now();
          for (const file of files) {
@@ -206,8 +207,8 @@ class QueueManagerClass {
    protected async executeTask(task: any, updateProgress: (progress: number) => Promise<void>): Promise<void> {
       ensureBackend();
 
-      const gitLocalPath = process.env.GIT_LOCAL_PATH || path.resolve(process.cwd(), '.second-brain-git');
-      const documentStoragePath = process.env.DOCUMENT_STORAGE_PATH || path.resolve(process.cwd(), '.second-brain-docs');
+      const gitLocalPath = Config.requireString('git.localPath', 'GIT_LOCAL_PATH is required');
+      const documentStoragePath = Config.requireString('document.storagePath', 'DOCUMENT_STORAGE_PATH is required');
 
       let locationContext = '';
       if (task.latitude !== undefined && task.longitude !== undefined) {
@@ -243,15 +244,16 @@ class QueueManagerClass {
 
 
 
+      const docStorage = Storage.getStorage('document-storage');
+      const bucket = (docStorage as any)?._params?.config?.bucket;
       const getDocFile = (ref: string, mime: string) => ({
-         bucket: process.env.S3_BUCKET || 'documents',
+         bucket,
          ref,
          name: path.basename(ref),
          mime
       });
 
-      const model = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
-      const docStorage = Storage.getStorage('document-storage');
+      const model = Config.requireString('gemini.model', 'GEMINI_MODEL is required');
 
       if (task.type === 'url') {
          if (!task.url) throw new Error('Missing URL for URL ingestion');

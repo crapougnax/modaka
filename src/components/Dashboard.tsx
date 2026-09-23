@@ -58,6 +58,85 @@ import {
       return indices.map(idx => ONBOARDING_SUBTHEMES[idx]).filter(Boolean);
    }
 
+   interface LlmProviderMeta {
+      id: string;
+      name: string;
+      icon: string;
+      keyLabel?: string;
+      keyPlaceholder?: string;
+      defaultEndpoint?: string;
+      modelSuggestions: string[];
+      helpUrl?: string;
+   }
+
+   const LLM_PROVIDERS: LlmProviderMeta[] = [
+      {
+         id: 'gemini',
+         name: 'Google Gemini',
+         icon: '⚡',
+         keyLabel: 'Clé API Google Gemini (AI Studio) :',
+         keyPlaceholder: 'AIzaSy...',
+         modelSuggestions: ['gemini-2.5-flash', 'gemini-2.5-pro', 'gemini-1.5-flash', 'gemini-1.5-pro'],
+         helpUrl: 'https://aistudio.google.com/app/apikey'
+      },
+      {
+         id: 'openai',
+         name: 'OpenAI',
+         icon: '🤖',
+         keyLabel: 'Clé API OpenAI :',
+         keyPlaceholder: 'sk-proj-...',
+         defaultEndpoint: 'https://api.openai.com/v1',
+         modelSuggestions: ['gpt-4o', 'gpt-4o-mini', 'o1-mini', 'o3-mini'],
+         helpUrl: 'https://platform.openai.com/api-keys'
+      },
+      {
+         id: 'anthropic',
+         name: 'Anthropic Claude',
+         icon: '🧠',
+         keyLabel: 'Clé API Anthropic :',
+         keyPlaceholder: 'sk-ant-...',
+         modelSuggestions: ['claude-3-7-sonnet-20250219', 'claude-3-5-sonnet-20241022', 'claude-3-5-haiku-20241022'],
+         helpUrl: 'https://console.anthropic.com/settings/keys'
+      },
+      {
+         id: 'mistral',
+         name: 'Mistral AI',
+         icon: '🇫🇷',
+         keyLabel: 'Clé API Mistral AI :',
+         keyPlaceholder: 'mis_...',
+         defaultEndpoint: 'https://api.mistral.ai/v1',
+         modelSuggestions: ['mistral-large-latest', 'mistral-small-latest', 'codestral-latest'],
+         helpUrl: 'https://console.mistral.ai/api-keys/'
+      },
+      {
+         id: 'groq',
+         name: 'Groq',
+         icon: '🚀',
+         keyLabel: 'Clé API Groq :',
+         keyPlaceholder: 'gsk_...',
+         defaultEndpoint: 'https://api.groq.com/openai/v1',
+         modelSuggestions: ['llama-3.3-70b-versatile', 'llama-3.1-8b-instant', 'mixtral-8x7b-32768'],
+         helpUrl: 'https://console.groq.com/keys'
+      },
+      {
+         id: 'openrouter',
+         name: 'OpenRouter',
+         icon: '🌐',
+         keyLabel: 'Clé API OpenRouter :',
+         keyPlaceholder: 'sk-or-...',
+         defaultEndpoint: 'https://openrouter.ai/api/v1',
+         modelSuggestions: ['deepseek/deepseek-r1', 'meta-llama/llama-3.3-70b-instruct', 'google/gemini-2.0-flash-001'],
+         helpUrl: 'https://openrouter.ai/keys'
+      },
+      {
+         id: 'ollama',
+         name: 'Local Ollama / Llama.cpp',
+         icon: '🦙',
+         defaultEndpoint: 'http://localhost:11434',
+         modelSuggestions: ['llama3.2', 'mistral', 'qwen2.5-coder', 'deepseek-r1:8b']
+      }
+   ];
+
 interface ContentItemData {
    id: string;
    title?: string;
@@ -92,15 +171,24 @@ interface Message {
 
 interface DashboardProps {
    initialDevMode?: boolean;
+   defaultTtsApiKey?: string;
+   defaultTtsVoiceId?: string;
+   defaultTtsProvider?: string;
    defaultElevenLabsApiKey?: string;
    defaultElevenLabsVoiceId?: string;
 }
 
 export default function Dashboard({ 
    initialDevMode = false,
+   defaultTtsApiKey = '',
+   defaultTtsVoiceId = '',
+   defaultTtsProvider = '',
    defaultElevenLabsApiKey = '',
-   defaultElevenLabsVoiceId = 'bVsJfghVbJypxgwVISO3'
+   defaultElevenLabsVoiceId = ''
 }: DashboardProps) {
+   const effectiveTtsApiKey = defaultTtsApiKey || defaultElevenLabsApiKey;
+   const effectiveTtsVoiceId = defaultTtsVoiceId || defaultElevenLabsVoiceId;
+   const effectiveTtsProvider = defaultTtsProvider || (effectiveTtsApiKey ? 'ElevenLabs' : 'Browser');
    const [activeTab, setActiveTab] = useState<'chat' | 'docs' | 'stats'>('chat');
    const [statsMode, setStatsMode] = useState<'table' | 'categories' | 'performance'>('table');
    const [documents, setDocuments] = useState<ContentItemData[]>([]);
@@ -126,7 +214,7 @@ export default function Dashboard({
          const res = await fetch('/api/test-key', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ apiKey: llmApiKey })
+            body: JSON.stringify({ provider: llmProvider, apiKey: llmApiKey, model: llmModel })
          });
          const data = await res.json();
          if (res.ok && data.success) {
@@ -440,8 +528,8 @@ export default function Dashboard({
       email: '',
       language: 'fr_FR',
       ttsProvider: 'Browser',
-      elevenLabsApiKey: defaultElevenLabsApiKey,
-      elevenLabsVoiceId: defaultElevenLabsVoiceId
+      ttsApiKey: effectiveTtsApiKey,
+      ttsVoiceId: effectiveTtsVoiceId
    });
 
    const [configured, setConfigured] = useState(false);
@@ -454,8 +542,8 @@ export default function Dashboard({
    const [nameInput, setNameInput] = useState('');
    const [emailInput, setEmailInput] = useState('');
    const [langInput, setLangInput] = useState('fr_FR');
-   const [llmProvider, setLlmProvider] = useState<'gemini' | 'llama'>('gemini');
-   const [llmModel, setLlmModel] = useState('gemini-2.5-flash');
+   const [llmProvider, setLlmProvider] = useState<string>('gemini');
+   const [llmModel, setLlmModel] = useState<string>('');
    const [llamaEndpoint, setLlamaEndpoint] = useState('http://10.0.2.2:8080/v1');
    const [llmApiKey, setLlmApiKey] = useState('');
 
@@ -518,8 +606,9 @@ export default function Dashboard({
             setUserProfile(prev => ({
                ...prev,
                ...parsed,
-               elevenLabsApiKey: parsed.elevenLabsApiKey || defaultElevenLabsApiKey,
-               elevenLabsVoiceId: parsed.elevenLabsVoiceId || defaultElevenLabsVoiceId
+               ttsProvider: parsed.ttsProvider || (parsed.ttsApiKey || parsed.elevenLabsApiKey ? 'ElevenLabs' : 'Browser'),
+               ttsApiKey: parsed.ttsApiKey || parsed.elevenLabsApiKey || effectiveTtsApiKey,
+               ttsVoiceId: parsed.ttsVoiceId || parsed.elevenLabsVoiceId || effectiveTtsVoiceId
             }));
          } catch (e) {
             // ignore
@@ -527,11 +616,12 @@ export default function Dashboard({
       } else {
          setUserProfile(prev => ({
             ...prev,
-            elevenLabsApiKey: defaultElevenLabsApiKey,
-            elevenLabsVoiceId: defaultElevenLabsVoiceId
+            ttsProvider: effectiveTtsProvider,
+            ttsApiKey: effectiveTtsApiKey,
+            ttsVoiceId: effectiveTtsVoiceId
          }));
       }
-   }, [defaultElevenLabsApiKey, defaultElevenLabsVoiceId]);
+   }, [effectiveTtsApiKey, effectiveTtsVoiceId, effectiveTtsProvider]);
 
    const applyImportedConfig = async (config: any) => {
       try {
@@ -581,10 +671,12 @@ export default function Dashboard({
             name: config.name || '',
             email: config.email || '',
             llm: {
-               provider: config.llm?.provider || (config.llm?.model?.includes('gemma') || config.llm?.model?.includes('llama') ? 'llama' : 'gemini'),
-               model: config.llm?.model || 'gemini-2.5-flash',
+               active: config.llm?.active || config.llm?.provider || 'gemini',
+               provider: config.llm?.provider || config.llm?.active || 'gemini',
+               providers: config.llm?.providers || {},
+               model: config.llm?.model || '',
                apiKey: config.llm?.apiKey || '',
-               llamaEndpoint: config.llm?.llamaEndpoint || 'http://10.0.2.2:8080/v1'
+               endpoint: config.llm?.endpoint || ''
             },
             okfStorage: {
                type: config.okfStorage?.type || 'local',
@@ -631,9 +723,9 @@ export default function Dashboard({
             name: config.name || '',
             email: config.email || '',
             language: config.lang || 'fr_FR',
-            ttsProvider: config.ttsProvider || userProfile.ttsProvider || 'Browser',
-            elevenLabsApiKey: config.elevenLabsApiKey || userProfile.elevenLabsApiKey || defaultElevenLabsApiKey,
-            elevenLabsVoiceId: config.elevenLabsVoiceId || userProfile.elevenLabsVoiceId || defaultElevenLabsVoiceId
+            ttsProvider: config.tts?.provider || config.ttsProvider || userProfile.ttsProvider || 'Browser',
+            ttsApiKey: config.tts?.apiKey || config.ttsApiKey || config.elevenLabsApiKey || userProfile.ttsApiKey || effectiveTtsApiKey,
+            ttsVoiceId: config.tts?.voiceId || config.ttsVoiceId || config.elevenLabsVoiceId || userProfile.ttsVoiceId || effectiveTtsVoiceId
          };
          setUserProfile(newProfile);
          localStorage.setItem('sb_user_profile', JSON.stringify(newProfile));
@@ -920,19 +1012,29 @@ export default function Dashboard({
    }, [activeTab, selectedDoc]);
 
    const [showLlmModal, setShowLlmModal] = useState<boolean>(false);
-   const [modalLlmProvider, setModalLlmProvider] = useState<'gemini' | 'llama'>('gemini');
-   const [modalLlmModel, setModalLlmModel] = useState<string>('gemini-2.5-flash');
-   const [modalLlmApiKey, setModalLlmApiKey] = useState<string>('');
-   const [modalLlamaEndpoint, setModalLlamaEndpoint] = useState<string>('http://localhost:11434');
+   const [modalLlmActiveProvider, setModalLlmActiveProvider] = useState<string>('gemini');
+   const [modalSelectedTab, setModalSelectedTab] = useState<string>('gemini');
+   const [modalLlmProvidersMap, setModalLlmProvidersMap] = useState<Record<string, { apiKey?: string; model?: string; endpoint?: string }>>({});
    const [isTestingLlmInModal, setIsTestingLlmInModal] = useState<boolean>(false);
    const [llmTestStatusInModal, setLlmTestStatusInModal] = useState<{ success: boolean; message: string } | null>(null);
+
+   const updateProviderField = (providerId: string, field: 'apiKey' | 'model' | 'endpoint', value: string) => {
+      setModalLlmProvidersMap(prev => ({
+         ...prev,
+         [providerId]: {
+            ...(prev[providerId] || {}),
+            [field]: value
+         }
+      }));
+      setLlmTestStatusInModal(null);
+   };
 
    const [modalName, setModalName] = useState<string>('');
    const [modalEmail, setModalEmail] = useState<string>('');
    const [modalLanguage, setModalLanguage] = useState<string>('Français');
    const [modalTtsProvider, setModalTtsProvider] = useState<string>('Browser');
-   const [modalElevenLabsApiKey, setModalElevenLabsApiKey] = useState<string>('');
-   const [modalElevenLabsVoiceId, setModalElevenLabsVoiceId] = useState<string>('bVsJfghVbJypxgwVISO3');
+   const [modalTtsApiKey, setModalTtsApiKey] = useState<string>('');
+   const [modalTtsVoiceId, setModalTtsVoiceId] = useState<string>('');
 
    const [searchQuery, setSearchQuery] = useState<string>('');
    const [showCategoryModal, setShowCategoryModal] = useState<boolean>(false);
@@ -944,10 +1046,22 @@ export default function Dashboard({
          setLlmTestStatusInModal(null);
          fetch('/api/config').then(r => r.ok ? r.json() : null).then(cfg => {
             if (cfg && cfg.llm) {
-               setModalLlmProvider(cfg.llm.provider || 'gemini');
-               setModalLlmModel(cfg.llm.model || 'gemini-2.5-flash');
-               setModalLlmApiKey(cfg.llm.apiKey || '');
-               setModalLlamaEndpoint(cfg.llm.llamaEndpoint || 'http://localhost:11434');
+               const active = cfg.llm.active || cfg.llm.provider || 'gemini';
+               setModalLlmActiveProvider(active);
+               setModalSelectedTab(active);
+
+               const map: Record<string, { apiKey?: string; model?: string; endpoint?: string }> = {
+                  ...(cfg.llm.providers || {})
+               };
+
+               if (!map[active]) {
+                  map[active] = {
+                     apiKey: cfg.llm.apiKey || '',
+                     model: cfg.llm.model || '',
+                     endpoint: cfg.llm.endpoint || ''
+                  };
+               }
+               setModalLlmProvidersMap(map);
             }
          }).catch(() => {});
       }
@@ -959,13 +1073,16 @@ export default function Dashboard({
          const res = await fetch('/api/config');
          if (res.ok) {
             const currentConfig = await res.json();
+            const activeConf = modalLlmProvidersMap[modalLlmActiveProvider] || {};
             const updatedConfig = {
                ...currentConfig,
                llm: {
-                  provider: modalLlmProvider,
-                  model: modalLlmModel,
-                  apiKey: modalLlmApiKey,
-                  llamaEndpoint: modalLlamaEndpoint
+                  active: modalLlmActiveProvider,
+                  provider: modalLlmActiveProvider,
+                  providers: modalLlmProvidersMap,
+                  apiKey: activeConf.apiKey || '',
+                  model: activeConf.model || '',
+                  endpoint: activeConf.endpoint || ''
                }
             };
             await fetch('/api/config', {
@@ -973,8 +1090,10 @@ export default function Dashboard({
                headers: { 'Content-Type': 'application/json' },
                body: JSON.stringify(updatedConfig)
             });
+            setLlmProvider(modalLlmActiveProvider);
+            setLlmModel(activeConf.model || '');
             setNotification({
-               message: '🟢 Configuration du moteur IA enregistrée avec succès !',
+               message: `🟢 Configuration IA (${modalLlmActiveProvider}) enregistrée avec succès !`,
                type: 'success'
             });
          }
@@ -990,25 +1109,22 @@ export default function Dashboard({
       setIsTestingLlmInModal(true);
       setLlmTestStatusInModal(null);
       try {
-         if (modalLlmProvider === 'gemini') {
-            const res = await fetch('/api/test-key', {
-               method: 'POST',
-               headers: { 'Content-Type': 'application/json' },
-               body: JSON.stringify({ apiKey: modalLlmApiKey })
-            });
-            const data = await res.json();
-            if (res.ok && data.success) {
-               setLlmTestStatusInModal({ success: true, message: data.message || 'Clé API Gemini validée !' });
-            } else {
-               setLlmTestStatusInModal({ success: false, message: data.error || 'Clé API invalide.' });
-            }
+         const currentTabConf = modalLlmProvidersMap[modalSelectedTab] || {};
+         const res = await fetch('/api/test-key', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+               provider: modalSelectedTab,
+               apiKey: currentTabConf.apiKey || '',
+               model: currentTabConf.model || '',
+               endpoint: currentTabConf.endpoint || ''
+            })
+         });
+         const data = await res.json();
+         if (res.ok && data.success) {
+            setLlmTestStatusInModal({ success: true, message: data.message || `Connexion à ${modalSelectedTab} validée !` });
          } else {
-            const res = await fetch(`${modalLlamaEndpoint}/v1/models`).catch(() => null);
-            if (res && res.ok) {
-               setLlmTestStatusInModal({ success: true, message: 'Moteur LLM Local accessible !' });
-            } else {
-               setLlmTestStatusInModal({ success: false, message: `Impossible de contacter l'endpoint local (${modalLlamaEndpoint})` });
-            }
+            setLlmTestStatusInModal({ success: false, message: data.error || 'Test de connexion échoué.' });
          }
       } catch (err: any) {
          setLlmTestStatusInModal({ success: false, message: `Erreur de connexion : ${err.message}` });
@@ -1023,8 +1139,8 @@ export default function Dashboard({
          setModalEmail(userProfile.email);
          setModalLanguage(userProfile.language);
          setModalTtsProvider(userProfile.ttsProvider || 'Browser');
-         setModalElevenLabsApiKey(userProfile.elevenLabsApiKey || '');
-         setModalElevenLabsVoiceId(userProfile.elevenLabsVoiceId || 'bVsJfghVbJypxgwVISO3');
+         setModalTtsApiKey(userProfile.ttsApiKey || '');
+         setModalTtsVoiceId(userProfile.ttsVoiceId || '');
       }
    }, [showProfileModal, userProfile]);
 
@@ -1042,7 +1158,15 @@ export default function Dashboard({
                ...currentConfig,
                name: profile.name,
                email: profile.email,
-               lang: profile.language
+               lang: profile.language,
+               tts: {
+                  provider: profile.ttsProvider,
+                  apiKey: profile.ttsApiKey,
+                  voiceId: profile.ttsVoiceId
+               },
+               ttsProvider: profile.ttsProvider,
+               ttsApiKey: profile.ttsApiKey,
+               ttsVoiceId: profile.ttsVoiceId
             };
             await fetch('/api/config', {
                method: 'POST',
@@ -1507,7 +1631,7 @@ export default function Dashboard({
    const handleToggleSpeech = async (text: string, index: number) => {
       
 
-      if ((window as any).ReactNativeWebView && userProfile.ttsProvider !== 'ElevenLabs') {
+      if ((window as any).ReactNativeWebView && userProfile.ttsProvider === 'Browser') {
          if (speakingIndex === index) {
             (window as any).ReactNativeWebView.postMessage(JSON.stringify({
                type: 'STOP_SPEAK'
@@ -1526,7 +1650,7 @@ export default function Dashboard({
       }
 
       if (speakingIndex === index) {
-         if (userProfile.ttsProvider === 'ElevenLabs') {
+         if (userProfile.ttsProvider !== 'Browser') {
             if (activeAudioRef.current) {
                activeAudioRef.current.pause();
                activeAudioRef.current = null;
@@ -1546,20 +1670,25 @@ export default function Dashboard({
 
          try {
             if (userProfile.ttsProvider === 'ElevenLabs') {
-               if (!userProfile.elevenLabsApiKey) {
-                  alert("Veuillez saisir votre clé API ElevenLabs dans les paramètres du profil.");
+               if (!userProfile.ttsApiKey) {
+                  alert("Veuillez saisir votre clé d'API TTS dans les paramètres du profil.");
+                  setSpeakingIndex(null);
+                  return;
+               }
+
+               const voiceId = userProfile.ttsVoiceId;
+               if (!voiceId) {
+                  alert("Pour ElevenLabs, l'API nécessite un identifiant de voix (Voice ID) dans les paramètres du profil.");
                   setSpeakingIndex(null);
                   return;
                }
 
                const cleanText = text.replace(/[#*`[\]()]/g, '');
-               const voiceId = userProfile.elevenLabsVoiceId || 'H17IYSiB8dvXDnAbYRT0';
-
                const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
                   method: 'POST',
                   headers: {
                      'Content-Type': 'application/json',
-                     'xi-api-key': userProfile.elevenLabsApiKey
+                     'xi-api-key': userProfile.ttsApiKey
                   },
                   body: JSON.stringify({
                      text: cleanText,
@@ -1574,6 +1703,53 @@ export default function Dashboard({
                if (!response.ok) {
                   const errText = await response.text();
                   throw new Error(`ElevenLabs TTS request failed: ${response.statusText} - ${errText}`);
+               }
+
+               const blob = await response.blob();
+               const url = URL.createObjectURL(blob);
+               
+               let audio = unlockedAudioRef.current;
+               if (!audio) {
+                  audio = new Audio();
+                  unlockedAudioRef.current = audio;
+               }
+               audio.src = url;
+               activeAudioRef.current = audio;
+
+               audio.onended = () => {
+                  setSpeakingIndex(null);
+                  activeAudioRef.current = null;
+               };
+               audio.onerror = () => {
+                  setSpeakingIndex(null);
+                  activeAudioRef.current = null;
+               };
+
+               await audio.play();
+            } else if (userProfile.ttsProvider === 'OpenAI') {
+               if (!userProfile.ttsApiKey) {
+                  alert("Veuillez saisir votre clé d'API TTS dans les paramètres du profil.");
+                  setSpeakingIndex(null);
+                  return;
+               }
+
+               const cleanText = text.replace(/[#*`[\]()]/g, '');
+               const response = await fetch(`https://api.openai.com/v1/audio/speech`, {
+                  method: 'POST',
+                  headers: {
+                     'Content-Type': 'application/json',
+                     'Authorization': `Bearer ${userProfile.ttsApiKey}`
+                  },
+                  body: JSON.stringify({
+                     model: 'tts-1',
+                     input: cleanText,
+                     voice: userProfile.ttsVoiceId || 'alloy'
+                  })
+               });
+
+               if (!response.ok) {
+                  const errText = await response.text();
+                  throw new Error(`OpenAI TTS request failed: ${response.statusText} - ${errText}`);
                }
 
                const blob = await response.blob();
@@ -1728,7 +1904,8 @@ export default function Dashboard({
                      language: config.lang || 'fr_FR'
                   }));
                   if (config.llm) {
-                     setLlmModel(config.llm.model || 'gemini-2.5-flash');
+                     setLlmProvider(config.llm.active || config.llm.provider || 'gemini');
+                     setLlmModel(config.llm.model || '');
                      setLlmApiKey(config.llm.apiKey || '');
                   }
                   if (config.okfStorage) {
@@ -2103,9 +2280,9 @@ export default function Dashboard({
                name: nameInput,
                email: emailInput,
                language: langInput,
-               ttsProvider: userProfile.ttsProvider || 'Browser',
-               elevenLabsApiKey: userProfile.elevenLabsApiKey || defaultElevenLabsApiKey,
-               elevenLabsVoiceId: userProfile.elevenLabsVoiceId || defaultElevenLabsVoiceId
+               ttsProvider: userProfile.ttsProvider || effectiveTtsProvider || 'Browser',
+               ttsApiKey: userProfile.ttsApiKey || effectiveTtsApiKey,
+               ttsVoiceId: userProfile.ttsVoiceId || effectiveTtsVoiceId
             };
             setUserProfile(newProfile);
             localStorage.setItem('sb_user_profile', JSON.stringify(newProfile));
@@ -2267,7 +2444,7 @@ export default function Dashboard({
                }
             }
          } else {
-            setMessages(prev => [...prev, { role: 'assistant', content: 'Désolé, une erreur est survenue lors de la communication avec mon processeur Gemini.' }]);
+            setMessages(prev => [...prev, { role: 'assistant', content: 'Désolé, une erreur est survenue lors de la communication avec le modèle LLM.' }]);
          }
       } catch (err) {
          setMessages(prev => [...prev, { role: 'assistant', content: 'Erreur de connexion. Impossible de contacter le serveur.' }]);
@@ -4214,7 +4391,9 @@ canvas.width = width;
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px', fontSize: '13px' }}>
                            <div style={{ backgroundColor: 'rgba(255,255,255,0.02)', padding: '14px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.04)' }}>
                               <span style={{ opacity: 0.6, fontSize: '12px' }}>Modèle LLM Actif</span>
-                              <div style={{ fontWeight: 'bold', color: 'white', marginTop: '4px', fontSize: '14px' }}>Google Gemini 2.5 Flash</div>
+                              <div style={{ fontWeight: 'bold', color: 'white', marginTop: '4px', fontSize: '14px' }}>
+                                 {llmModel ? `${llmProvider.toUpperCase()} (${llmModel})` : `${llmProvider.toUpperCase()} (Non configuré)`}
+                              </div>
                            </div>
                            <div style={{ backgroundColor: 'rgba(255,255,255,0.02)', padding: '14px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.04)' }}>
                               <span style={{ opacity: 0.6, fontSize: '12px' }}>Stockage des Conversations</span>
@@ -5107,8 +5286,10 @@ canvas.width = width;
                       padding: '24px',
                       borderRadius: '24px',
                       border: '1px solid rgba(59, 130, 246, 0.25)',
-                      maxWidth: '480px',
+                      maxWidth: '560px',
                       width: '100%',
+                      maxHeight: '90vh',
+                      overflowY: 'auto',
                       boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.8)',
                       display: 'flex',
                       flexDirection: 'column',
@@ -5130,7 +5311,7 @@ canvas.width = width;
                    </div>
 
                    <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.6)', lineHeight: '1.4', margin: 0 }}>
-                      Sélectionnez et configurez le modèle de langage (LLM) utilisé par Modaka pour l'intelligence, la synthèse et le chat.
+                      Configurez vos clés et modèles pour chaque fournisseur. Toutes les configurations saisies sont conservées en mémoire, même si un seul moteur est actif à la fois.
                    </p>
 
                    <form 
@@ -5141,167 +5322,188 @@ canvas.width = width;
                       style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}
                    >
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                         <label style={{ fontSize: '13px', color: 'rgba(255,255,255,0.7)', fontWeight: '600' }}>Fournisseur IA :</label>
-                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-                            <button
-                               type="button"
-                               onClick={() => setModalLlmProvider('gemini')}
-                               style={{
-                                  padding: '12px',
-                                  borderRadius: '12px',
-                                  backgroundColor: modalLlmProvider === 'gemini' ? 'rgba(59, 130, 246, 0.2)' : 'rgba(255,255,255,0.04)',
-                                  border: modalLlmProvider === 'gemini' ? '1px solid #3b82f6' : '1px solid rgba(255,255,255,0.08)',
-                                  color: modalLlmProvider === 'gemini' ? '#60a5fa' : '#fff',
-                                  fontWeight: '600',
-                                  fontSize: '13px',
-                                  cursor: 'pointer',
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  justifyContent: 'center',
-                                  gap: '8px'
-                               }}
-                            >
-                               ⚡ Google Gemini
-                            </button>
-                            <button
-                               type="button"
-                               onClick={() => setModalLlmProvider('llama')}
-                               style={{
-                                  padding: '12px',
-                                  borderRadius: '12px',
-                                  backgroundColor: modalLlmProvider === 'llama' ? 'rgba(16, 185, 129, 0.2)' : 'rgba(255,255,255,0.04)',
-                                  border: modalLlmProvider === 'llama' ? '1px solid #10b981' : '1px solid rgba(255,255,255,0.08)',
-                                  color: modalLlmProvider === 'llama' ? '#34d399' : '#fff',
-                                  fontWeight: '600',
-                                  fontSize: '13px',
-                                  cursor: 'pointer',
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  justifyContent: 'center',
-                                  gap: '8px'
-                               }}
-                            >
-                               🦙 LLM Local (Ollama / Llama.cpp)
-                            </button>
-                         </div>
+                         <label style={{ fontSize: '13px', color: 'rgba(255,255,255,0.7)', fontWeight: '600' }}>Fournisseur IA / Moteur :</label>
+                         <select
+                            name="llmProviderSelect"
+                            className="action-input-sm"
+                            value={modalSelectedTab}
+                            onChange={(e) => {
+                               setModalSelectedTab(e.target.value);
+                               setLlmTestStatusInModal(null);
+                            }}
+                            style={{
+                               width: '100%',
+                               height: '42px',
+                               boxSizing: 'border-box',
+                               backgroundColor: '#182030',
+                               color: '#fff',
+                               border: '1px solid rgba(59, 130, 246, 0.4)',
+                               borderRadius: '10px',
+                               padding: '0 12px',
+                               fontSize: '14px',
+                               fontWeight: '600',
+                               cursor: 'pointer'
+                            }}
+                         >
+                            {LLM_PROVIDERS.map(p => {
+                               const isActiveEngine = modalLlmActiveProvider === p.id;
+                               return (
+                                  <option key={p.id} value={p.id} style={{ backgroundColor: '#131924', color: '#fff' }}>
+                                     {p.icon} {p.name}{isActiveEngine ? ' ★ (Moteur Actif)' : ''}
+                                  </option>
+                               );
+                            })}
+                         </select>
                       </div>
 
-                      {modalLlmProvider === 'gemini' ? (
-                         <>
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                               <label style={{ fontSize: '13px', color: 'rgba(255,255,255,0.7)', fontWeight: '600' }}>Clé API Google Gemini (AI Studio) :</label>
-                               <div style={{ display: 'flex', gap: '8px' }}>
+                      {(() => {
+                         const currentProvider = LLM_PROVIDERS.find(p => p.id === modalSelectedTab) || LLM_PROVIDERS[0];
+                         const currentConf = modalLlmProvidersMap[modalSelectedTab] || {};
+                         const isActive = modalLlmActiveProvider === modalSelectedTab;
+
+                         return (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', backgroundColor: 'rgba(255,255,255,0.02)', padding: '16px', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.06)' }}>
+                               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                     <span style={{ fontSize: '18px' }}>{currentProvider.icon}</span>
+                                     <span style={{ fontSize: '15px', fontWeight: 'bold', color: '#fff' }}>{currentProvider.name}</span>
+                                  </div>
+                                  {isActive ? (
+                                     <span style={{ fontSize: '11px', fontWeight: '700', color: '#34d399', backgroundColor: 'rgba(16, 185, 129, 0.15)', border: '1px solid rgba(16, 185, 129, 0.3)', padding: '3px 8px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                        ● MOTEUR ACTIF
+                                     </span>
+                                  ) : (
+                                     <button
+                                        type="button"
+                                        onClick={() => setModalLlmActiveProvider(modalSelectedTab)}
+                                        style={{
+                                           backgroundColor: 'rgba(59, 130, 246, 0.15)',
+                                           border: '1px solid rgba(59, 130, 246, 0.4)',
+                                           color: '#60a5fa',
+                                           padding: '4px 10px',
+                                           borderRadius: '8px',
+                                           fontSize: '11px',
+                                           fontWeight: '600',
+                                           cursor: 'pointer'
+                                        }}
+                                     >
+                                        Activer ce moteur
+                                     </button>
+                                  )}
+                               </div>
+
+                               {currentProvider.id !== 'ollama' && (
+                                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                        <label style={{ fontSize: '12px', color: 'rgba(255,255,255,0.7)', fontWeight: '600' }}>
+                                           {currentProvider.keyLabel || 'Clé API :'}
+                                        </label>
+                                        {currentProvider.helpUrl && (
+                                           <a 
+                                              href={currentProvider.helpUrl} 
+                                              target="_blank" 
+                                              rel="noopener noreferrer"
+                                              style={{ fontSize: '11px', color: '#60a5fa', textDecoration: 'none' }}
+                                           >
+                                              Obtenir une clé ↗
+                                           </a>
+                                        )}
+                                     </div>
+                                     <input 
+                                        type="password"
+                                        className="action-input-sm"
+                                        value={currentConf.apiKey || ''}
+                                        onChange={(e) => updateProviderField(modalSelectedTab, 'apiKey', e.target.value)}
+                                        placeholder={currentProvider.keyPlaceholder || 'sk-...'}
+                                        style={{ width: '100%', boxSizing: 'border-box' }}
+                                     />
+                                  </div>
+                               )}
+
+                               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                  <label style={{ fontSize: '12px', color: 'rgba(255,255,255,0.7)', fontWeight: '600' }}>
+                                     Modèle {currentProvider.name} :
+                                  </label>
                                   <input 
-                                     type="password" 
+                                     type="text"
                                      className="action-input-sm"
-                                     value={modalLlmApiKey}
-                                     onChange={(e) => {
-                                        setModalLlmApiKey(e.target.value);
-                                        setLlmTestStatusInModal(null);
-                                     }}
-                                     placeholder="AIzaSy..."
-                                     style={{ flex: 1, boxSizing: 'border-box' }}
+                                     value={currentConf.model || ''}
+                                     onChange={(e) => updateProviderField(modalSelectedTab, 'model', e.target.value)}
+                                     placeholder="Saisissez le nom exact du modèle..."
+                                     style={{ width: '100%', boxSizing: 'border-box' }}
                                   />
+                                  {currentProvider.modelSuggestions && currentProvider.modelSuggestions.length > 0 && (
+                                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '2px' }}>
+                                        <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)', alignSelf: 'center' }}>Suggestions :</span>
+                                        {currentProvider.modelSuggestions.map(sug => (
+                                           <button
+                                              key={sug}
+                                              type="button"
+                                              onClick={() => updateProviderField(modalSelectedTab, 'model', sug)}
+                                              style={{
+                                                 fontSize: '11px',
+                                                 padding: '2px 8px',
+                                                 borderRadius: '6px',
+                                                 backgroundColor: currentConf.model === sug ? 'rgba(59, 130, 246, 0.25)' : 'rgba(255,255,255,0.05)',
+                                                 border: currentConf.model === sug ? '1px solid #3b82f6' : '1px solid rgba(255,255,255,0.08)',
+                                                 color: currentConf.model === sug ? '#93c5fd' : 'rgba(255,255,255,0.7)',
+                                                 cursor: 'pointer'
+                                              }}
+                                           >
+                                              {sug}
+                                           </button>
+                                        ))}
+                                     </div>
+                                  )}
+                               </div>
+
+                               {(currentProvider.defaultEndpoint || currentProvider.id === 'ollama') && (
+                                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                     <label style={{ fontSize: '12px', color: 'rgba(255,255,255,0.7)', fontWeight: '600' }}>
+                                        Endpoint URL :
+                                     </label>
+                                     <input 
+                                        type="text"
+                                        className="action-input-sm"
+                                        value={currentConf.endpoint !== undefined ? currentConf.endpoint : (currentProvider.defaultEndpoint || '')}
+                                        onChange={(e) => updateProviderField(modalSelectedTab, 'endpoint', e.target.value)}
+                                        placeholder={currentProvider.defaultEndpoint || 'http://localhost:11434'}
+                                        style={{ width: '100%', boxSizing: 'border-box' }}
+                                     />
+                                  </div>
+                               )}
+
+                               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '4px' }}>
                                   <button
                                      type="button"
                                      onClick={handleTestLlmInModal}
                                      disabled={isTestingLlmInModal}
                                      style={{
-                                        backgroundColor: 'rgba(59, 130, 246, 0.2)',
-                                        border: '1px solid rgba(59, 130, 246, 0.4)',
+                                        backgroundColor: 'rgba(59, 130, 246, 0.15)',
+                                        border: '1px solid rgba(59, 130, 246, 0.3)',
                                         color: '#60a5fa',
                                         borderRadius: '10px',
-                                        padding: '0 14px',
+                                        height: '38px',
                                         fontSize: '12px',
                                         fontWeight: '600',
                                         cursor: 'pointer',
                                         display: 'flex',
                                         alignItems: 'center',
+                                        justifyContent: 'center',
                                         gap: '6px'
                                      }}
                                   >
-                                     {isTestingLlmInModal ? <IconLoader2 size={14} style={{ animation: 'spin 1.5s linear infinite' }} /> : 'Tester'}
+                                     {isTestingLlmInModal ? <IconLoader2 size={14} style={{ animation: 'spin 1.5s linear infinite' }} /> : `Tester la connexion ${currentProvider.name}`}
                                   </button>
+                                  {llmTestStatusInModal && (
+                                     <span style={{ fontSize: '12px', color: llmTestStatusInModal.success ? 'var(--color-vivid-green)' : '#f87171', fontWeight: '500', textAlign: 'center' }}>
+                                        {llmTestStatusInModal.success ? '🟢 ' : '🔴 '}{llmTestStatusInModal.message}
+                                     </span>
+                                  )}
                                </div>
-                               {llmTestStatusInModal && (
-                                  <span style={{ fontSize: '12px', color: llmTestStatusInModal.success ? 'var(--color-vivid-green)' : '#f87171', fontWeight: '500', marginTop: '2px' }}>
-                                     {llmTestStatusInModal.success ? '🟢 ' : '🔴 '}{llmTestStatusInModal.message}
-                                  </span>
-                               )}
                             </div>
-
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                               <label style={{ fontSize: '13px', color: 'rgba(255,255,255,0.7)', fontWeight: '600' }}>Modèle Gemini :</label>
-                               <select 
-                                  className="action-input-sm"
-                                  value={modalLlmModel}
-                                  onChange={(e) => setModalLlmModel(e.target.value)}
-                                  style={{ width: '100%', boxSizing: 'border-box', backgroundColor: '#182030', color: '#fff', border: '1px solid rgba(255,255,255,0.08)' }}
-                               >
-                                  <option value="gemini-2.5-flash">Gemini 2.5 Flash (Recommandé - Ultra Rapide) ⚡</option>
-                                  <option value="gemini-2.5-pro">Gemini 2.5 Pro (Raisonnement Avancé) 🧠</option>
-                                  <option value="gemini-1.5-flash">Gemini 1.5 Flash ⚡</option>
-                                  <option value="gemini-1.5-pro">Gemini 1.5 Pro 🧠</option>
-                               </select>
-                            </div>
-                         </>
-                      ) : (
-                         <>
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                               <label style={{ fontSize: '13px', color: 'rgba(255,255,255,0.7)', fontWeight: '600' }}>Endpoint Local (Ollama / Llama.cpp) :</label>
-                               <div style={{ display: 'flex', gap: '8px' }}>
-                                  <input 
-                                     type="text" 
-                                     className="action-input-sm"
-                                     value={modalLlamaEndpoint}
-                                     onChange={(e) => {
-                                        setModalLlamaEndpoint(e.target.value);
-                                        setLlmTestStatusInModal(null);
-                                     }}
-                                     placeholder="http://localhost:11434"
-                                     style={{ flex: 1, boxSizing: 'border-box' }}
-                                  />
-                                  <button
-                                     type="button"
-                                     onClick={handleTestLlmInModal}
-                                     disabled={isTestingLlmInModal}
-                                     style={{
-                                        backgroundColor: 'rgba(16, 185, 129, 0.2)',
-                                        border: '1px solid rgba(16, 185, 129, 0.4)',
-                                        color: '#34d399',
-                                        borderRadius: '10px',
-                                        padding: '0 14px',
-                                        fontSize: '12px',
-                                        fontWeight: '600',
-                                        cursor: 'pointer',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        gap: '6px'
-                                     }}
-                                  >
-                                     {isTestingLlmInModal ? <IconLoader2 size={14} style={{ animation: 'spin 1.5s linear infinite' }} /> : 'Tester'}
-                                  </button>
-                               </div>
-                               {llmTestStatusInModal && (
-                                  <span style={{ fontSize: '12px', color: llmTestStatusInModal.success ? 'var(--color-vivid-green)' : '#f87171', fontWeight: '500', marginTop: '2px' }}>
-                                     {llmTestStatusInModal.success ? '🟢 ' : '🔴 '}{llmTestStatusInModal.message}
-                                  </span>
-                               )}
-                            </div>
-
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                               <label style={{ fontSize: '13px', color: 'rgba(255,255,255,0.7)', fontWeight: '600' }}>Nom du Modèle Local :</label>
-                               <input 
-                                  type="text" 
-                                  className="action-input-sm"
-                                  value={modalLlmModel}
-                                  onChange={(e) => setModalLlmModel(e.target.value)}
-                                  placeholder="llama3, mistral, qwen2..."
-                                  style={{ width: '100%', boxSizing: 'border-box' }}
-                               />
-                            </div>
-                         </>
-                      )}
+                         );
+                      })()}
 
                       <button 
                          type="submit" 
@@ -5374,8 +5576,8 @@ canvas.width = width;
                            email: modalEmail,
                            language: modalLanguage,
                            ttsProvider: modalTtsProvider,
-                           elevenLabsApiKey: modalElevenLabsApiKey,
-                           elevenLabsVoiceId: modalElevenLabsVoiceId
+                           ttsApiKey: modalTtsApiKey,
+                           ttsVoiceId: modalTtsVoiceId
                         });
                      }}
                      style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}
@@ -5432,35 +5634,35 @@ canvas.width = width;
                            style={{ width: '100%', boxSizing: 'border-box', backgroundColor: '#182030', color: '#fff', border: '1px solid rgba(255,255,255,0.08)' }}
                         >
                            <option value="Browser">Navigateur (Natif / Gratuit) 🖥️</option>
-                           <option value="ElevenLabs">ElevenLabs (Premium / Haute qualité) 🎙️</option>
+                           <option value="ElevenLabs">ElevenLabs (Haute fidélité) 🎙️</option>
+                           <option value="OpenAI">OpenAI TTS 🤖</option>
                         </select>
                      </div>
 
-                     {modalTtsProvider === 'ElevenLabs' && (
+                     {modalTtsProvider !== 'Browser' && (
                         <>
                            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                              <label style={{ fontSize: '13px', color: 'rgba(255,255,255,0.6)' }}>Clé API ElevenLabs :</label>
+                              <label style={{ fontSize: '13px', color: 'rgba(255,255,255,0.6)' }}>Clé d'API TTS :</label>
                               <input 
                                  type="password" 
-                                 name="elevenLabsApiKey"
+                                 name="ttsApiKey"
                                  className="action-input-sm"
-                                 value={modalElevenLabsApiKey}
-                                 onChange={(e) => setModalElevenLabsApiKey(e.target.value)}
-                                 placeholder="Saisissez votre xi-api-key..."
+                                 value={modalTtsApiKey}
+                                 onChange={(e) => setModalTtsApiKey(e.target.value)}
+                                 placeholder="Saisissez votre clé d'API TTS..."
                                  required
                                  style={{ width: '100%', boxSizing: 'border-box' }}
                               />
                            </div>
                            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                              <label style={{ fontSize: '13px', color: 'rgba(255,255,255,0.6)' }}>ID de la Voix ElevenLabs :</label>
+                              <label style={{ fontSize: '13px', color: 'rgba(255,255,255,0.6)' }}>Identifiant de la Voix TTS (facultatif) :</label>
                               <input 
                                  type="text" 
-                                 name="elevenLabsVoiceId"
+                                 name="ttsVoiceId"
                                  className="action-input-sm"
-                                 value={modalElevenLabsVoiceId}
-                                 onChange={(e) => setModalElevenLabsVoiceId(e.target.value)}
-                                 placeholder="Saisissez l'ID de votre voix (ex: bVsJfghVbJypxgwVISO3)..."
-                                 required
+                                 value={modalTtsVoiceId}
+                                 onChange={(e) => setModalTtsVoiceId(e.target.value)}
+                                 placeholder={modalTtsProvider === 'ElevenLabs' ? "ID de la voix ElevenLabs..." : "Nom de la voix (facultatif, ex: alloy, nova)..."}
                                  style={{ width: '100%', boxSizing: 'border-box' }}
                               />
                            </div>

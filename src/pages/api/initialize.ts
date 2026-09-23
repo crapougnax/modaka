@@ -89,8 +89,9 @@ export const POST: APIRoute = async ({ request }) => {
          const semanticId = slugify(content.title) || crypto.randomUUID();
          const mdRef = `markdowns/${semanticId}.md`;
 
+         const bucket = (docStorage as any)?._params?.config?.bucket;
          const getDocFile = (ref: string) => ({
-            bucket: process.env.S3_BUCKET || 'documents',
+            bucket,
             ref,
             name: path.basename(ref),
             mime: 'text/markdown'

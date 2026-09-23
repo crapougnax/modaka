@@ -71,7 +71,7 @@ export async function searchAndCreateConcept(properNoun: string): Promise<void> 
             const docStorage = Storage.getStorage('document-storage');
             if (docStorage) {
                const getDocFile = (ref: string) => ({
-                  bucket: process.env.S3_BUCKET || 'documents',
+                  bucket: (docStorage as any)?._params?.config?.bucket,
                   ref,
                   name: ref.split('/').pop() || ''
                });
@@ -100,7 +100,7 @@ export async function searchAndCreateConcept(properNoun: string): Promise<void> 
          const docStorage = Storage.getStorage('document-storage');
          if (docStorage) {
             const getDocFile = (ref: string) => ({
-               bucket: process.env.S3_BUCKET || 'documents',
+               bucket: (docStorage as any)?._params?.config?.bucket,
                ref,
                name: ref.split('/').pop() || ''
             });

@@ -10,6 +10,7 @@ dotenv.config();
 var initialized = false;
 export let astroAdapter: AstroAdapter;
 
+import { Config } from '@quatrain/config';
 import { Log, DefaultLoggerAdapter, LogLevel } from '@quatrain/log';
 import { Backend, InjectMetaMiddleware } from '@quatrain/backend';
 import { OKFBackendAdapter } from '@quatrain/okf';
@@ -31,12 +32,22 @@ import { GithubAuthAdapter } from '@quatrain/auth-github';
 const execPromise = promisify(exec);
 const GIT_SYNC_LOCK_KEY = Symbol.for('__second_brain_git_sync_lock');
 
+function runGit(cmd: string, cwd: string, token?: string): Promise<{ stdout: string; stderr: string }> {
+   const env = { ...process.env, GIT_TERMINAL_PROMPT: '0' };
+   let extraArgs = '';
+   if (token) {
+      const auth = Buffer.from(`x-access-token:${token}`).toString('base64');
+      extraArgs = `-c "http.extraheader=AUTHORIZATION: basic ${auth}" -c "credential.helper=" `;
+   }
+   return execPromise(`git ${extraArgs}${cmd}`, { cwd, env });
+}
+
 async function updateReadmeChangelog(localPath: string) {
    try {
       // Check if origin/main exists
       let hasOriginMain = false;
       try {
-         await execPromise('git rev-parse --verify origin/main', { cwd: localPath });
+         await runGit('rev-parse --verify origin/main', localPath);
          hasOriginMain = true;
       } catch (e) {
          // origin/main doesn't exist yet
@@ -44,9 +55,9 @@ async function updateReadmeChangelog(localPath: string) {
 
       const logRange = hasOriginMain ? 'origin/main..HEAD' : 'HEAD';
       // Format: YYYY-MM-DD: Commit message
-      const { stdout } = await execPromise(
-         `git log ${logRange} --pretty=format:"* **%cd** : %s" --date=format:"%Y-%m-%d"`,
-         { cwd: localPath }
+      const { stdout } = await runGit(
+         `log ${logRange} --pretty=format:"* **%cd** : %s" --date=format:"%Y-%m-%d"`,
+         localPath
       );
 
       const newEntries = stdout.trim();
@@ -58,7 +69,7 @@ async function updateReadmeChangelog(localPath: string) {
       try {
          currentContent = await fs.readFile(readmePath, 'utf-8');
       } catch (e) {
-         currentContent = '# second-brain-data\n';
+         currentContent = '# Knowledge Base\n';
       }
 
       const newLines = newEntries.split('\n').filter(line => line.trim().startsWith('*'));
@@ -83,8 +94,8 @@ async function updateReadmeChangelog(localPath: string) {
       }
 
       await fs.writeFile(readmePath, updatedContent, 'utf-8');
-      await execPromise('git add README.md', { cwd: localPath });
-      await execPromise('git commit -m "docs: update changelog in README.md [skip ci]"', { cwd: localPath });
+      await runGit('add README.md', localPath);
+      await runGit('commit -m "docs: update changelog in README.md [skip ci]"', localPath);
       Log.info('[Git Sync] Changelog updated in README.md');
    } catch (err: any) {
       Log.warn(`[Git Sync] Failed to update README.md changelog: ${err.message}`);
@@ -109,24 +120,12 @@ function parseGitUrl(url: string): { owner: string; repo: string } | null {
 }
 
 function getCloneUrl(): string | null {
-   const gitUrl = process.env.GIT_URL;
+   const gitUrl = Config.get<string>('git.url');
    if (!gitUrl) {
-      const owner = process.env.GIT_REPO_OWNER;
-      const repo = process.env.GIT_REPO_NAME;
+      const owner = Config.get<string>('git.repoOwner');
+      const repo = Config.get<string>('git.repoName');
       if (!owner || !repo) return null;
-      const token = process.env.GIT_GITHUB_TOKEN;
-      if (token) {
-         return `https://${token}@github.com/${owner}/${repo}.git`;
-      }
       return `https://github.com/${owner}/${repo}.git`;
-   }
-   
-   const token = process.env.GIT_GITHUB_TOKEN;
-   if (token && gitUrl.includes('github.com') && gitUrl.startsWith('http')) {
-      const parsed = parseGitUrl(gitUrl);
-      if (parsed) {
-         return `https://${token}@github.com/${parsed.owner}/${parsed.repo}.git`;
-      }
    }
    return gitUrl;
 }
@@ -142,7 +141,7 @@ async function syncGitRepository(localPath: string, throwOnError = false) {
       // Ensure target directory exists
       await fs.mkdir(localPath, { recursive: true });
       
-      // If not a git repo, clone or initialize it!
+      const token = Config.get<string>('git.githubToken');
       const gitDir = path.join(localPath, '.git');
       const hasGit = fsSync.existsSync(gitDir);
       
@@ -150,13 +149,13 @@ async function syncGitRepository(localPath: string, throwOnError = false) {
          const cloneUrl = getCloneUrl();
          if (cloneUrl) {
             Log.info(`[Git Sync] Initializing local Git repository from remote URL...`);
-            await execPromise('git init', { cwd: localPath });
-            await execPromise(`git remote add origin "${cloneUrl}"`, { cwd: localPath });
-            await execPromise('git fetch origin', { cwd: localPath });
+            await runGit('init', localPath);
+            await runGit(`remote add origin "${cloneUrl}"`, localPath);
+            await runGit('fetch origin', localPath, token);
             try {
-               await execPromise('git checkout main', { cwd: localPath });
+               await runGit('checkout main', localPath);
             } catch (e) {
-               await execPromise('git checkout -b main', { cwd: localPath });
+               await runGit('checkout -b main', localPath);
             }
             Log.info(`[Git Sync] Local Git repository initialized successfully in ${localPath}`);
          } else {
@@ -164,29 +163,61 @@ async function syncGitRepository(localPath: string, throwOnError = false) {
             if (throwOnError) throw new Error("Aucune URL de dépôt Git configurée");
             return;
          }
-      } else {
+      }
+
+      // Check remote configuration
+      let remoteUrl = '';
+      try {
+         const { stdout } = await runGit('remote get-url origin', localPath);
+         remoteUrl = stdout.trim();
+      } catch (e) {
+         // No origin remote configured yet
+      }
+
+      if (!remoteUrl) {
          const cloneUrl = getCloneUrl();
          if (cloneUrl) {
             try {
-               await execPromise(`git remote set-url origin "${cloneUrl}"`, { cwd: localPath });
+               await runGit(`remote add origin "${cloneUrl}"`, localPath);
+               remoteUrl = cloneUrl;
             } catch (e) {}
          }
       }
 
+      if (!remoteUrl) {
+         Log.debug(`[Git Sync] Aucun remote configuré pour ${localPath}, synchronisation distante ignorée`);
+         return;
+      }
+
+      // If remote is GitHub HTTPS and no token is provided, avoid prompting or failing with fatal username error
+      if (remoteUrl.includes('github.com') && !token && !remoteUrl.includes('@')) {
+         Log.info(`[Git Sync] Dépôt distant GitHub détecté mais aucun GIT_GITHUB_TOKEN configuré : synchronisation distante ignorée.`);
+         if (throwOnError) {
+            throw new Error("GIT_GITHUB_TOKEN requis pour synchroniser avec GitHub");
+         }
+         return;
+      }
+
       Log.info(`[Git Sync] Synchronisant le dépôt Git local-first...`);
-      await execPromise('git fetch origin', { cwd: localPath });
+      await runGit('fetch origin', localPath, token);
       
       // Update changelog in README.md based on new local commits before pulling/pushing
       await updateReadmeChangelog(localPath);
 
+      // Ensure upstream branch is tracked once if not already set
       try {
-         await execPromise('git pull --rebase origin main', { cwd: localPath });
-      } catch (pullErr) {
-         await execPromise('git branch --set-upstream-to=origin/main main', { cwd: localPath }).catch(() => {});
-         await execPromise('git pull origin main', { cwd: localPath }).catch(() => {});
+         await runGit('rev-parse --abbrev-ref @{u}', localPath);
+      } catch (e) {
+         await runGit('branch --set-upstream-to=origin/main main', localPath).catch(() => {});
       }
 
-      await execPromise('git push origin main', { cwd: localPath });
+      try {
+         await runGit('pull --rebase origin main', localPath, token);
+      } catch (pullErr) {
+         await runGit('pull origin main', localPath, token).catch(() => {});
+      }
+
+      await runGit('push origin main', localPath, token);
       Log.info(`[Git Sync] Synchronisation terminée avec succès`);
    } catch (err: any) {
       Log.warn(`[Git Sync] Échec de la synchronisation : ${err.message}`);
@@ -196,47 +227,113 @@ async function syncGitRepository(localPath: string, throwOnError = false) {
    }
 }
 
-function applyConfigToProcessEnv(config: any) {
+function applyConfig(config: any) {
+   if (config.name) Config.set('user.name', config.name);
+   if (config.email) Config.set('user.email', config.email);
+   if (config.lang) Config.set('lang', config.lang);
    if (config.llm) {
-      if (config.llm.apiKey !== undefined && config.llm.apiKey !== null) {
-         const trimmedKey = String(config.llm.apiKey).trim();
-         if (trimmedKey) {
+      const activeProvider = config.llm.active || config.llm.provider || 'gemini';
+      Config.set('llm.active', activeProvider);
+      Config.set('llm.provider', activeProvider);
+
+      let activeConf: any = null;
+      if (config.llm.providers && typeof config.llm.providers === 'object') {
+         Config.set('llm.providers', config.llm.providers);
+         activeConf = config.llm.providers[activeProvider];
+      }
+
+      const activeApiKey = activeConf?.apiKey ?? config.llm.apiKey;
+      const activeModel = activeConf?.model ?? config.llm.model;
+      const activeEndpoint = activeConf?.endpoint ?? config.llm.endpoint;
+
+      if (activeApiKey !== undefined && activeApiKey !== null) {
+         const trimmedKey = String(activeApiKey).trim();
+         Config.set('llm.apiKey', trimmedKey);
+         if (activeProvider === 'gemini') {
+            Config.set('gemini.apiKey', trimmedKey);
             process.env.GEMINI_API_KEY = trimmedKey;
          }
       }
-      if (config.llm.model && config.llm.model.trim() !== '') {
-         process.env.GEMINI_MODEL = config.llm.model.trim();
+      if (activeModel !== undefined && activeModel !== null) {
+         const trimmedModel = String(activeModel).trim();
+         Config.set('llm.model', trimmedModel);
+         if (activeProvider === 'gemini') {
+            Config.set('gemini.model', trimmedModel);
+            process.env.GEMINI_MODEL = trimmedModel;
+         }
+      }
+      if (activeEndpoint !== undefined && activeEndpoint !== null) {
+         const trimmedEndpoint = String(activeEndpoint).trim();
+         Config.set('llm.endpoint', trimmedEndpoint);
       }
    }
-   if (config.githubClientId) process.env.GITHUB_CLIENT_ID = config.githubClientId;
-   if (config.githubClientSecret) process.env.GITHUB_CLIENT_SECRET = config.githubClientSecret;
+   if (config.githubClientId) {
+      Config.set('github.clientId', config.githubClientId);
+      process.env.GITHUB_CLIENT_ID = config.githubClientId;
+   }
+   if (config.githubClientSecret) {
+      Config.set('github.clientSecret', config.githubClientSecret);
+      process.env.GITHUB_CLIENT_SECRET = config.githubClientSecret;
+   }
    if (config.okfStorage) {
-      if (config.okfStorage.githubClientId) process.env.GITHUB_CLIENT_ID = config.okfStorage.githubClientId;
-      if (config.okfStorage.githubClientSecret) process.env.GITHUB_CLIENT_SECRET = config.okfStorage.githubClientSecret;
-      process.env.GIT_MODE = config.okfStorage.type === 'github' ? 'github' : 'local';
-      if (config.okfStorage.githubToken) process.env.GIT_GITHUB_TOKEN = config.okfStorage.githubToken;
-      if (config.okfStorage.gitUrl) process.env.GIT_URL = config.okfStorage.gitUrl;
-      if (config.okfStorage.branch) process.env.GIT_BRANCH = config.okfStorage.branch;
+      if (config.okfStorage.type) {
+         Config.set('git.mode', config.okfStorage.type);
+         process.env.GIT_MODE = config.okfStorage.type;
+      }
+      if (config.okfStorage.localPath) {
+         Config.set('git.localPath', config.okfStorage.localPath);
+         process.env.GIT_LOCAL_PATH = config.okfStorage.localPath;
+      }
+      if (config.okfStorage.githubToken) {
+         Config.set('git.githubToken', config.okfStorage.githubToken);
+         process.env.GIT_GITHUB_TOKEN = config.okfStorage.githubToken;
+      }
+      if (config.okfStorage.gitUrl) {
+         Config.set('git.url', config.okfStorage.gitUrl);
+         process.env.GIT_URL = config.okfStorage.gitUrl;
+      }
+      if (config.okfStorage.branch) {
+         Config.set('git.branch', config.okfStorage.branch);
+         process.env.GIT_BRANCH = config.okfStorage.branch;
+      }
       
-      // Parse gitUrl to extract owner and repo for backward compatibility (Octokit/GitStorageAdapter)
       const urlToParse = config.okfStorage.gitUrl || 
          (config.okfStorage.repoOwner && config.okfStorage.repoName ? `https://github.com/${config.okfStorage.repoOwner}/${config.okfStorage.repoName}` : '');
       const parsed = parseGitUrl(urlToParse);
       if (parsed) {
+         Config.set('git.repoOwner', parsed.owner);
+         Config.set('git.repoName', parsed.repo);
          process.env.GIT_REPO_OWNER = parsed.owner;
          process.env.GIT_REPO_NAME = parsed.repo;
       } else {
-         if (config.okfStorage.repoOwner) process.env.GIT_REPO_OWNER = config.okfStorage.repoOwner;
-         if (config.okfStorage.repoName) process.env.GIT_REPO_NAME = config.okfStorage.repoName;
+         if (config.okfStorage.repoOwner) {
+            Config.set('git.repoOwner', config.okfStorage.repoOwner);
+            process.env.GIT_REPO_OWNER = config.okfStorage.repoOwner;
+         }
+         if (config.okfStorage.repoName) {
+            Config.set('git.repoName', config.okfStorage.repoName);
+            process.env.GIT_REPO_NAME = config.okfStorage.repoName;
+         }
       }
    }
    if (config.blobStorage) {
       if (config.blobStorage.type === 's3') {
+         Config.set('s3.accessKey', config.blobStorage.accessKey);
+         Config.set('s3.secretKey', config.blobStorage.secretKey);
          process.env.S3_ACCESS_KEY = config.blobStorage.accessKey;
          process.env.S3_SECRET_KEY = config.blobStorage.secretKey;
-         process.env.S3_REGION = config.blobStorage.region || 'us-east-1';
-         process.env.S3_ENDPOINT = config.blobStorage.endpoint;
-         process.env.S3_BUCKET = config.blobStorage.bucket || 'second-brain';
+         if (config.blobStorage.region) {
+            Config.set('s3.region', config.blobStorage.region);
+            process.env.S3_REGION = config.blobStorage.region;
+         }
+         if (config.blobStorage.endpoint) {
+            Config.set('s3.endpoint', config.blobStorage.endpoint);
+            process.env.S3_ENDPOINT = config.blobStorage.endpoint;
+         }
+         if (config.blobStorage.bucket) {
+            Config.set('s3.bucket', config.blobStorage.bucket);
+            process.env.S3_BUCKET = config.blobStorage.bucket;
+         }
       } else {
          delete process.env.S3_ACCESS_KEY;
          delete process.env.S3_SECRET_KEY;
@@ -244,50 +341,96 @@ function applyConfigToProcessEnv(config: any) {
    }
 }
 
+function getUserConfigPath(): string {
+   return Config.requireString('modaka.configPath', 'MODAKA_CONFIG_PATH is required');
+}
+
 function loadUserConfig() {
-   const configPath = path.resolve(process.cwd(), 'src/config/user_config.json');
+   const configPath = getUserConfigPath();
    try {
       if (fsSync.existsSync(configPath)) {
          const content = fsSync.readFileSync(configPath, 'utf-8');
          const config = JSON.parse(content);
-         applyConfigToProcessEnv(config);
-         Log.info('[Backend] Dynamically applied user configuration from user_config.json');
+         applyConfig(config);
+         Log.info(`[Backend] Dynamically applied user configuration from ${configPath}`);
       }
    } catch (e: any) {
       Log.warn('[Backend] Failed to load user_config.json: ' + e.message);
    }
 }
 
-export async function reconfigureBackend() {
-   // Reload config into process.env
-   loadUserConfig();
+async function configureAiAdapter() {
+   const activeProvider = Config.get<string>('llm.provider') || Config.get<string>('llm.active') || 'gemini';
+   const apiKey = Config.get<string>('llm.apiKey') || Config.get<string>('gemini.apiKey');
+   const model = Config.get<string>('llm.model') || Config.get<string>('gemini.model');
+   const endpoint = Config.get<string>('llm.endpoint');
 
-   // Re-init AI Adapter with updated key
-   const geminiApiKey = process.env.GEMINI_API_KEY;
-   if (geminiApiKey) {
-      const { GeminiAdapter } = await import('@quatrain/ai-gemini');
-      const adapter = new GeminiAdapter(geminiApiKey);
-      adapter.init();
-      Ai.setAdapter(adapter);
-      Log.info(`[Backend] AI adapter reconfigured successfully (Key: ...${geminiApiKey.slice(-4)})`);
+   if (!apiKey && activeProvider !== 'llama' && activeProvider !== 'ollama') {
+      Log.warn(`[Backend] API key is not configured for LLM provider "${activeProvider}", AI adapter not set`);
+      return;
    }
 
+   if (activeProvider === 'gemini') {
+      const { GeminiAdapter } = await import('@quatrain/ai-gemini');
+      const adapter = new GeminiAdapter(apiKey);
+      if (typeof (adapter as any).init === 'function') {
+         (adapter as any).init();
+      }
+      Ai.setAdapter(adapter);
+      Log.info(`[Backend] Gemini AI adapter registered successfully (Key: ...${apiKey ? apiKey.slice(-4) : 'none'})`);
+   } else {
+      const { OpenAiAdapter } = await import('@quatrain/ai-openai');
+      let baseUrl = endpoint;
+      if (!baseUrl) {
+         if (activeProvider === 'openai') baseUrl = 'https://api.openai.com/v1';
+         else if (activeProvider === 'mistral') baseUrl = 'https://api.mistral.ai/v1';
+         else if (activeProvider === 'groq') baseUrl = 'https://api.groq.com/openai/v1';
+         else if (activeProvider === 'openrouter') baseUrl = 'https://openrouter.ai/api/v1';
+         else if (activeProvider === 'ollama' || activeProvider === 'llama') baseUrl = 'http://localhost:11434/v1';
+      }
+
+      const adapter = new OpenAiAdapter({
+         apiKey: apiKey || 'ollama',
+         baseUrl: baseUrl || undefined,
+         defaultModel: model || undefined
+      });
+      if (typeof (adapter as any).init === 'function') {
+         (adapter as any).init();
+      }
+      Ai.setAdapter(adapter);
+      Log.info(`[Backend] OpenAI-compatible (${activeProvider}) AI adapter registered successfully (BaseUrl: ${baseUrl || 'default'}, Model: ${model || 'unspecified'})`);
+   }
+}
+
+export async function reconfigureBackend() {
+   // Reload config into Config registry
+   loadUserConfig();
+
+   // Re-init AI Adapter with updated configuration
+   await configureAiAdapter();
+
    // Re-init Document Storage
-   const documentStoragePath = process.env.DOCUMENT_STORAGE_PATH || path.resolve(process.cwd(), '.second-brain-docs');
    let docAdapter: any;
-   if (process.env.S3_ACCESS_KEY && process.env.S3_SECRET_KEY) {
+   const s3AccessKey = Config.get<string>('s3.accessKey');
+   const s3SecretKey = Config.get<string>('s3.secretKey');
+
+   if (s3AccessKey && s3SecretKey) {
+      const s3Region = Config.requireString('s3.region', 'S3_REGION is required when S3 credentials are provided');
+      const s3Endpoint = Config.requireString('s3.endpoint', 'S3_ENDPOINT is required when S3 credentials are provided');
+      const s3Bucket = Config.requireString('s3.bucket', 'S3_BUCKET is required when S3 credentials are provided');
       const { S3StorageAdapter } = await import('@quatrain/storage-s3');
       docAdapter = new S3StorageAdapter({
          config: {
-            region: process.env.S3_REGION || 'us-east-1',
-            endpoint: process.env.S3_ENDPOINT,
-            accesskey: process.env.S3_ACCESS_KEY,
-            secret: process.env.S3_SECRET_KEY,
-            bucket: process.env.S3_BUCKET || 'second-brain'
+            region: s3Region,
+            endpoint: s3Endpoint,
+            accesskey: s3AccessKey,
+            secret: s3SecretKey,
+            bucket: s3Bucket
          }
       } as any);
-      Log.info(`[Backend] Document storage reconfigured with S3StorageAdapter on bucket '${process.env.S3_BUCKET || 'second-brain'}'`);
+      Log.info(`[Backend] Document storage reconfigured with S3StorageAdapter on bucket '${s3Bucket}'`);
    } else {
+      const documentStoragePath = Config.requireString('document.storagePath', 'DOCUMENT_STORAGE_PATH is required');
       docAdapter = new LocalStorageAdapter({
          config: { bucket: 'documents' },
          basePath: documentStoragePath
@@ -297,17 +440,18 @@ export async function reconfigureBackend() {
    Storage.addStorage(docAdapter, 'document-storage', true);
 
    // Re-init Git Storage
-   const gitMode = (process.env.GIT_MODE as 'local' | 'github') || 'local';
-   const gitLocalPath = process.env.GIT_LOCAL_PATH || path.resolve(process.cwd(), '.second-brain-git');
+   const gitMode = Config.requireEnum<'local' | 'github'>('git.mode', ['local', 'github'], 'GIT_MODE must be "local" or "github"');
+   const gitLocalPath = Config.requireString('git.localPath', 'GIT_LOCAL_PATH is required');
+   const gitBranch = Config.requireString('git.branch', 'GIT_BRANCH is required');
    const { GitStorageAdapter } = await import('@quatrain/storage-git');
    const gitAdapter = new GitStorageAdapter({
       config: {
          mode: gitMode,
          localPath: gitLocalPath,
-         githubToken: process.env.GIT_GITHUB_TOKEN,
-         owner: process.env.GIT_REPO_OWNER,
-         repo: process.env.GIT_REPO_NAME,
-         branch: process.env.GIT_BRANCH || 'main',
+         githubToken: Config.get<string>('git.githubToken'),
+         owner: Config.get<string>('git.repoOwner'),
+         repo: Config.get<string>('git.repoName'),
+         branch: gitBranch,
          bucket: 'metadata',
          noPush: true
       }
@@ -331,7 +475,10 @@ export async function reconfigureBackend() {
       clearInterval(existingInterval);
       delete (globalThis as any)[GIT_SYNC_INTERVAL_KEY];
    }
-   if (gitMode === 'local' && gitLocalPath) {
+   const gitAutoSync = Config.getBoolean('git.autoSync');
+   const token = Config.get<string>('git.githubToken');
+   const autoSyncEnabled = gitAutoSync === true || (gitAutoSync !== false && !!token);
+   if (autoSyncEnabled && gitMode === 'local' && gitLocalPath) {
       syncGitRepository(gitLocalPath);
       const interval = setInterval(() => {
          syncGitRepository(gitLocalPath);
@@ -340,18 +487,18 @@ export async function reconfigureBackend() {
          interval.unref();
       }
       (globalThis as any)[GIT_SYNC_INTERVAL_KEY] = interval;
+   } else if (gitMode === 'local') {
+      Log.info('[Git Sync] Auto-sync disabled in local mode (set GIT_AUTO_SYNC=true and provide GIT_GITHUB_TOKEN to enable).');
    }
 
    // Re-register Github OAuth endpoints if configuration changed
    registerGithubAuthEndpoints();
 }
 
-
-
 export function registerGithubAuthEndpoints() {
    if (!astroAdapter) return;
-   const githubClientId = process.env.GITHUB_CLIENT_ID;
-   const githubClientSecret = process.env.GITHUB_CLIENT_SECRET;
+   const githubClientId = Config.get<string>('github.clientId');
+   const githubClientSecret = Config.get<string>('github.clientSecret');
 
    if (githubClientId && githubClientSecret) {
       const githubAdapter = GithubAuthAdapter.factory({
@@ -391,55 +538,57 @@ export async function initBackend() {
    // Load configuration file overrides at startup
    loadUserConfig();
 
-   const isProd = process.env.NODE_ENV === 'production';
+   const nodeEnv = Config.requireString('node.env', 'NODE_ENV is required');
+   const isProd = nodeEnv === 'production';
    Log.addLogger('default', new DefaultLoggerAdapter('', isProd ? LogLevel.INFO : LogLevel.DEBUG), true);
 
-   const geminiApiKey = process.env.GEMINI_API_KEY;
-   if (geminiApiKey) {
-      const { GeminiAdapter } = await import('@quatrain/ai-gemini');
-      Ai.setAdapter(new GeminiAdapter(geminiApiKey));
-      Log.info('AI adapter registered successfully');
+   // Initialize AI Adapter
+   await configureAiAdapter();
+
+   const gitMode = Config.requireEnum<'local' | 'github'>('git.mode', ['local', 'github'], 'GIT_MODE must be "local" or "github"');
+   const gitLocalPath = Config.requireString('git.localPath', 'GIT_LOCAL_PATH is required');
+
+   // 1. Initialize Document Storage (S3StorageAdapter with LocalStorageAdapter fallback)
+   let docAdapter: any;
+   const s3AccessKey = Config.get<string>('s3.accessKey');
+   const s3SecretKey = Config.get<string>('s3.secretKey');
+
+   if (s3AccessKey && s3SecretKey) {
+      const s3Region = Config.requireString('s3.region', 'S3_REGION is required when S3 credentials are provided');
+      const s3Endpoint = Config.requireString('s3.endpoint', 'S3_ENDPOINT is required when S3 credentials are provided');
+      const s3Bucket = Config.requireString('s3.bucket', 'S3_BUCKET is required when S3 credentials are provided');
+      const { S3StorageAdapter } = await import('@quatrain/storage-s3');
+      docAdapter = new S3StorageAdapter({
+         config: {
+            region: s3Region,
+            endpoint: s3Endpoint,
+            accesskey: s3AccessKey,
+            secret: s3SecretKey,
+            bucket: s3Bucket
+         }
+      } as any);
+      Log.info(`Document storage configured with S3StorageAdapter on bucket '${s3Bucket}'`);
    } else {
-      Log.warn('GEMINI_API_KEY is not configured, AI adapter not set');
+      const documentStoragePath = Config.requireString('document.storagePath', 'DOCUMENT_STORAGE_PATH is required for local storage');
+      docAdapter = new LocalStorageAdapter({
+         config: { bucket: 'documents' },
+         basePath: documentStoragePath
+      } as any);
+      Log.info('Document storage configured with LocalStorageAdapter');
    }
-
-   const gitMode = (process.env.GIT_MODE as 'local' | 'github') || 'local';
-   const gitLocalPath = process.env.GIT_LOCAL_PATH || path.resolve(process.cwd(), '.second-brain-git');
-   const documentStoragePath = process.env.DOCUMENT_STORAGE_PATH || path.resolve(process.cwd(), '.second-brain-docs');
-
-    // 1. Initialize Document Storage (S3StorageAdapter with LocalStorageAdapter fallback)
-    let docAdapter: any;
-    if (process.env.S3_ACCESS_KEY && process.env.S3_SECRET_KEY) {
-       const { S3StorageAdapter } = await import('@quatrain/storage-s3');
-       docAdapter = new S3StorageAdapter({
-          config: {
-             region: process.env.S3_REGION || 'us-east-1',
-             endpoint: process.env.S3_ENDPOINT,
-             accesskey: process.env.S3_ACCESS_KEY,
-             secret: process.env.S3_SECRET_KEY,
-             bucket: process.env.S3_BUCKET || 'second-brain'
-          }
-       } as any);
-       Log.info(`Document storage configured with S3StorageAdapter on bucket '${process.env.S3_BUCKET || 'second-brain'}'`);
-    } else {
-       docAdapter = new LocalStorageAdapter({
-          config: { bucket: 'documents' },
-          basePath: documentStoragePath
-       } as any);
-       Log.info('Document storage configured with LocalStorageAdapter (S3 environment variables not set)');
-    }
-    Storage.addStorage(docAdapter, 'document-storage', false);
+   Storage.addStorage(docAdapter, 'document-storage', false);
 
    // 2. Initialize Git Storage Adapter
+   const gitBranch = Config.requireString('git.branch', 'GIT_BRANCH is required');
    const { GitStorageAdapter } = await import('@quatrain/storage-git');
    const gitAdapter = new GitStorageAdapter({
       config: {
          mode: gitMode,
          localPath: gitLocalPath,
-         githubToken: process.env.GIT_GITHUB_TOKEN,
-         owner: process.env.GIT_REPO_OWNER,
-         repo: process.env.GIT_REPO_NAME,
-         branch: process.env.GIT_BRANCH || 'main',
+         githubToken: Config.get<string>('git.githubToken'),
+         owner: Config.get<string>('git.repoOwner'),
+         repo: Config.get<string>('git.repoName'),
+         branch: gitBranch,
          bucket: 'metadata',
          noPush: true
       }
@@ -449,7 +598,7 @@ export async function initBackend() {
    // 3. Initialize OKF Backend Adapter delegating to git-storage
    const okfAdapter = new OKFBackendAdapter({
       config: {
-         database: gitLocalPath, // Fallback if no storage is active
+         database: gitLocalPath,
          storage: 'git-storage'
       },
       middlewares: [new InjectMetaMiddleware()]
@@ -457,9 +606,9 @@ export async function initBackend() {
 
    Backend.addBackend(okfAdapter, 'default', true);
 
-    // 4. Initialize API Server Astro Adapter
-    astroAdapter = new AstroAdapter();
-    registerGithubAuthEndpoints();
+   // 4. Initialize API Server Astro Adapter
+   astroAdapter = new AstroAdapter();
+   registerGithubAuthEndpoints();
 
    // Register endpoint for ContentItem
    const ContentItemApi = (router: any, rootPath: string, options: any) => {
@@ -489,38 +638,41 @@ export async function initBackend() {
    }, jellyfinPkgMeta);
 
    // Auto-activate skill if configuration credentials exist
-   if (process.env.JELLYFIN_API_KEY || (process.env.JELLYFIN_USERNAME && process.env.JELLYFIN_PASSWORD)) {
+   const jellyfinApiKey = Config.get<string>('jellyfin.apiKey');
+   const jellyfinUsername = Config.get<string>('jellyfin.username');
+   const jellyfinPassword = Config.get<string>('jellyfin.password');
+   if (jellyfinApiKey || (jellyfinUsername && jellyfinPassword)) {
       await Skills.activateSkill('jellyfin');
    }
 
    // 6. Initialize Queue Adapter
-   const queueDbDir = path.resolve(process.cwd(), '.queue');
+   const queueDbDir = Config.requireString('queue.storageDir', 'QUEUE_STORAGE_DIR is required');
    const queueDbPath = path.join(queueDbDir, 'queue.sqlite');
-   try {
-      fsSync.mkdirSync(queueDbDir, { recursive: true });
-   } catch (e) {
-      // directory already exists or error
-   }
+   fsSync.mkdirSync(queueDbDir, { recursive: true });
    Queue.addQueue(new SQLiteQueueAdapter({
       config: { database: queueDbPath }
    }), 'default', true);
 
    // 7. Initialize SearchEngine Adapter (QMD)
-   const qmdStorageDir = process.env.OKF_STORAGE_PATH || (gitMode === 'local' && gitLocalPath ? gitLocalPath : path.resolve(process.cwd(), '.second-brain-data/content'));
+   const collectionName = Config.requireString('collection.name', 'COLLECTION_NAME is required');
+   const qmdStorageDir = Config.get<string>('okf.storagePath') ?? gitLocalPath;
    const { QmdSearchEngineAdapter } = await import('@quatrain/searchengine-qmd');
    const { SearchEngine } = await import('@quatrain/searchengine');
    const searchAdapter = new QmdSearchEngineAdapter({
       alias: 'default',
       config: {
-         collectionName: 'modaka-second-brain',
+         collectionName,
          storageDir: qmdStorageDir
       }
    });
    await searchAdapter.initialize();
    SearchEngine.addEngine(searchAdapter, 'default', true);
 
-   // Start background synchronization in local mode
-   if (gitMode === 'local' && gitLocalPath) {
+   // Start background synchronization in local mode if enabled
+   const gitAutoSync = Config.getBoolean('git.autoSync');
+   const token = Config.get<string>('git.githubToken');
+   const autoSyncEnabled = gitAutoSync === true || (gitAutoSync !== false && !!token);
+   if (autoSyncEnabled && gitMode === 'local' && gitLocalPath) {
       const GIT_SYNC_INTERVAL_KEY = Symbol.for('__second_brain_git_sync_interval');
       if (!(globalThis as any)[GIT_SYNC_INTERVAL_KEY]) {
          syncGitRepository(gitLocalPath);
@@ -532,6 +684,8 @@ export async function initBackend() {
          }
          (globalThis as any)[GIT_SYNC_INTERVAL_KEY] = interval;
       }
+   } else if (gitMode === 'local') {
+      Log.info('[Git Sync] Auto-sync disabled in local mode (set GIT_AUTO_SYNC=true and provide GIT_GITHUB_TOKEN to enable).');
    }
 
    import('./queue').then(({ QueueManager }) => {
@@ -544,7 +698,7 @@ export async function initBackend() {
 }
 
 export async function triggerGitSync(): Promise<{ success: boolean; message?: string }> {
-   const gitLocalPath = process.env.GIT_LOCAL_PATH || path.resolve(process.cwd(), '.second-brain-git');
+   const gitLocalPath = Config.requireString('git.localPath', 'GIT_LOCAL_PATH is required');
    try {
       await syncGitRepository(gitLocalPath, true);
       return { success: true };

@@ -22,9 +22,9 @@ export const ALL = async (context: any) => {
             const markdownFileUri = item.val('markdownFileUri');
 
             const docStorage = Storage.getStorage('document-storage');
-            
+            const bucket = (docStorage as any)?._params?.config?.bucket;
             const getDocFile = (ref: string) => ({
-               bucket: process.env.S3_BUCKET || 'documents',
+               bucket,
                ref,
                name: ref.split('/').pop() || ''
             });
